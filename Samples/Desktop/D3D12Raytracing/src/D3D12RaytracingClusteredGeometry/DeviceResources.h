@@ -24,11 +24,12 @@
 
 namespace DX
 {
-    // Provides an interface for an application that owns DeviceResources to be notified of the device being lost or created.
-    interface IDeviceNotify
-    {
-        virtual void OnDeviceLost() = 0;
-        virtual void OnDeviceRestored() = 0;
+// Provides an interface for an application that owns DeviceResources to be notified of the device
+// being lost or created.
+interface IDeviceNotify
+{
+    virtual void OnDeviceLost() = 0;
+    virtual void OnDeviceRestored() = 0;
     };
 
     // Controls all the DirectX device resources.
@@ -66,7 +67,8 @@ namespace DX
                 {
                     if (FAILED(DXGIDeclareAdapterRemovalSupport()))
                     {
-                        OutputDebugString(L"Warning: application failed to declare adapter removal support.\n");
+                        OutputDebugString(
+                            L"Warning: application failed to declare adapter removal support.\n");
                     }
                 }
             }
@@ -80,35 +82,10 @@ namespace DX
         // -----------------------------------------------------------------
         // Async display mode (for slow software rasterizers — primarily WARP).
         //
-        // When enabled, the sample's per-frame render runs on a dedicated
-        // worker thread instead of the UI thread.  The sample is unaware
-        // -- it uses DeviceResources exactly as it does on HW, including
-        // calling Present (which still does the real swap-chain Present;
-        // we don't intercept it).  The UI thread is freed from the multi-
-        // second render and only handles message dispatch, so Windows
-        // never tags the window "(Not Responding)" and DWM never falls
-        // back to the ghost-window snapshot.
-        //
-        // WM_PAINT on the UI thread is a no-op (just ValidateRect) -- the
-        // worker thread Presents on its own schedule.
-        //
-        // WM_SIZE on the UI thread does NOT call the sample's
-        // OnSizeChanged directly (that would block the UI thread for an
-        // entire worker-render frame waiting for the in-flight GPU work
-        // to finish before ResizeBuffers).  Instead the UI thread stashes
-        // the new client size via RequestAsyncResize and returns; the
-        // worker thread sees the pending request between iterations and
-        // calls a "resize handler" callback (which runs the sample's
-        // OnSizeChanged on the worker thread) before its next render.
-        //
-        // Caveats: input handlers (WM_KEYDOWN, WM_MOUSEMOVE) dispatch on
-        // the UI thread and read/write scene state the worker is rendering
-        // from.  For a tech demo this is fine -- worst case is a visual
-        // glitch on the frame after a state change.  A production
-        // renderer would mutex the state or queue inputs.
-        //
-        // Zero sample-code changes required; the routing is fully inside
-        // DeviceResources + Win32Application.
+        // The worker owns rendering, presentation, queued keyboard actions, and
+        // resize callbacks. WM_PAINT only validates the window while this mode
+        // is active, keeping the UI responsive during slow software frames.
+        // Run checks worker failures on the UI thread and joins it before teardown.
         // -----------------------------------------------------------------
         using AsyncRenderCallback = std::function<void()>;
         using AsyncResizeCallback = std::function<void(UINT width, UINT height, bool minimized)>;
@@ -134,20 +111,32 @@ namespace DX
         IDXGIFactory4*              GetDXGIFactory() const { return m_dxgiFactory.Get(); }
         IDXGISwapChain3*            GetSwapChain() const { return m_swapChain.Get(); }
         D3D_FEATURE_LEVEL           GetDeviceFeatureLevel() const { return m_d3dFeatureLevel; }
-        ID3D12Resource*             GetRenderTarget() const { return m_renderTargets[m_backBufferIndex].Get(); }
+        ID3D12Resource* GetRenderTarget() const
+        {
+            return m_renderTargets[m_backBufferIndex].Get();
+        }
         ID3D12Resource*             GetDepthStencil() const { return m_depthStencil.Get(); }
         ID3D12CommandQueue*         GetCommandQueue() const { return m_commandQueue.Get(); }
-        ID3D12CommandAllocator*     GetCommandAllocator() const { return m_commandAllocators[m_backBufferIndex].Get(); }
+        ID3D12CommandAllocator* GetCommandAllocator() const
+        {
+            return m_commandAllocators[m_backBufferIndex].Get();
+        }
         ID3D12GraphicsCommandList*  GetCommandList() const { return m_commandList.Get(); }
         DXGI_FORMAT                 GetBackBufferFormat() const { return m_backBufferFormat; }
         DXGI_FORMAT                 GetDepthBufferFormat() const { return m_depthBufferFormat; }
         D3D12_VIEWPORT              GetScreenViewport() const { return m_screenViewport; }
         D3D12_RECT                  GetScissorRect() const { return m_scissorRect; }
         UINT                        GetCurrentFrameIndex() const { return m_backBufferIndex; }
-        UINT                        GetPreviousFrameIndex() const { return m_backBufferIndex == 0 ? m_backBufferCount - 1 : m_backBufferIndex - 1; }
+        UINT GetPreviousFrameIndex() const
+        {
+            return m_backBufferIndex == 0 ? m_backBufferCount - 1 : m_backBufferIndex - 1;
+        }
         UINT                        GetBackBufferCount() const { return m_backBufferCount; }
         unsigned int                GetDeviceOptions() const { return m_options; }
-        LPCWSTR                     GetAdapterDescription() const { return m_adapterDescription.c_str(); }
+        LPCWSTR GetAdapterDescription() const
+        {
+            return m_adapterDescription.c_str();
+        }
         UINT                        GetAdapterID() const { return m_adapterID; }
         // Adapter / driver identity captured during InitializeAdapter.  Used
         // by the benchmark JSON dump so swept results can be tagged with the
@@ -155,18 +144,27 @@ namespace DX
         // Driver version comes from IDXGIAdapter::CheckInterfaceSupport's
         // UMDVersion (Windows User-Mode Driver), formatted as A.B.C.D.  Blank
         // string if the query failed (e.g. WARP).
-        LPCWSTR                     GetDriverVersionString() const { return m_driverVersion.c_str(); }
+        LPCWSTR GetDriverVersionString() const
+        {
+            return m_driverVersion.c_str();
+        }
         UINT                        GetAdapterVendorId()   const { return m_adapterVendorId; }
         UINT                        GetAdapterDeviceId()   const { return m_adapterDeviceId; }
-        UINT64                      GetDedicatedVideoMemoryBytes() const { return m_adapterDedicatedVideoMemory; }
+        UINT64 GetDedicatedVideoMemoryBytes() const
+        {
+            return m_adapterDedicatedVideoMemory;
+        }
 
         CD3DX12_CPU_DESCRIPTOR_HANDLE GetRenderTargetView() const
         {
-            return CD3DX12_CPU_DESCRIPTOR_HANDLE(m_rtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), m_backBufferIndex, m_rtvDescriptorSize);
+            return CD3DX12_CPU_DESCRIPTOR_HANDLE(
+                m_rtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), m_backBufferIndex,
+                m_rtvDescriptorSize);
         }
         CD3DX12_CPU_DESCRIPTOR_HANDLE GetDepthStencilView() const
         {
-            return CD3DX12_CPU_DESCRIPTOR_HANDLE(m_dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
+            return CD3DX12_CPU_DESCRIPTOR_HANDLE(
+                m_dsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
         }
 
     private:
@@ -193,7 +191,7 @@ namespace DX
         Microsoft::WRL::ComPtr<ID3D12Device>                m_d3dDevice;
         Microsoft::WRL::ComPtr<ID3D12CommandQueue>          m_commandQueue;
         Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList>   m_commandList;
-        Microsoft::WRL::ComPtr<ID3D12CommandAllocator>      m_commandAllocators[MAX_BACK_BUFFER_COUNT];
+        Microsoft::WRL::ComPtr<ID3D12CommandAllocator> m_commandAllocators[MAX_BACK_BUFFER_COUNT];
 
         // Swap chain objects.
         Microsoft::WRL::ComPtr<IDXGIFactory4>               m_dxgiFactory;
@@ -248,30 +246,9 @@ namespace DX
         UINT                                                m_asyncResizeHeight = 0;
         bool                                                m_asyncResizeMinimized = false;
 
-        // Pending-action queue.  In async-display mode the UI-thread input
-        // handlers (currently only WM_KEYDOWN) push closures here instead
-        // of running the sample's OnKeyDown synchronously -- the worker
-        // drains the queue at the top of each iteration and runs the
-        // closures on its own thread.
-        //
-        // Why we don't just synchronize via a mutex around RebuildStatic:
-        // tried that first.  RebuildStaticAccelerationStructures runs on
-        // the UI thread when WM_KEYDOWN dispatches a T/A/V/[/] press;
-        // taking a "frame mutation" mutex held by the worker would block
-        // the UI thread for the duration of the worker's current frame
-        // (multi-SECOND on WARP).  During that block the UI thread's
-        // message pump is frozen -> window goes "(Not Responding)" -> the
-        // user assumes it crashed and Task-Manager-kills it.  Queueing
-        // the keypress instead means the UI thread NEVER does D3D12 work
-        // in async mode, so the pump stays responsive and the worker
-        // processes the input at its own pace.
-        //
-        // Coalescing: NOT done.  Five rapid T presses queue five
-        // rebuilds in order; the user sees the final state after a delay
-        // proportional to the number of presses.  Acceptable for a
-        // tech demo + WARP is already slow enough that rapid-fire input
-        // isn't expected.  If it became a problem we'd switch to "keep
-        // only the latest per-key" coalescing.
+        // UI input queues actions for the worker to drain between frames.
+        // Preserve input order rather than coalescing toggles. This keeps GPU
+        // resource mutation on one thread without blocking the UI on a frame lock.
         std::mutex                                          m_asyncActionsMutex;
         std::deque<std::function<void()>>                   m_pendingAsyncActions;
     public:

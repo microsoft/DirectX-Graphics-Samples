@@ -147,49 +147,26 @@ void D3D12RaytracingClusteredGeometry::EnsureCloneSourceLodMeshes()
         m_cloneSourceLodMeshes[5] = std::move(chain);
     }
 
-    SampleLog::LogF(L"[clone-lod] generated %zu chains: sphere0=%zu, torus=%zu, cube=%zu, klein=%zu\n",
-                    m_cloneSourceLodMeshes.size(),
-                    m_cloneSourceLodMeshes.count(0) ? m_cloneSourceLodMeshes[0].size() : 0,
-                    m_cloneSourceLodMeshes.count(4) ? m_cloneSourceLodMeshes[4].size() : 0,
-                    m_cloneSourceLodMeshes.count(5) ? m_cloneSourceLodMeshes[5].size() : 0,
-                    m_cloneSourceLodMeshes.count(8) ? m_cloneSourceLodMeshes[8].size() : 0);
+    SampleLog::LogF(
+        L"[clone-lod] generated %zu chains: sphere0=%zu, torus=%zu, cube=%zu, klein=%zu\n",
+        m_cloneSourceLodMeshes.size(),
+        m_cloneSourceLodMeshes.count(0) ? m_cloneSourceLodMeshes[0].size() : 0,
+        m_cloneSourceLodMeshes.count(4) ? m_cloneSourceLodMeshes[4].size() : 0,
+        m_cloneSourceLodMeshes.count(5) ? m_cloneSourceLodMeshes[5].size() : 0,
+        m_cloneSourceLodMeshes.count(8) ? m_cloneSourceLodMeshes[8].size() : 0);
 }
 
 
 // ---- RegenerateWorkloadCloneInstances -------------------------------------------
 // ---------------------------------------------------------------------------------
-// [N] workload-scaling clone generator.  Called at the top of
-// RebuildStaticAccelerationStructures BEFORE the per-object resource
-// reset + build pipeline runs, so the build code naturally builds
-// CLAS+BLAS for every clone (1:1 instance:BLAS, matching the user's
-// "stress CLAS+CBLAS+templates progressively" intent).
+// Regenerate workload clones before rebuilding their GPU resources.
+// Static clones copy a source mesh and receive independent CLAS/BLAS storage.
+// Animated clones share deformed source positions and CLAS, with separate BLAS
+// destinations where the active path's pool allows them.
 //
-// Each clone:
-//   * Cycles src = i % m_sourceObjectCount through the source pool
-//     (currently static-only -- animated source isn't in m_objects so
-//     it's skipped here; anim-clone follow-up is a separate task).
-//   * Deep-copies the source's mesh + encoded vertex blob (heavy but
-//     keeps build code unchanged -- no obj.mesh redirection plumbing).
-//   * Clears all GPU-resource ComPtrs so the upcoming reset loop is a
-//     no-op for the clone (and the upcoming build allocates fresh).
-//   * Gets a spiral world position via golden-angle sunflower packing
-//     starting just outside the floor, rising slowly in y so distant
-//     clones don't fully occlude near ones.
-//   * Records a uniformly-random material slot in obj.instanceID; the
-//     TLAS-build code reads this to populate the per-instance material
-//     override buffer (sentinel 0xFFFFFFFFu = no override for sources).
-//     Choosing 'instanceID' for this payload is a slight repurposing
-//     -- for sources it's the natural per-object material slot; for
-//     clones it doubles as the random override.  BuildTlasClassic
-//     distinguishes them via the index range [m_sourceObjectCount..end).
-//
-// Memory cost dominates at 10K:
-//   * Mesh deep-copies: ~250 KB/clone * 10K = ~2.5 GB CPU RAM
-//   * CLAS arrays:      ~200 clusters/clone * 500 B = ~100 KB GPU/clone
-//   * BLAS storage:     ~50 KB GPU/clone
-//   Total ~1.5 GB GPU + 2.5 GB CPU at 10K on a 4090-class card.
-// Build time at 10K is dominated by ~2M CLAS builds + 10K BLAS-from-CLAS;
-// expect 1-3 second toggle-delay (one-shot, doesn't repeat per frame).
+// Golden-angle placement and lower-tessellation LODs keep the expanded scene
+// visible. Static clones store a random material override in instanceID;
+// BuildTlasClassic distinguishes them by the m_sourceObjectCount boundary.
 // ---------------------------------------------------------------------------------
 void D3D12RaytracingClusteredGeometry::RegenerateWorkloadCloneInstances()
 {
@@ -297,12 +274,8 @@ void D3D12RaytracingClusteredGeometry::RegenerateWorkloadCloneInstances()
     // position 4 spawns an animated clone (every 5th clone is animated
     // -> N=100 yields 20 anim clones, N=1K yields 200, N=10K yields 2000).
     //
-    // CURRENT model for animated clones (phase 1): each anim clone is
-    // a TLAS instance pointing at the SOURCE's blasGPUVA -- they share
-    // the source's per-frame CLAS+BLAS result so per-frame work is
-    // O(1) regardless of clone count.  Phase 2 will give each anim
-    // clone its own per-frame CLAS+BLAS to actually stress those
-    // paths progressively.
+    // The animated setup allocates clone BLAS destinations after this list is
+    // generated; zero addresses retain the shared-source fallback.
     //
     // Match by instanceID rather than vector index so this stays
     // robust to scene-data reordering.
@@ -443,7 +416,7 @@ void D3D12RaytracingClusteredGeometry::RegenerateWorkloadCloneInstances()
     const float kLodFullDetailFrac = 0.25f;  // first 25% of radial range = full detail
     // Pre-compute maxRadius matching the spiral formula so we can
     // normalize the radius-to-LOD-bucket lookup.
-    const float kMaxRadius     = kInnerRadius + sqrtf((float)std::max(N_extra, 1u)) * kRadialSpacing;
+    const float kMaxRadius = kInnerRadius + sqrtf((float)std::max(N_extra, 1u)) * kRadialSpacing;
     const float kLodRadialSpan = std::max(0.001f, kMaxRadius - kInnerRadius);
     if (kLodEnabled)
         EnsureCloneSourceLodMeshes();
@@ -511,7 +484,8 @@ void D3D12RaytracingClusteredGeometry::RegenerateWorkloadCloneInstances()
             heightY,
             radius * sinf(angle)
         };
-        const DirectX::XMFLOAT3 randRot = { rotDist(perCloneRng), rotDist(perCloneRng), rotDist(perCloneRng) };
+        const DirectX::XMFLOAT3 randRot = {rotDist(perCloneRng), rotDist(perCloneRng),
+                                           rotDist(perCloneRng)};
         const float             randScale = scaleDist(perCloneRng);
         const UINT              randMatSlot = matSlotDist(perCloneRng);
 

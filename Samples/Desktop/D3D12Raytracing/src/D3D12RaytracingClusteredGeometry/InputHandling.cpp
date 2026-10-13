@@ -31,7 +31,8 @@ using namespace DirectX;
 using Microsoft::WRL::ComPtr;
 
 // ---- ParseCommandLineArgs -------------------------------------------
-void D3D12RaytracingClusteredGeometry::ParseCommandLineArgs(_In_reads_(argc) WCHAR* argv[], int argc)
+void D3D12RaytracingClusteredGeometry::ParseCommandLineArgs(_In_reads_(argc) WCHAR* argv[],
+                                                            int argc)
 {
     DXSample::ParseCommandLineArgs(argv, argc);
     for (int i = 1; i < argc; i++)
@@ -56,7 +57,8 @@ void D3D12RaytracingClusteredGeometry::ParseCommandLineArgs(_In_reads_(argc) WCH
         else if (_wcsicmp(argv[i], L"--vertex-format") == 0 && i + 1 < argc)
         {
             if      (_wcsicmp(argv[i+1], L"float")      == 0) m_vertexMode = VertexMode::Float32_3;
-            else if (_wcsicmp(argv[i+1], L"compressed") == 0) m_vertexMode = VertexMode::Compressed1;
+            else if (_wcsicmp(argv[i + 1], L"compressed") == 0)
+                m_vertexMode = VertexMode::Compressed1;
             i += 1;
         }
         else if (_wcsicmp(argv[i], L"--clas-alloc") == 0 && i + 1 < argc)
@@ -64,9 +66,12 @@ void D3D12RaytracingClusteredGeometry::ParseCommandLineArgs(_In_reads_(argc) WCH
             // CLAS memory-allocation strategy. See ClasAllocMode in the header for
             // the contract of each mode; the [CLAS mem] log line at init time
             // reports the stats that change between them.
-            if      (_wcsicmp(argv[i+1], L"implicit")  == 0) m_clasAllocMode = ClasAllocMode::Implicit;
-            else if (_wcsicmp(argv[i+1], L"get-sizes") == 0) m_clasAllocMode = ClasAllocMode::GetSizes;
-            else if (_wcsicmp(argv[i+1], L"compact")   == 0) m_clasAllocMode = ClasAllocMode::Compact;
+            if (_wcsicmp(argv[i + 1], L"implicit") == 0)
+                m_clasAllocMode = ClasAllocMode::Implicit;
+            else if (_wcsicmp(argv[i + 1], L"get-sizes") == 0)
+                m_clasAllocMode = ClasAllocMode::GetSizes;
+            else if (_wcsicmp(argv[i + 1], L"compact") == 0)
+                m_clasAllocMode = ClasAllocMode::Compact;
             i += 1;
         }
         else if (_wcsicmp(argv[i], L"--position-truncate") == 0 && i + 1 < argc)
@@ -86,8 +91,10 @@ void D3D12RaytracingClusteredGeometry::ParseCommandLineArgs(_In_reads_(argc) WCH
             // [T] runtime toggle, set from CLI for headless / scripted runs.
             //   clusters    - DXR2 cluster-based BLAS (default)
             //   traditional - classic DXR1 per-object monolithic BLAS
-            if      (_wcsicmp(argv[i+1], L"clusters")    == 0) m_geometryMode = GeometryMode::Clusters;
-            else if (_wcsicmp(argv[i+1], L"traditional") == 0) m_geometryMode = GeometryMode::Traditional;
+            if (_wcsicmp(argv[i + 1], L"clusters") == 0)
+                m_geometryMode = GeometryMode::Clusters;
+            else if (_wcsicmp(argv[i + 1], L"traditional") == 0)
+                m_geometryMode = GeometryMode::Traditional;
             i += 1;
         }
         else if (_wcsicmp(argv[i], L"--build-flags") == 0 && i + 1 < argc)
@@ -97,16 +104,20 @@ void D3D12RaytracingClusteredGeometry::ParseCommandLineArgs(_In_reads_(argc) WCH
             //   fast-build - PREFER_FAST_BUILD / FAST_BUILD
             //   fast-trace - PREFER_FAST_TRACE / FAST_TRACE (default)
             if      (_wcsicmp(argv[i+1], L"none")       == 0) m_buildFlagMode = BuildFlagMode::None;
-            else if (_wcsicmp(argv[i+1], L"fast-build") == 0) m_buildFlagMode = BuildFlagMode::FastBuild;
-            else if (_wcsicmp(argv[i+1], L"fast-trace") == 0) m_buildFlagMode = BuildFlagMode::FastTrace;
+            else if (_wcsicmp(argv[i + 1], L"fast-build") == 0)
+                m_buildFlagMode = BuildFlagMode::FastBuild;
+            else if (_wcsicmp(argv[i + 1], L"fast-trace") == 0)
+                m_buildFlagMode = BuildFlagMode::FastTrace;
             i += 1;
         }
         else if (_wcsicmp(argv[i], L"--trad-alloc") == 0 && i + 1 < argc)
         {
             // [A] runtime toggle in traditional mode, set from CLI.  Mirrors
             // the cluster path's --clas-alloc but two-mode instead of three.
-            if      (_wcsicmp(argv[i+1], L"implicit") == 0) m_traditionalAllocMode = TraditionalAllocMode::Implicit;
-            else if (_wcsicmp(argv[i+1], L"compact")  == 0) m_traditionalAllocMode = TraditionalAllocMode::Compact;
+            if (_wcsicmp(argv[i + 1], L"implicit") == 0)
+                m_traditionalAllocMode = TraditionalAllocMode::Implicit;
+            else if (_wcsicmp(argv[i + 1], L"compact") == 0)
+                m_traditionalAllocMode = TraditionalAllocMode::Compact;
             i += 1;
         }
         else if (_wcsicmp(argv[i], L"--trad-anim") == 0 && i + 1 < argc)
@@ -122,8 +133,10 @@ void D3D12RaytracingClusteredGeometry::ParseCommandLineArgs(_In_reads_(argc) WCH
             //             No equivalent in the cluster path -- INSTANTIATE
             //             always re-encodes leaves and BUILD_BLAS_FROM_CLAS
             //             always re-tops the BLAS.
-            if      (_wcsicmp(argv[i+1], L"rebuild") == 0) m_traditionalAnimMode = TraditionalAnimMode::Rebuild;
-            else if (_wcsicmp(argv[i+1], L"refit")   == 0) m_traditionalAnimMode = TraditionalAnimMode::Refit;
+            if (_wcsicmp(argv[i + 1], L"rebuild") == 0)
+                m_traditionalAnimMode = TraditionalAnimMode::Rebuild;
+            else if (_wcsicmp(argv[i + 1], L"refit") == 0)
+                m_traditionalAnimMode = TraditionalAnimMode::Refit;
             i += 1;
         }
         else if (_wcsicmp(argv[i], L"--rebuild-mode") == 0 && i + 1 < argc)
@@ -134,9 +147,12 @@ void D3D12RaytracingClusteredGeometry::ParseCommandLineArgs(_In_reads_(argc) WCH
             //   blas      - re-run BUILD_BLAS_FROM_CLAS every frame
             //   clas-blas - re-run static CLAS + BLAS every frame (CLAS only
             //               actually runs in --clas-alloc implicit)
-            if      (_wcsicmp(argv[i+1], L"none")      == 0) m_staticRebuildMode = StaticRebuildMode::None;
-            else if (_wcsicmp(argv[i+1], L"blas")      == 0) m_staticRebuildMode = StaticRebuildMode::BlasOnly;
-            else if (_wcsicmp(argv[i+1], L"clas-blas") == 0) m_staticRebuildMode = StaticRebuildMode::ClasAndBlas;
+            if (_wcsicmp(argv[i + 1], L"none") == 0)
+                m_staticRebuildMode = StaticRebuildMode::None;
+            else if (_wcsicmp(argv[i + 1], L"blas") == 0)
+                m_staticRebuildMode = StaticRebuildMode::BlasOnly;
+            else if (_wcsicmp(argv[i + 1], L"clas-blas") == 0)
+                m_staticRebuildMode = StaticRebuildMode::ClasAndBlas;
             i += 1;
         }
         else if (_wcsicmp(argv[i], L"--log-pf-every") == 0 && i + 1 < argc)
@@ -177,11 +193,12 @@ void D3D12RaytracingClusteredGeometry::ParseCommandLineArgs(_In_reads_(argc) WCH
             // and incurs a per-frame stall.
             const wchar_t* v = argv[i+1];
             if      (_wcsicmp(v, L"0")     == 0)  m_extraInstancesMode = ExtraInstancesMode::None;
-            else if (_wcsicmp(v, L"100")   == 0)  m_extraInstancesMode = ExtraInstancesMode::Hundred;
-            else if (_wcsicmp(v, L"1000")  == 0 ||
-                     _wcsicmp(v, L"1k")    == 0)  m_extraInstancesMode = ExtraInstancesMode::Thousand;
-            else if (_wcsicmp(v, L"10000") == 0 ||
-                     _wcsicmp(v, L"10k")   == 0)  m_extraInstancesMode = ExtraInstancesMode::TenThousand;
+            else if (_wcsicmp(v, L"100") == 0)
+                m_extraInstancesMode = ExtraInstancesMode::Hundred;
+            else if (_wcsicmp(v, L"1000") == 0 || _wcsicmp(v, L"1k") == 0)
+                m_extraInstancesMode = ExtraInstancesMode::Thousand;
+            else if (_wcsicmp(v, L"10000") == 0 || _wcsicmp(v, L"10k") == 0)
+                m_extraInstancesMode = ExtraInstancesMode::TenThousand;
             i += 1;
         }
         else if (_wcsicmp(argv[i], L"--bench-seconds") == 0 && i + 1 < argc)
@@ -300,16 +317,8 @@ void D3D12RaytracingClusteredGeometry::ParseCommandLineArgs(_In_reads_(argc) WCH
 // ---- OnKeyDown -------------------------------------------
 void D3D12RaytracingClusteredGeometry::OnKeyDown(UINT8 key)
 {
-    // ----- Space / M = camera pan + animation toggle.  Decoupled in the
-    //   pause-fix refactor: pre-decoupling Space toggled m_animSeconds which
-    //   drove BOTH camera orbit and per-vertex animation, so freezing one
-    //   froze the other.  Now Space toggles ONLY camera (m_cameraSeconds),
-    //   M toggles ONLY animation (m_animSeconds).  Useful for the bench
-    //   script: --camera-paused locks viewpoint -> stable per-frame cost,
-    //   while animation keeps running so per-frame anim AS rebuilds are
-    //   still measured.  Interactive use: hit Space to study a frame
-    //   without losing animation, hit M to freeze the wobble without
-    //   stopping the orbit.
+    // Camera and animation have independent clocks, so either can be paused
+    // without stopping the other or disabling per-frame AS work.
     if (key == VK_SPACE)
     {
         m_cameraPaused = !m_cameraPaused;
@@ -341,7 +350,8 @@ void D3D12RaytracingClusteredGeometry::OnKeyDown(UINT8 key)
             m_traditionalAllocMode = (m_traditionalAllocMode == TraditionalAllocMode::Compact)
                                      ? TraditionalAllocMode::Implicit
                                      : TraditionalAllocMode::Compact;
-            SampleLog::LogF(L"[input] traditional BLAS alloc mode -> %s\n", TraditionalAllocModeName());
+            SampleLog::LogF(L"[input] traditional BLAS alloc mode -> %s\n",
+                            TraditionalAllocModeName());
         }
         RebuildStaticAccelerationStructures(L"alloc-mode toggle");
     }
@@ -368,9 +378,15 @@ void D3D12RaytracingClusteredGeometry::OnKeyDown(UINT8 key)
         if (m_geometryMode != GeometryMode::Clusters) return;
         switch (m_staticRebuildMode)
         {
-        case StaticRebuildMode::None:        m_staticRebuildMode = StaticRebuildMode::BlasOnly;    break;
-        case StaticRebuildMode::BlasOnly:    m_staticRebuildMode = StaticRebuildMode::ClasAndBlas; break;
-        case StaticRebuildMode::ClasAndBlas: m_staticRebuildMode = StaticRebuildMode::None;        break;
+        case StaticRebuildMode::None:
+            m_staticRebuildMode = StaticRebuildMode::BlasOnly;
+            break;
+        case StaticRebuildMode::BlasOnly:
+            m_staticRebuildMode = StaticRebuildMode::ClasAndBlas;
+            break;
+        case StaticRebuildMode::ClasAndBlas:
+            m_staticRebuildMode = StaticRebuildMode::None;
+            break;
         }
         SampleLog::LogF(L"[input] static rebuild mode -> %s\n", StaticRebuildModeName());
         CaptureOverlayStatsSnapshot();
@@ -404,19 +420,22 @@ void D3D12RaytracingClusteredGeometry::OnKeyDown(UINT8 key)
     }
     else if (key == 'N' || key == 'n')
     {
-        // [N] cycles workload scaling: extra cloned TLAS instances
-        // spiraling out from the floor.  Each clone gets its OWN full
-        // CLAS + BLAS set (no GVA sharing); animated clones add their
-        // own per-frame INSTANTIATE_CLUSTER_TEMPLATES + BUILD_BLAS_FROM_CLAS
-        // work.  Triggers a full RebuildStaticAccelerationStructures
-        // which clones+builds all extras and rebuilds the TLAS.  Toggle
-        // delay scales with count -- ~1s at 10K on a 4090.
+        // Rebuild the selected clone workload and TLAS. Static clones get
+        // independent AS storage; animated clones reuse source positions/CLAS.
         switch (m_extraInstancesMode)
         {
-        case ExtraInstancesMode::None:        m_extraInstancesMode = ExtraInstancesMode::Hundred;     break;
-        case ExtraInstancesMode::Hundred:     m_extraInstancesMode = ExtraInstancesMode::Thousand;    break;
-        case ExtraInstancesMode::Thousand:    m_extraInstancesMode = ExtraInstancesMode::TenThousand; break;
-        case ExtraInstancesMode::TenThousand: m_extraInstancesMode = ExtraInstancesMode::None;        break;
+        case ExtraInstancesMode::None:
+            m_extraInstancesMode = ExtraInstancesMode::Hundred;
+            break;
+        case ExtraInstancesMode::Hundred:
+            m_extraInstancesMode = ExtraInstancesMode::Thousand;
+            break;
+        case ExtraInstancesMode::Thousand:
+            m_extraInstancesMode = ExtraInstancesMode::TenThousand;
+            break;
+        case ExtraInstancesMode::TenThousand:
+            m_extraInstancesMode = ExtraInstancesMode::None;
+            break;
         }
         SampleLog::LogF(L"[input] extra instances -> %s\n", ExtraInstancesModeName());
         RebuildStaticAccelerationStructures(L"extra-instances toggle");
@@ -492,7 +511,8 @@ void D3D12RaytracingClusteredGeometry::OnKeyDown(UINT8 key)
             if (wantLess)  m_compressedBitsPerComponent = (prev <= 1u)  ? 1u  : prev - 1u;
             else           m_compressedBitsPerComponent = (prev >= 16u) ? prev : prev + 1u;
             if (m_compressedBitsPerComponent == prev) return;
-            SampleLog::LogF(L"[input] compressed1 bits/component -> %u\n", m_compressedBitsPerComponent);
+            SampleLog::LogF(L"[input] compressed1 bits/component -> %u\n",
+                            m_compressedBitsPerComponent);
         }
         RebuildStaticAccelerationStructures(L"precision slider");
     }

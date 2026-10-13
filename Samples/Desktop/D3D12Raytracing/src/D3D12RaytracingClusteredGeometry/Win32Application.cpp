@@ -42,7 +42,8 @@ int Win32Application::Run(DXSample* pSample, HINSTANCE hInstance, int nCmdShow)
         windowClass.lpszClassName = L"DXSampleClass";
         RegisterClassEx(&windowClass);
 
-        RECT windowRect = { 0, 0, static_cast<LONG>(pSample->GetWidth()), static_cast<LONG>(pSample->GetHeight()) };
+        RECT windowRect = {0, 0, static_cast<LONG>(pSample->GetWidth()),
+                           static_cast<LONG>(pSample->GetHeight())};
         AdjustWindowRect(&windowRect, WS_OVERLAPPEDWINDOW, FALSE);
 
         // Create the window and store a handle to it.
@@ -73,17 +74,9 @@ int Win32Application::Run(DXSample* pSample, HINSTANCE hInstance, int nCmdShow)
         if (m_windowFailure)
             std::rethrow_exception(m_windowFailure);
 
-        // On software adapters (WARP / Basic Render), spin up the async
-        // display worker: the sample's OnRender (slow on a CPU rasterizer
-        // -- >1 s/frame at high res) runs on a dedicated thread that
-        // writes into an offscreen RT, and the UI thread's WM_PAINT just
-        // blits the latest offscreen into the back buffer and Presents.
-        // This is what keeps the message pump responsive on slow frames
-        // and prevents Windows "(Not Responding)" / DWM ghost-mode
-        // bouncing when the user maximizes the window.
-        //
-        // On hardware adapters: not used.  WM_PAINT calls OnUpdate +
-        // OnRender directly as before.
+        // Software rendering and presentation run on a worker so slow frames
+        // do not block the UI pump. Keyboard and resize callbacks are queued
+        // to that worker; hardware rendering stays in WM_PAINT.
         if (isSoftwareAdapter)
         {
             pSample->GetDeviceResources()->EnableAsyncDisplay(
@@ -180,7 +173,9 @@ void Win32Application::ToggleFullscreenWindow(IDXGISwapChain* pSwapChain)
         GetWindowRect(m_hwnd, &m_windowRect);
 
         // Make the window borderless so that the client area can fill the screen.
-        SetWindowLong(m_hwnd, GWL_STYLE, m_windowStyle & ~(WS_CAPTION | WS_MAXIMIZEBOX | WS_MINIMIZEBOX | WS_SYSMENU | WS_THICKFRAME));
+        SetWindowLong(m_hwnd, GWL_STYLE,
+                      m_windowStyle & ~(WS_CAPTION | WS_MAXIMIZEBOX | WS_MINIMIZEBOX | WS_SYSMENU |
+                                        WS_THICKFRAME));
 
         RECT fullscreenWindowRect;
         try
@@ -276,7 +271,8 @@ LRESULT Win32Application::HandleWindowMessage(HWND hWnd, UINT message, WPARAM wP
     {
         // Save the DXSample* passed in to CreateWindow.
         LPCREATESTRUCT pCreateStruct = reinterpret_cast<LPCREATESTRUCT>(lParam);
-        SetWindowLongPtr(hWnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(pCreateStruct->lpCreateParams));
+        SetWindowLongPtr(hWnd, GWLP_USERDATA,
+                         reinterpret_cast<LONG_PTR>(pCreateStruct->lpCreateParams));
     }
     return 0;
 
@@ -351,7 +347,8 @@ LRESULT Win32Application::HandleWindowMessage(HWND hWnd, UINT message, WPARAM wP
         {
             RECT windowRect = {};
             GetWindowRect(hWnd, &windowRect);
-            pSample->SetWindowBounds(windowRect.left, windowRect.top, windowRect.right, windowRect.bottom);
+            pSample->SetWindowBounds(windowRect.left, windowRect.top, windowRect.right,
+                                     windowRect.bottom);
 
             RECT clientRect = {};
             GetClientRect(hWnd, &clientRect);
@@ -383,7 +380,8 @@ LRESULT Win32Application::HandleWindowMessage(HWND hWnd, UINT message, WPARAM wP
         {
             RECT windowRect = {};
             GetWindowRect(hWnd, &windowRect);
-            pSample->SetWindowBounds(windowRect.left, windowRect.top, windowRect.right, windowRect.bottom);
+            pSample->SetWindowBounds(windowRect.left, windowRect.top, windowRect.right,
+                                     windowRect.bottom);
 
             int xPos = (int)(short)LOWORD(lParam);
             int yPos = (int)(short)HIWORD(lParam);

@@ -1,6 +1,6 @@
 // Raytracing.hlsl
 //
-// Stage C+D: per-instance materials with four kinds:
+// Per-instance materials with four kinds:
 //   OPAQUE      diffuse + shadow only
 //   REFLECTIVE  diffuse + shadow + 1-bounce reflection
 //   REFRACTIVE  diffuse + shadow + 1-bounce refraction (Snell, IOR per material)
@@ -31,16 +31,12 @@ StructuredBuffer<MaterialDesc>    g_materials : register(t1);
 // look them up by triangle corner) ride along in these BYTE-ADDRESS
 // buffers, indexed by ClusterID() + PrimitiveIndex() in the closesthit.
 //
-// We use ByteAddressBuffer (not StructuredBuffer<T>) because root SRVs +
-// vector-typed StructuredBuffers (uint2, float3) have implementation-
-// defined stride padding behaviour - we hit a bug where
-// `StructuredBuffer<uint2>` returned garbage offsets even though the
-// element type was 8 bytes packed.  ByteAddressBuffer + manual
-// offsets eliminates the ambiguity:  WE compute the byte address, the
-// runtime just does a raw load.
-ByteAddressBuffer                 g_clusterNormals : register(t2);   // float3 stored as 16 bytes (with .w padding)
+// Raw buffers make the CPU/GPU byte layout explicit, including float3 padding
+// and the paired per-cluster offsets. Each load computes its byte address.
+ByteAddressBuffer g_clusterNormals : register(t2); // float3 stored as 16 bytes (with .w padding)
 ByteAddressBuffer                 g_clusterIndices : register(t3);   // uint  stored as  4 bytes
-ByteAddressBuffer                 g_clusterOffsets : register(t4);   // uint2 stored as  8 bytes (vertOff, idxOff per cluster)
+ByteAddressBuffer g_clusterOffsets
+    : register(t4); // uint2 stored as  8 bytes (vertOff, idxOff per cluster)
 // Per-cluster GENERIC metadata buffer (ClusterMeta, 48B per cluster).
 // Drives ALL per-cluster material / colour decisions in the closesthit -
 // no in-shader InstanceID() branches, no cid-range hardcoding, no parity
@@ -128,29 +124,11 @@ struct ShadowPayload { bool inShadow; };
 struct [raypayload] Payload
 {
     float4 color : write(miss, closesthit) : read(caller);
-    // Explicit recursion-depth field. caller writes (raygen=0; bounced
-    // closesthit caller writes parentDepth+1), closesthit reads to decide
-    // whether to keep recursing. Kept separate from .color (rather than
-    // packed into .color.a) because the SM 6.10 raypayload qualifier's
-    // mixed write(caller, miss, closesthit) on the same field doesn't
-    // reliably propagate caller writes through to the closesthit on this
-    // driver; using a dedicated field with single-direction write(caller)
-    // + read(closesthit) qualifiers sidesteps the issue.
+    // Keep caller-written recursion state separate from hit/miss-written color.
     uint   depth : write(caller)        : read(closesthit);
-    // GLASS DEPTH = how many glass volumes the ray is currently inside.
-    // 0 = in air; 1 = inside one glass volume (ordinary case); 2+ = nested
-    // (inside multiple coincident glass volumes simultaneously, which
-    // happens on SELF-INTERSECTING surfaces like the Klein bottle where
-    // the handle's wall physically passes through the body's interior).
-    //
-    // At every refraction we look at the OLD depth vs the NEW depth:
-    //   air → glass (0 → 1): real refraction, eta = 1/ior
-    //   glass → air (1 → 0): real refraction, eta = ior
-    //   glass → glass (n → n±1 with both >0): NO refraction (eta = 1),
-    //                                          ray continues straight.
-    // Without this, a ray inside the body that crosses the handle's wall
-    // would refract spuriously and end up pointing somewhere wrong
-    // (typically down to the floor → sand-coloured "hole" in the bottle).
+    // Count containing glass volumes: zero is air, positive values are inside.
+    // Boundaries between overlapping glass volumes use eta = 1; only entering
+    // from air or leaving into air changes the refraction ratio.
     uint   inGlass : write(caller)      : read(closesthit);
 };
 struct [raypayload] ShadowPayload
@@ -161,7 +139,7 @@ struct [raypayload] ShadowPayload
 struct Attribs { float2 bary; };
 
 // ============================================================================
-// WARP-WORKAROUND  (DELETE WHEN WARP IS FIXED)  - cosine-palette per cluster.
+// Stable cosine palette indexed by cluster ID.
 // ============================================================================
 float3 ClusterColor(uint cid)
 {
@@ -222,11 +200,8 @@ void RayGen()
     // pixel - 4x supersampling does free noise reduction on the frosted-
     // glass surfaces in addition to edge antialiasing.
     //
-    // WARP-WORKAROUND: WARP's DXIL compiler asserts on arrays whose
-    // element type is a VECTOR (float2 here) - shaderinfo.cpp(2504)
-    // requires scalar float / integer / 64-bit / 16-bit elements.  So
-    // the arrays below are FLATTENED to scalar floats (pairs of x,y).
-    // (See also ClusterColor()'s WARP workaround comment.)
+    // Store coordinate pairs as scalars for compatibility with software
+    // shader compilers that do not support vector-element arrays.
     static const float kSubPixel4[8] = {
         0.125, 0.625,    // sample 0
         0.375, 0.125,    // sample 1
@@ -288,11 +263,8 @@ void Miss(inout Payload p)
     // camera is looking - we synthesise a believable environment from the
     // y component:
     //
-    //   y > 0       sky.   Top is deep dusk-blue, fading through orange
-    //               near the horizon as if looking toward the setting sun.
-    //   y < 0       ground.  Mostly desaturated dirt-brown.
-    //   y around 0  horizon band where the sun is - we add a warm rim
-    //               highlight that's hottest exactly at y=0.
+    //   y > 0: blue sky fading toward a lighter horizon.
+    //   y < 0: a desaturated ground gradient.
     //
     // No texture, no skybox - cheap procedural that ties the lit colours
     // (which use the same sun direction in g_scene.lightDir) to a
@@ -301,34 +273,20 @@ void Miss(inout Payload p)
     float3 d = normalize(WorldRayDirection());
     float  y = d.y;
 
-    // Daytime sky.  Sun is up (lightDir.y ~ 0.75 = ~50° elevation), so the
-    // dome reads as DAYLIGHT BLUE - no sunset orange anywhere.  Three
-    // bands: deep sky-blue overhead -> mid sky -> hazy lighter blue at
-    // the horizon (atmospheric scatter).  The sun itself is a tight
-    // disc rendered in the sun-glow code below.
-    // Background dimmed ~20% to make the centerpiece objects pop more
-    // (also slightly darkens the reflected sky / refracted background
-    // visible through the glass objects).
-    float3 zenith   = float3(0.14, 0.34, 0.66);  // deep sky blue overhead   (was 0.18, 0.42, 0.82)
-    float3 midSky   = float3(0.34, 0.50, 0.72);  // mid sky                  (was 0.42, 0.62, 0.90)
-    float3 horizon  = float3(0.54, 0.64, 0.74);  // hazy blue at horizon     (was 0.68, 0.80, 0.92)
+    // Blend zenith, mid-sky, and horizon bands for a procedural daylight sky.
+    float3 zenith   = float3(0.14, 0.34, 0.66);
+    float3 midSky   = float3(0.34, 0.50, 0.72);
+    float3 horizon  = float3(0.54, 0.64, 0.74);
     float  tSky     = saturate(y);               // 0 at horizon, 1 at zenith
     float3 sky      = lerp(horizon,
                            lerp(midSky, zenith, smoothstep(0.0, 0.55, tSky)),
                            smoothstep(0.0, 0.25, tSky));
-                                                           // band into the lower
-                                                           // 20% so the rest of
-                                                           // the dome reads
-                                                           // BLUE not orange.
 
     // Ground band below the horizon - moderately darker at the horizon
     // for atmospheric perspective, full sand colour up close.  Soft
     // falloff so the dark band reads as haze, not as a black void.
-    // Desaturated palette - reads as warm beige/khaki, not punchy
-    // orange-brown (the previous gradient was too saturated and pulled
-    // the eye away from the colourful clustered objects above it).
-    float3 ground   = lerp(float3(0.40, 0.38, 0.34),    // dimmed beige at horizon (was 0.50, 0.47, 0.42)
-                           float3(0.68, 0.65, 0.59),    // dimmed beige under foot (was 0.86, 0.82, 0.74)
+    float3 ground   = lerp(float3(0.40, 0.38, 0.34),
+                           float3(0.68, 0.65, 0.59),
                            saturate(-y * 4.0));
 
     // Sun disc/halo.  Only fires when the ray direction is close to the
@@ -379,9 +337,8 @@ float ShadowVisibility(float3 hitPos, float3 nWorld, float3 toSun)
 // the resulting color. Uses the primary hit-group (index 0) so reflective /
 // refractive surfaces continue dispatching on materials at depth 1.
 //
-// childDepth is what the child closesthit will see in its incoming
-// payload's .a, so it can decide not to recurse further. Caller computes
-// `myDepth + 1` and passes it in.
+// The caller passes parent depth + 1; the child hit shader uses that dedicated
+// payload field to decide whether another recursive trace is allowed.
 // ----------------------------------------------------------------------------
 float3 TraceBounce(float3 origin, float3 dir, uint cullFlags, uint childDepth, uint childInGlass)
 {
@@ -434,8 +391,10 @@ struct HitContext
 {
     ClusterMeta  meta;
     MaterialDesc mat;
-    float3       nWorld;        // world-space surface normal, flipped if needed so it always points TOWARD the ray's origin (refract() expects this convention)
-    bool         entering;      // true if the ray approaches the side the SMOOTH normal points toward (= entering the medium the smooth normal points OUT of).  Derived from sign(dot(rayDir, nWorld_preflip)) - robust on non-orientable surfaces where HitKind() can disagree with the smooth normal at a seam (Klein bottle's body↔handle u=π join is the canonical case).
+    float3       nWorld;        // smooth world normal oriented toward the incoming ray
+    // Test entry against the unflipped smooth normal, rather than triangle
+    // winding, to handle non-orientable surfaces such as the Klein bottle.
+    bool         entering;
     float3       hitPos;        // world-space hit position
     float3       base;          // baseColor * cluster tint * lit visibility (final surface colour)
     float3       clusterCol;
@@ -492,7 +451,7 @@ void LoadHitContext(in Attribs a, in bool allowBackFaceFlip, out HitContext ctx)
         //
         // Cluster mode uses the canonical DXR path: every CLAS stamps its
         // matRegionIdx into BaseGeometryIndex, so GeometryIndex() selects the
-        // matching g_perInstGeomMaterial slot.  The old vendor workaround is gone.
+        // matching g_perInstGeomMaterial slot.
         //
         // Traditional mode retains its established per-cluster fallback for
         // visual parity.  Its cid recovery still uses GeometryIndex() to find
@@ -717,7 +676,8 @@ void GlassHit(inout Payload p, in Attribs a)
         float eta;
         if      (oldDepth == 0u && newDepth == 1u) eta = 1.0 / ctx.mat.ior; // air → glass
         else if (oldDepth == 1u && newDepth == 0u) eta = ctx.mat.ior;       // glass → air
-        else                                       eta = 1.0;               // glass → glass (nested, unused for Klein bottle)
+        else
+            eta = 1.0; // glass → glass (nested, unused for Klein bottle)
 
         float3 incident   = WorldRayDirection();
         float3 refractDir = refract(incident, ctx.nWorld, eta);

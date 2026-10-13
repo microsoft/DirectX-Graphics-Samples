@@ -179,6 +179,13 @@ at 1280×720 so screenshot resolution and the benchmark workload are determinist
 The sample is split across a few logical files so the bits worth copy-pasting
 into your own renderer are concentrated in one place.
 
+For the smallest CLAS build example, start with `BuildClasImplicit`, then
+`BuildBlasFromClasIndirect`. The get-sizes and compact variants show the
+allocation tradeoffs. For animation, read `BuildAnimatedObjectSetup` followed
+by `UpdateAnimatedObjectPerFrame`, alongside the `Fill*Args.hlsl` byte-layout
+tables. Core source lines are kept within 100 columns for quoting examples;
+comments focus on API contracts, synchronization, and resource lifetime.
+
 - **`D3D12RaytracingClusteredGeometry.cpp`** – the **main file**: CORE
   acceleration-structure management + rendering.  This is where the DXR2 work
   lives that you'd actually want to crib for your own engine:
@@ -190,7 +197,7 @@ into your own renderer are concentrated in one place.
     * `BuildAnimatedObjectSetup` / `UpdateAnimatedObjectPerFrame` — template
       build (once) + per-frame `INSTANTIATE_CLUSTER_TEMPLATES` +
       `BUILD_BLAS_FROM_CLAS` for the deforming ball.
-    * `BuildAnimatedClonesSetup` — phase-2 extension that fans the per-frame
+    * `BuildAnimatedClonesSetup` — fans the per-frame
       BLAS-from-CLAS op out to N additional dest GVAs so each `[N]` anim clone
       gets its own per-frame BLAS in a shared pool.
     * `BuildTraditionalStaticAS` / `BuildAnimatedTraditionalAS` /
@@ -199,7 +206,7 @@ into your own renderer are concentrated in one place.
     * `BuildTlasClassic` — TLAS instance assembly + per-instance material
       overrides + per-mode BLAS GVA selection.
     * `CreateRaytracingPipelineAndShaderTables` + the `CreateFill*Pipeline`
-      helpers — state object + 8-record shader table + compute PSOs for the
+      helpers — state object, shader tables, and compute PSOs for the
       GPU-side arg-fill passes.
     * `OnInit` / `OnRender` / `DoRender` — the device + per-frame render loop.
 - **`OverlayUI.cpp`** – on-screen stats overlay (`RenderUI`, `CreateUIFont`,

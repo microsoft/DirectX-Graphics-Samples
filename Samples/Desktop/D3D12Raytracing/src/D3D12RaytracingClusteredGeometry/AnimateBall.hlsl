@@ -8,9 +8,7 @@
 // AnimateBall.hlsl
 //
 // Per-frame GPU compute pass that writes the deformed positions of the
-// animated showpiece ball into its per-frame vertex buffer.  Replaces the
-// CPU-side sin-wave loop that used to live in UpdateAnimatedObjectPerFrame
-// and memcpy into a mapped upload-heap buffer.
+// animated ball into its per-frame vertex buffer.
 //
 // Layout matches the per-frame buffer's expectations: one tightly-packed
 // float3 per vertex, in cluster-major order (cluster 0's verts first,
@@ -30,7 +28,7 @@ ByteAddressBuffer   g_restPositions  : register(t0);
 // reads from it immediately after via a UAV barrier + state transition.
 RWByteAddressBuffer g_animPositions  : register(u0);
 
-// Root constants -- 2 dwords pushed in directly each frame.
+// Per-frame constant-buffer slice:
 //   t           = animation time in seconds (m_animSeconds)
 //   vertexCount = total number of vertices to process (obj.totalVertexCount)
 cbuffer Params : register(b0)
@@ -39,15 +37,8 @@ cbuffer Params : register(b0)
     uint  g_vertexCount;
 };
 
-// Match the CPU-side ripple from the old UpdateAnimatedObjectPerFrame loop:
-// per-vertex radial scale = 1 + amp * (sin(freq*x + t*3) + ... ) / 3
-// (positions are sphere-centred at origin, so radial scaling is just
-// multiplicative.)
-// Wave amp bumped from 0.08 -> 0.20 (i.e. ~20% radial deformation)
-// to make wave motion clearly visible on the [N] workload-scaling
-// anim clones too -- at 0.08 the deformation was sub-pixel on
-// distance-LOD'd anim clones at smaller scales and the user
-// reported "I don't see animated balls other than the central one".
+// Radial scale is 1 + amp * mean(sine waves), around the sphere's local origin.
+// Keep kWobbleAmp synchronized with the template deformation envelope in C++.
 static const float kWobbleAmp  = 0.20f;
 static const float kWobbleFreq = 20.0f;
 
