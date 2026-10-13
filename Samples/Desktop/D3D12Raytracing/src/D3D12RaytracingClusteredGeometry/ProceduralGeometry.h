@@ -412,6 +412,10 @@ namespace ProceduralGeometry
             {
                 Cluster c;
                 c.clusterID = clusterCounter++;
+                c.gridU = (unsigned int)tu;
+                c.gridV = (unsigned int)tv;
+                c.matchedColorCid = m.clusters[(size_t)tu * tilesV + tv].clusterID;
+                c.flags |= CLUSTER_FLAG_INTERIOR_SURFACE;
                 const float baseU = -halfSizeU + (float)tu * tileWidthU;
                 const float baseV = -halfSizeV + (float)tv * tileWidthV;
 

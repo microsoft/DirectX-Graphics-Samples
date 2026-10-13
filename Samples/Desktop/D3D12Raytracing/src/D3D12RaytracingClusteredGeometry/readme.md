@@ -54,8 +54,9 @@ The sample enables `D3D12RaytracingPreview` before device creation and queries
 D3D12RaytracingClusteredGeometry.exe [-forceAdapter <ID>] [--screenshot N path.png]
 ```
 
-`--screenshot N path.png` renders `N` frames, dumps the back buffer to PNG,
-and exits. Useful for unattended visual verification.
+`--screenshot N path.png` captures zero-based frame `N` (after rendering `N + 1`
+frames), dumps the back buffer to PNG, and exits. Useful for unattended visual
+verification.
 
 ### Testing on hardware / WARP
 
@@ -91,7 +92,7 @@ On-screen overlay (right column) lists the active value for each toggle.
 | `[V]`    | Vertex format: `FLOAT32_3` ↔ `COMPRESSED1` (shared-exponent quantized).                 |
 | `[F]`    | Trad mode: animated BLAS update strategy (`rebuild` ↔ `refit`).                         |
 | `[R]`    | Cluster mode: per-frame static-AS rebuild (`off` → `BLAS only` → `CLAS+BLAS`).          |
-| `[B]`    | Build preference: `none` → `fast-build` → `fast-trace`.                               |
+| `[B]`    | Build preference: `none` → `fast-build` → `fast-trace`. Re-sizes and rebuilds AS resources in every rebuild mode. |
 | `Space`  | Pause / resume camera motion.                                                           |
 | `[M]`    | Pause / resume animation.                                                               |
 | `[N]`    | Workload scaling — cycle extra clones (`0` → `100` → `1,000` → `10,000` → `0`).         |
@@ -112,13 +113,15 @@ D3D12RaytracingClusteredGeometry.exe --geometry-mode clusters --vertex-format co
 ```
 
 Use `--exit-after-frames N` for a frame-count smoke test. The command
-`--screenshot-at S path.png` jumps the camera/animation time to `S`, warms up
+`--screenshot-at S path.png` jumps the camera time to `S`, warms up
 the swap chain, saves a PNG, and exits.
 
 ### Scheduled actions
 
 `--at <frame>:<action>` queues an action for a zero-based rendered-frame index.
-Combine multiple `--at` arguments for scripted state sweeps. Actions:
+Actions run before that frame is rendered, so `--at 0:...` affects the first
+frame and can be combined with `--screenshot 0 path.png`. Multiple actions for
+the same frame run in command-line order. Actions:
 
 | Action               | Equivalent hotkey                          |
 | -------------------- | ------------------------------------------ |
@@ -149,7 +152,7 @@ Combine multiple `--at` arguments for scripted state sweeps. Actions:
 On HW adapters the window launches maximized; on WARP / Basic Render it stays
 at the default 1280×720 since maximizing a CPU rasterizer to 4K would make
 each frame take seconds. Headless runs (any of the above CLI flags) also stay
-at 1280×720 so screenshot resolution is deterministic.
+at 1280×720 so screenshot resolution and the benchmark workload are deterministic.
 
 ## Source organization
 

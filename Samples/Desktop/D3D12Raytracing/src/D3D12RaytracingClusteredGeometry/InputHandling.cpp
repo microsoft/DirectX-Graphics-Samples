@@ -187,7 +187,7 @@ void D3D12RaytracingClusteredGeometry::ParseCommandLineArgs(_In_reads_(argc) WCH
         {
             // Wall-clock benchmark mode.  After init + first rendered frame,
             // measure for N seconds, then write JSON to --bench-out and
-            // PostQuitMessage.  Wall-clock instead of frame count because
+            // request exit.  Wall-clock instead of frame count because
             // FPS varies 1000x between HW (~120 fps) and WARP (~0.1 fps);
             // a frame-count exit would either misfire on slow adapters or
             // take hours.  Typical use: --bench-seconds 5 --bench-out result.json.
@@ -425,10 +425,9 @@ void D3D12RaytracingClusteredGeometry::OnKeyDown(UINT8 key)
         // [B] cycles BVH-build-flag preference: NONE -> FAST_BUILD ->
         // FAST_TRACE -> ...  Applies to BOTH trad (DXR1) and cluster
         // (DXR2) paths uniformly via BuildFlagModeRtas() /
-        // BuildFlagModeDxr1() helpers.  Re-trigger rebuild ONLY when
-        // static-rebuild mode is None -- per-frame rebuild modes
-        // (BlasOnly / ClasAndBlas) will pick up the new flag next
-        // frame on their own.
+        // BuildFlagModeDxr1() helpers.  Re-query prebuild sizes and
+        // reallocate even in per-frame rebuild modes: the old buffers
+        // were sized for the previous flags.
         switch (m_buildFlagMode)
         {
         case BuildFlagMode::None:      m_buildFlagMode = BuildFlagMode::FastBuild; break;
@@ -436,10 +435,7 @@ void D3D12RaytracingClusteredGeometry::OnKeyDown(UINT8 key)
         case BuildFlagMode::FastTrace: m_buildFlagMode = BuildFlagMode::None;      break;
         }
         SampleLog::LogF(L"[input] BVH build flag -> %s\n", BuildFlagModeName());
-        if (m_staticRebuildMode == StaticRebuildMode::None)
-            RebuildStaticAccelerationStructures(L"build-flag toggle");
-        else
-            CaptureOverlayStatsSnapshot();
+        RebuildStaticAccelerationStructures(L"build-flag toggle");
     }
     // ----- ',' / '.' = bounce-depth slider.  See m_bounceSlider in the
     //   header for the canonical mapping table.  Slider direction has a

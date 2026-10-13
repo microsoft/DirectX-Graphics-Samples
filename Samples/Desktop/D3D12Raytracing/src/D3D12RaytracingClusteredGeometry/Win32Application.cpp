@@ -14,12 +14,14 @@
 #include "DXSampleHelper.h"
 
 HWND Win32Application::m_hwnd = nullptr;
+DWORD Win32Application::m_uiThreadId = 0;
 bool Win32Application::m_fullscreenMode = false;
 RECT Win32Application::m_windowRect;
 using Microsoft::WRL::ComPtr;
 
 int Win32Application::Run(DXSample* pSample, HINSTANCE hInstance, int nCmdShow)
 {
+    m_uiThreadId = GetCurrentThreadId();
     try
     {
         // Parse the command line parameters
@@ -100,6 +102,7 @@ int Win32Application::Run(DXSample* pSample, HINSTANCE hInstance, int nCmdShow)
             }
         }
 
+        pSample->GetDeviceResources()->DisableAsyncDisplay();
         pSample->OnDestroy();
 
         // Return this part of the WM_QUIT message to Windows.
@@ -118,9 +121,17 @@ int Win32Application::Run(DXSample* pSample, HINSTANCE hInstance, int nCmdShow)
         SampleLog::Write(wbuf);
         SampleLog::Write(L"\nTerminating.\n");
 
+        if (auto* deviceResources = pSample->GetDeviceResources())
+            deviceResources->DisableAsyncDisplay();
         pSample->OnDestroy();
         return EXIT_FAILURE;
     }
+}
+
+void Win32Application::RequestExit()
+{
+    if (!PostThreadMessage(m_uiThreadId, WM_QUIT, 0, 0))
+        ThrowIfFailed(HRESULT_FROM_WIN32(GetLastError()));
 }
 
 // Convert a styled window into a fullscreen borderless window and back again.

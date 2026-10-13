@@ -919,18 +919,11 @@ private:
     // 64 verts, IM->UAV barrier, then INSTANTIATE_CLUSTER_TEMPLATES reads.
     ComPtr<ID3D12RootSignature>          m_animComputeRS;
     ComPtr<ID3D12PipelineState>          m_animComputePSO;
-    // Per-frame anim CS params buffer (mapped, persistent).  Carries
-    // (float t, uint vertexCount) for AnimateBall.hlsl.  Reason for using
-    // a CB instead of root constants: root constants bake into the cmd
-    // list at record time so in-flight cmd lists carry their old (pre-
-    // pause) time values until the pipeline drains -- you'd see the wobble
-    // animation continue 2-3 frames after the camera froze.  A mapped CB
-    // lets the GPU read the LATEST CPU-written content at execute time,
-    // so the frozen time value propagates immediately to every in-flight
-    // frame, matching the camera's mapped m_sceneCB behaviour.
+    // Persistently mapped, with an aligned slice per swap-chain frame.
+    // MoveToNextFrame retires each slice before the CPU can reuse it.
     ComPtr<ID3D12Resource>               m_animParamsBuf;
     struct AnimParams { float t; UINT vertexCount; UINT pad0; UINT pad1; };
-    AnimParams*                          m_animParamsMapped = nullptr;
+    uint8_t*                             m_animParamsMapped = nullptr;
     // GPU pipeline that writes per-cluster
     // INSTANTIATE_CLUSTER_TEMPLATES_ARGS into AnimatedObject::
     // perFrameInstArgsBuffer.  Built once at init by
@@ -1015,7 +1008,7 @@ private:
 
     // ---------- Scene constant buffer ----------
     ComPtr<ID3D12Resource>               m_sceneCB;
-    SceneConstantBuffer*                 m_sceneCBMapped = nullptr;
+    uint8_t*                             m_sceneCBMapped = nullptr;
 
     // ---------- Per-instance materials ----------
     // m_materials[InstanceID] = MaterialDesc.  Indexed by InstanceID() in
@@ -1445,7 +1438,7 @@ private:
     void RefreshOverlayStatsCurrent();
     // Headless benchmark snapshot writer.  Serialises adapter+driver+config
     // +memory+timings+FPS as a JSON object and writes it to m_benchOutPath.
-    // Called once, just before PostQuitMessage when m_benchSeconds has
+    // Called once, just before requesting exit when m_benchSeconds has
     // elapsed (or from --at <frame>:bench).  All numeric fields use
     // canonical units (bytes for memory, microseconds for sub-ms timings,
     // milliseconds for build-time totals, FPS as 1.0/secPerFrame).  Uses

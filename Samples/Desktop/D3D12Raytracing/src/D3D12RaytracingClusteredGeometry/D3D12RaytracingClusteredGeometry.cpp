@@ -648,8 +648,7 @@ void D3D12RaytracingClusteredGeometry::BuildAccelerationStructures()
 //   1. Software adapter (WARP / Basic Render) -- maximizing on a CPU
 //      rasterizer turns each frame into a seconds-long affair; the window
 //      stays at the launched 1280x720 so the app is at least interactive.
-//   2. Headless run (any of --screenshot-at, --screenshot-frame,
-//      --exit-after-frames is set) -- the back-buffer size is significant
+//   2. Headless screenshot, benchmark, or scripted run -- the back-buffer size is significant
 //      because captured screenshots use it; maximizing would silently
 //      change the screenshot resolution from 1280x720 to the user's
 //      desktop res, breaking any reference-image diff.
@@ -658,7 +657,8 @@ void D3D12RaytracingClusteredGeometry::BuildAccelerationStructures()
 // ---------------------------------------------------------------------------------
 bool D3D12RaytracingClusteredGeometry::ShouldMaximizeWindowOnLaunch() const
 {
-    if (m_screenshotAtSeconds >= 0.0 || m_screenshotFrame >= 0 || m_exitAfterFrames > 0)
+    if (m_screenshotAtSeconds >= 0.0 || m_screenshotFrame >= 0 ||
+        m_exitAfterFrames > 0 || m_benchSeconds > 0.0 || !m_scheduledActions.empty())
         return false;
     const wchar_t* desc = m_deviceResources->GetAdapterDescription();
     const bool isSoftware = (wcsstr(desc, L"WARP") != nullptr) ||
@@ -676,11 +676,9 @@ bool D3D12RaytracingClusteredGeometry::ShouldMaximizeWindowOnLaunch() const
 
 // ---------------------------------------------------------------------------------
 // Runtime tear-down + rebuild of the STATIC half of the AS pipeline (CLAS,
-// BLAS-from-CLAS, TLAS).  Animated object's per-frame INSTANTIATE + BLAS
-// rebuild uses its own buffers + scratch and is intentionally untouched -
-// it continues to render correctly across the rebuild because:
-//   1. m_animatedObject.blasGPUVA is stable (EXPLICIT_DESTINATIONS).
-//   2. The TLAS instance desc array we rebuild references that same GVA.
+// BLAS-from-CLAS, TLAS), plus the animated object's active geometry path.
+// The GPU is flushed before any old resources are released, and the new
+// TLAS references the recreated animated BLAS.
 //
 // Drives the 'a' (cycle CLAS alloc mode) and 'v' (cycle vertex format)
 // keyboard shortcuts in OnKeyDown.  Per-frame cost is one full GPU flush
@@ -737,6 +735,7 @@ void D3D12RaytracingClusteredGeometry::RebuildStaticAccelerationStructures(const
     //    Explicitly clearing here makes the tear-down explicit and is the
     //    correct hygiene for the Compact mode (which keeps m_clasMoveArgsBuffer
     //    alive across function returns).
+    m_clusterInputBuffer.Reset();
     m_clasResultBuffer.Reset();
     m_clasScratchBuffer.Reset();
     m_clasAddressArray.Reset();
@@ -788,6 +787,11 @@ void D3D12RaytracingClusteredGeometry::RebuildStaticAccelerationStructures(const
     // depend on the current clone count + LOD distribution).
     m_tradVertexPool.Reset();
     m_tradIndexPool.Reset();
+    m_tradBlasWorstcasePool.Reset();
+    m_tradBlasCompactPool.Reset();
+    m_tradBlasSharedScratch.Reset();
+    m_animatedObject = AnimatedObject{};
+    m_overlayStats.animatedPerFrameClasActualBytes = 0;
     // Trad-mode phase-2 anim-clones pool + shared scratch.  Re-allocated
     // by BuildAnimatedClonesTradSetup() if N_animClones > 0 in trad mode.
     m_animClonesTradBlasPool.Reset();
@@ -3779,6 +3783,7 @@ void D3D12RaytracingClusteredGeometry::BuildAnimatedObjectSetup()
     }
 
     m_animatedObjectEnabled = true;
+    UpdateSceneConstantBuffer();
 }
 
 // =====================================================================================
@@ -4139,12 +4144,8 @@ void D3D12RaytracingClusteredGeometry::UpdateAnimatedTradPerFrame(UINT pfTimesta
         cl4_ts->EndQuery(m_pfQueryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, pfTimestampBase + 0);
     cl->SetComputeRootSignature(m_animComputeRS.Get());
     cl->SetPipelineState(m_animComputePSO.Get());
-    // Anim params written into mapped CB by UpdateSceneConstantBuffer
-    // each frame.  CB-via-CBV means GPU reads latest content at execute
-    // time, so a frozen t propagates to all in-flight frames immediately
-    // (matches the camera CB's behaviour -- the pre-pause-fix asymmetry
-    // was that camera was mapped but CS used root constants).
-    cl->SetComputeRootConstantBufferView (0, m_animParamsBuf->GetGPUVirtualAddress());
+    cl->SetComputeRootConstantBufferView(0, m_animParamsBuf->GetGPUVirtualAddress() +
+        m_deviceResources->GetCurrentFrameIndex() * CalculateConstantBufferByteSize(sizeof(AnimParams)));
     cl->SetComputeRootShaderResourceView (1, obj.restPositionsBuffer ->GetGPUVirtualAddress());
     cl->SetComputeRootUnorderedAccessView(2, obj.perFrameVertexBuffer->GetGPUVirtualAddress());
     const UINT groups = (obj.totalVertexCount + 63u) / 64u;
@@ -4416,8 +4417,8 @@ void D3D12RaytracingClusteredGeometry::UpdateAnimatedObjectPerFrame(UINT pfTimes
     // ------------------------------------------------------------------
     cl->SetComputeRootSignature(m_animComputeRS.Get());
     cl->SetPipelineState(m_animComputePSO.Get());
-    // CBV (mapped) -- see comment at the other dispatch site above.
-    cl->SetComputeRootConstantBufferView (0, m_animParamsBuf->GetGPUVirtualAddress());
+    cl->SetComputeRootConstantBufferView(0, m_animParamsBuf->GetGPUVirtualAddress() +
+        m_deviceResources->GetCurrentFrameIndex() * CalculateConstantBufferByteSize(sizeof(AnimParams)));
     cl->SetComputeRootShaderResourceView (1, obj.restPositionsBuffer ->GetGPUVirtualAddress());
     cl->SetComputeRootUnorderedAccessView(2, obj.perFrameVertexBuffer->GetGPUVirtualAddress());
     const UINT kThreadsPerGroup = 64;
@@ -5287,7 +5288,8 @@ void D3D12RaytracingClusteredGeometry::CreateAnimationComputePipeline()
     // alignment requirement.
     {
         auto uploadHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
-        auto bufDesc    = CD3DX12_RESOURCE_DESC::Buffer(256);
+        auto bufDesc    = CD3DX12_RESOURCE_DESC::Buffer(
+            FrameCount * CalculateConstantBufferByteSize(sizeof(AnimParams)));
         ThrowIfFailed(device->CreateCommittedResource(
             &uploadHeap, D3D12_HEAP_FLAG_NONE, &bufDesc,
             D3D12_RESOURCE_STATE_GENERIC_READ, nullptr,
@@ -5295,7 +5297,7 @@ void D3D12RaytracingClusteredGeometry::CreateAnimationComputePipeline()
         m_animParamsBuf->SetName(L"Anim params CB (t + vertexCount)");
         CD3DX12_RANGE noRead(0, 0);
         ThrowIfFailed(m_animParamsBuf->Map(0, &noRead, reinterpret_cast<void**>(&m_animParamsMapped)));
-        *m_animParamsMapped = { 0.0f, 0u, 0u, 0u };
+        memset(m_animParamsMapped, 0, static_cast<size_t>(bufDesc.Width));
     }
 }
 
@@ -5523,7 +5525,8 @@ void D3D12RaytracingClusteredGeometry::CreateDescriptorHeapAndRaytracingOutput()
         m_descriptorHeap->GetGPUDescriptorHandleForHeapStart(), idx, m_descriptorSize);
 
     auto upload = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
-    auto cbufDesc = CD3DX12_RESOURCE_DESC::Buffer(Align((UINT)sizeof(SceneConstantBuffer), 256));
+    auto cbufDesc = CD3DX12_RESOURCE_DESC::Buffer(
+        FrameCount * CalculateConstantBufferByteSize(sizeof(SceneConstantBuffer)));
     ThrowIfFailed(device->CreateCommittedResource(&upload, D3D12_HEAP_FLAG_NONE,
         &cbufDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&m_sceneCB)));
     m_sceneCB->SetName(L"Scene CB");
@@ -5547,6 +5550,19 @@ UINT D3D12RaytracingClusteredGeometry::AllocateDescriptor(D3D12_CPU_DESCRIPTOR_H
 // =====================================================================================
 void D3D12RaytracingClusteredGeometry::UpdateSceneConstantBuffer()
 {
+    // MoveToNextFrame waits for this back-buffer's fence before returning
+    // from Present, so only the current slice is safe to overwrite.
+    const UINT frameIndex = m_deviceResources->GetCurrentFrameIndex();
+    if (m_animParamsMapped)
+    {
+        const AnimParams params = {
+            (float)m_animSeconds,
+            m_animatedObjectEnabled ? m_animatedObject.totalVertexCount : 0u,
+            0u, 0u
+        };
+        memcpy(m_animParamsMapped + frameIndex * CalculateConstantBufferByteSize(sizeof(AnimParams)),
+            &params, sizeof(params));
+    }
     if (!m_sceneCBMapped) return;
 
     // Slowly orbit around the scene center.  Two independent cycles so the
@@ -5603,18 +5619,8 @@ void D3D12RaytracingClusteredGeometry::UpdateSceneConstantBuffer()
     XMVECTOR sunDir = XMVector3Normalize(XMVectorSet(0.45f, 0.75f, 0.50f, 0.0f));
     XMStoreFloat4(&cb.lightDir, sunDir);
     cb.lightDir.w = 0.40f;                                          // ambient floor
-    memcpy(m_sceneCBMapped, &cb, sizeof(cb));
-
-    // Anim params CB (mapped) -- written here every frame so the latest
-    // (frozen-when-paused) t propagates to all in-flight CS dispatches
-    // immediately, matching the camera CB's semantics.  Used by
-    // UpdateAnimatedObjectPerFrame's CS dispatch via root CBV (NOT
-    // 32-bit root constants which would bake in stale values).
-    if (m_animParamsMapped)
-    {
-        m_animParamsMapped->t           = (float)m_animSeconds;
-        m_animParamsMapped->vertexCount = m_animatedObjectEnabled ? m_animatedObject.totalVertexCount : 0u;
-    }
+    memcpy(m_sceneCBMapped + frameIndex * CalculateConstantBufferByteSize(sizeof(SceneConstantBuffer)),
+        &cb, sizeof(cb));
 }
 
 // =====================================================================================
@@ -5627,8 +5633,6 @@ void D3D12RaytracingClusteredGeometry::OnUpdate()
         m_animSeconds += m_timer.GetElapsedSeconds();
     if (!m_cameraPaused)
         m_cameraSeconds += m_timer.GetElapsedSeconds();
-    UpdateSceneConstantBuffer();
-
     // Wall-clock frame-time measurement for the overlay's FPS / ms-per-frame
     // line.  Independent of StepTimer's 100 ms cap (see m_frameTimeRing
     // header comment).  Rolling average over m_frameTimeWindow samples so
@@ -5657,7 +5661,7 @@ void D3D12RaytracingClusteredGeometry::OnRender()
 {
     if (!m_deviceResources->IsWindowVisible()) return;
 
-    // For --screenshot-at <seconds>, advance the animation clock straight to
+    // For --screenshot-at <seconds>, advance the camera clock straight to
     // the requested timestamp on the first rendered frame (so the orbit camera
     // is at the right angle when we capture).
     if (m_screenshotAtSeconds >= 0 && !m_screenshotTaken && m_framesRendered == 0)
@@ -5668,26 +5672,9 @@ void D3D12RaytracingClusteredGeometry::OnRender()
         // clock, but the orbit angle is the only thing screenshot users care
         // about so just set the camera clock.
         m_cameraSeconds = m_screenshotAtSeconds;
-        UpdateSceneConstantBuffer();
     }
 
-    DoRender();
-    ++m_framesRendered;
-
-    // ---- Headless measurement helpers (--log-pf-every / --exit-after-frames /
-    // --at).  Driven off m_framesRendered, executed once per OnRender, all
-    // logged via SampleLog::LogF so a wrapper script can scrape them.
-    if (m_logPfEveryFrames > 0 && (m_framesRendered % m_logPfEveryFrames) == 0)
-    {
-        SampleLog::LogF(L"[pf-stats frame=%u alloc=%ls rebuild=%ls] "
-                        L"inst=%.3fus animBlas=%.3fus tlas=%.3fus "
-                        L"staticBlas=%.3fus staticClas=%.3fus\n",
-                        m_framesRendered, ClasAllocModeName(), StaticRebuildModeName(),
-                        m_pfInstantiateMs * 1000.0, m_pfBlasRebuildMs * 1000.0,
-                        m_pfTlasRebuildMs   * 1000.0,
-                        m_pfStaticBlasMs    * 1000.0,
-                        m_pfStaticClasMs    * 1000.0);
-    }
+    // Scheduled actions use the zero-based index of the frame about to render.
     for (size_t i = 0; i < m_scheduledActions.size(); )
     {
         const auto& a = m_scheduledActions[i];
@@ -5748,22 +5735,13 @@ void D3D12RaytracingClusteredGeometry::OnRender()
                 RebuildStaticAccelerationStructures(L"scheduled extra-10k"); }
             else if (_wcsicmp(act, L"flags-none")        == 0)
             {   m_buildFlagMode = BuildFlagMode::None;
-                if (m_staticRebuildMode == StaticRebuildMode::None)
-                    RebuildStaticAccelerationStructures(L"scheduled flags-none");
-                else
-                    CaptureOverlayStatsSnapshot(); }
+                RebuildStaticAccelerationStructures(L"scheduled flags-none"); }
             else if (_wcsicmp(act, L"flags-fast-build")  == 0)
             {   m_buildFlagMode = BuildFlagMode::FastBuild;
-                if (m_staticRebuildMode == StaticRebuildMode::None)
-                    RebuildStaticAccelerationStructures(L"scheduled flags-fast-build");
-                else
-                    CaptureOverlayStatsSnapshot(); }
+                RebuildStaticAccelerationStructures(L"scheduled flags-fast-build"); }
             else if (_wcsicmp(act, L"flags-fast-trace")  == 0)
             {   m_buildFlagMode = BuildFlagMode::FastTrace;
-                if (m_staticRebuildMode == StaticRebuildMode::None)
-                    RebuildStaticAccelerationStructures(L"scheduled flags-fast-trace");
-                else
-                    CaptureOverlayStatsSnapshot(); }
+                RebuildStaticAccelerationStructures(L"scheduled flags-fast-trace"); }
             else if (_wcsicmp(act, L"log")               == 0)
             {   SampleLog::LogF(L"[scheduled-snap frame=%u alloc=%ls rebuild=%ls] "
                                 L"inst=%.3fus animBlas=%.3fus tlas=%.3fus "
@@ -5774,7 +5752,7 @@ void D3D12RaytracingClusteredGeometry::OnRender()
                                 m_pfStaticBlasMs    * 1000.0,
                                 m_pfStaticClasMs    * 1000.0); }
             else if (_wcsicmp(act, L"exit")              == 0)
-            {   PostQuitMessage(0); return; }
+            {   Win32Application::RequestExit(); return; }
             // Remove fired action so it doesn't refire.
             m_scheduledActions.erase(m_scheduledActions.begin() + i);
         }
@@ -5783,9 +5761,26 @@ void D3D12RaytracingClusteredGeometry::OnRender()
             ++i;
         }
     }
+
+    UpdateSceneConstantBuffer();
+    DoRender();
+    ++m_framesRendered;
+
+    // Post-render helpers use the number of completed frames.
+    if (m_logPfEveryFrames > 0 && (m_framesRendered % m_logPfEveryFrames) == 0)
+    {
+        SampleLog::LogF(L"[pf-stats frame=%u alloc=%ls rebuild=%ls] "
+                        L"inst=%.3fus animBlas=%.3fus tlas=%.3fus "
+                        L"staticBlas=%.3fus staticClas=%.3fus\n",
+                        m_framesRendered, ClasAllocModeName(), StaticRebuildModeName(),
+                        m_pfInstantiateMs * 1000.0, m_pfBlasRebuildMs * 1000.0,
+                        m_pfTlasRebuildMs   * 1000.0,
+                        m_pfStaticBlasMs    * 1000.0,
+                        m_pfStaticClasMs    * 1000.0);
+    }
     if (m_exitAfterFrames > 0 && m_framesRendered >= m_exitAfterFrames)
     {
-        PostQuitMessage(0);
+        Win32Application::RequestExit();
         return;
     }
     // Wall-clock benchmark mode: arm the start timestamp on first frame,
@@ -5815,7 +5810,7 @@ void D3D12RaytracingClusteredGeometry::OnRender()
                 if (!m_benchOutPath.empty())
                     WriteBenchmarkSnapshot();
                 m_benchSnapshotWritten = true;
-                PostQuitMessage(0);
+                Win32Application::RequestExit();
                 return;
             }
         }
@@ -5841,7 +5836,7 @@ void D3D12RaytracingClusteredGeometry::OnRender()
     {
         m_screenshotTaken = true;
         CaptureBackBufferToFile(m_screenshotPath);
-        PostQuitMessage(0);
+        Win32Application::RequestExit();
     }
 }
 
@@ -5973,14 +5968,9 @@ void D3D12RaytracingClusteredGeometry::DoRender()
         // overlay split between "anim CS" and "anim build" works for
         // both modes uniformly.
         //
-        // PAUSE BEHAVIOUR: this update runs every frame, paused or not.
-        // The CS reads its time from a mapped CB (m_animParamsBuf,
-        // populated in UpdateSceneConstantBuffer); when paused, the
-        // CPU-side m_animSeconds freezes, the CB content freezes, and
-        // every in-flight CS dispatch reads the FROZEN time at execute
-        // time.  Vertex buffer therefore freezes the same instant the
-        // camera does (camera is in m_sceneCB, same propagation
-        // mechanism).
+        // Camera and animation use the same frame's immutable CB slices.
+        // Pausing affects newly recorded frames without rewriting constants
+        // still being read by an earlier dispatch.
         if (m_geometryMode == GeometryMode::Clusters)
             UpdateAnimatedObjectPerFrame(base);
         else
@@ -6017,7 +6007,8 @@ void D3D12RaytracingClusteredGeometry::DoRender()
     cl4->SetComputeRootDescriptorTable(GlobalRootSig::OutputUAVSlot, m_raytracingOutputUAV);
     cl4->SetComputeRootShaderResourceView(GlobalRootSig::AccelerationStructureSlot,
         m_tlasBuffer->GetGPUVirtualAddress());
-    cl4->SetComputeRootConstantBufferView(GlobalRootSig::SceneCBVSlot, m_sceneCB->GetGPUVirtualAddress());
+    cl4->SetComputeRootConstantBufferView(GlobalRootSig::SceneCBVSlot, m_sceneCB->GetGPUVirtualAddress() +
+        m_deviceResources->GetCurrentFrameIndex() * CalculateConstantBufferByteSize(sizeof(SceneConstantBuffer)));
     cl4->SetComputeRootShaderResourceView(GlobalRootSig::MaterialsSRVSlot,
         m_materialsBuffer->GetGPUVirtualAddress());
     cl4->SetComputeRootShaderResourceView(GlobalRootSig::ClusterNormalsSRVSlot,
@@ -6163,28 +6154,8 @@ void D3D12RaytracingClusteredGeometry::OnDestroy()
 
     // Animated object: release all its GPU resources.  Args buffers are
     // now DEFAULT-heap UAVs (GPU-filled), no maps to release.
-    {
-        auto& a = m_animatedObject;
-        a.templateInputBuffer.Reset();
-        a.templateMetaBuffer.Reset();
-        a.templateArgsBuffer.Reset();
-        a.templateResultBuffer.Reset();
-        a.templateScratchBuffer.Reset();
-        a.templateAddressArray.Reset();
-        a.restPositionsBuffer.Reset();
-        a.perFrameVertexBuffer.Reset();
-        a.perFrameInstArgsBuffer.Reset();
-        a.vertexOffsetArray.Reset();
-        a.perFrameClasResultBuffer.Reset();
-        a.perFrameClasScratchBuffer.Reset();
-        a.perFrameClasAddressArray.Reset();
-        a.blasStorage.Reset();
-        a.blasScratchBuffer.Reset();
-        a.blasArgsBuffer.Reset();
-        a.blasArgsMeta.Reset();
-        a.blasResultAddrBuffer.Reset();
-        m_animatedObjectEnabled = false;
-    }
+    m_animatedObject = AnimatedObject{};
+    m_animatedObjectEnabled = false;
 
     // Drop our refs to D3D12 objects in dependency order so destruction is
     // deterministic. (Without this the order is the member-decl order, which
@@ -6203,12 +6174,16 @@ void D3D12RaytracingClusteredGeometry::OnDestroy()
     m_blasArgsMeta.Reset();
     m_blasResultAddrBuffer.Reset();
     m_clusterBlasPoolBuffer.Reset();
+    m_tradBlasWorstcasePool.Reset();
     m_tradBlasCompactPool.Reset();
     m_tradBlasSharedScratch.Reset();
     // Trad VB+IB pools (introduced together with the per-clone BLAS pool).
     m_tradVertexPool.Reset();
     m_tradIndexPool.Reset();
     m_animClonesBlasPool.Reset();
+    m_animClonesBlasArgsBuffer.Reset();
+    m_animClonesBlasResultAddrBuffer.Reset();
+    m_animClonesBlasScratchBuffer.Reset();
     m_animClonesTradBlasPool.Reset();
     m_animClonesTradBlasScratch.Reset();
     m_tlasBuffer.Reset();
@@ -6221,6 +6196,7 @@ void D3D12RaytracingClusteredGeometry::OnDestroy()
     m_hitGroupShaderTable.Reset();
     m_animComputePSO.Reset();
     m_animComputeRS.Reset();
+    m_animParamsBuf.Reset();
     m_fillInstArgsPSO.Reset();
     m_fillInstArgsRS.Reset();
     m_fillMoveArgsPSO.Reset();
@@ -6416,7 +6392,7 @@ HRESULT D3D12RaytracingClusteredGeometry::SaveBGRAToPng(const std::wstring& path
 // WriteBenchmarkSnapshot
 //   Serialises the current overlay-snapshot state (adapter+driver+config+memory
 //   +timings+FPS) to m_benchOutPath as UTF-8 JSON.  Called once when the
-//   --bench-seconds window has elapsed, just before PostQuitMessage.
+//   --bench-seconds window has elapsed, just before requesting exit.
 //
 //   Design notes:
 //   * Reads exclusively from m_overlayStats (memory + per-frame timings),
