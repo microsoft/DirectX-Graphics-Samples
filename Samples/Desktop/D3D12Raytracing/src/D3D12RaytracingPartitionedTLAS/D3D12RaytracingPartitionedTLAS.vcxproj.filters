@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Documentation" />
+    <Filter Include="Header Files" />
+    <Filter Include="Shaders" />
+    <Filter Include="Source Files" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="src\D3D12RaytracingPartitionedTLAS.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="src\DeviceResources.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="src\DXR2SampleMain.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="src\SampleUI.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="src\ShaderCompiler.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="src\Win32Application.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClInclude Include="src\D3D12RaytracingPartitionedTLAS.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="src\DeviceResources.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="src\DXSampleHelper.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="src\SampleUI.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="src\SceneMath.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="src\ShaderCompiler.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="src\Win32Application.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="src\SceneMeshes.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="src\scene.hpp"><Filter>Header Files</Filter></ClInclude>
+    <None Include="shaders\animation.hlsl"><Filter>Shaders</Filter></None>
+    <None Include="shaders\compositing.hlsl"><Filter>Shaders</Filter></None>
+    <None Include="shaders\physics_core.hlsli"><Filter>Shaders</Filter></None>
+    <None Include="shaders\PtlasShaderBindings.h"><Filter>Shaders</Filter></None>
+    <None Include="shaders\PtlasWrite.hlsli"><Filter>Shaders</Filter></None>
+    <None Include="shaders\raytracing.hlsl"><Filter>Shaders</Filter></None>
+    <None Include="shaders\RaytracingHlslCompat.h"><Filter>Shaders</Filter></None>
+    <None Include="README.md"><Filter>Documentation</Filter></None>
+    <None Include="PTLAS_WALKTHROUGH.md"><Filter>Documentation</Filter></None>
+    <None Include="THIRD_PARTY_NOTICES.md"><Filter>Documentation</Filter></None>
+    <None Include="LICENSES\MIT.txt"><Filter>Documentation</Filter></None>
+    <None Include="LICENSES\GLM.txt"><Filter>Documentation</Filter></None>
+    <None Include="LICENSES\DirectXTK12.txt"><Filter>Documentation</Filter></None>
+    <None Include="assets\README.md"><Filter>Documentation</Filter></None>
+    <None Include="assets\LICENSE.txt"><Filter>Documentation</Filter></None>
+    <None Include="docs\screenshot.png"><Filter>Documentation</Filter></None>
+    <None Include="packages.config"><Filter>Documentation</Filter></None>
+    <None Include="tools\build.ps1"><Filter>Documentation</Filter></None>
+    <None Include="tools\test_device_recovery.py"><Filter>Documentation</Filter></None>
+    <None Include="tools\test_shader_reload.py"><Filter>Documentation</Filter></None>
+    <None Include="tools\test_manual_topple.py"><Filter>Documentation</Filter></None>
+    <None Include="tools\compare_dumps.py"><Filter>Documentation</Filter></None>
+    <None Include="assets/SegoeUI_18.spritefont"><Filter>Documentation</Filter></None>
+  </ItemGroup>
+</Project>

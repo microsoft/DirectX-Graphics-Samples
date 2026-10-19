@@ -67,6 +67,13 @@ This sample demonstrates how to use Opacity Micromaps with a tree model.
 ![D3D12 Raytracing Opacity Micromaps Sample GUI](src/D3D12RaytracingOpacityMicromaps/Screenshot_small.png)
 
 # Advanced Samples
+## [Partitioned TLAS (DXR 2 preview)](src/D3D12RaytracingPartitionedTLAS/README.md)
+This sample adapts NVIDIA's public Vulkan partitioned-TLAS sample to DirectX Raytracing 2. A falling-domino scene demonstrates GPU-generated sparse instance writes, spatial and global partition policies, and comparisons with ordinary TLAS updates.
+
+Open the sample's standalone Visual Studio solution. It requires a compatible DXR 2 preview SDK and driver; the sample README explains how to supply the SDK separately.
+
+![Partitioned TLAS domino scene](src/D3D12RaytracingPartitionedTLAS/docs/screenshot.png)
+
 ## [Real-Time Denoised Ambient Occlusion](src/D3D12RaytracingRealTimeDenoisedAmbientOcclusion/readme.md)
 This sample implements a real-time denoiser for 1spp raytraced Ambient Occlusion. It also demonstrates a physically-based specular pathtracer implementation and dynamic geometry support.
 

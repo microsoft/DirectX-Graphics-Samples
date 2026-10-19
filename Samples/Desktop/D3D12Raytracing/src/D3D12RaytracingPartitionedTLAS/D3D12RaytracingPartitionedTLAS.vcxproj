@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64"><Configuration>Debug</Configuration><Platform>x64</Platform></ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64"><Configuration>Release</Configuration><Platform>x64</Platform></ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals"><ProjectGuid>{8F3B861C-E25C-4AEF-83C8-A2E4C03B0BC0}</ProjectGuid><RootNamespace>D3D12RaytracingPartitionedTLAS</RootNamespace><WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion></PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType><PlatformToolset>v143</PlatformToolset><CharacterSet>Unicode</CharacterSet>
+    <UseDebugLibraries Condition="'$(Configuration)'=='Debug'">true</UseDebugLibraries>
+    <UseDebugLibraries Condition="'$(Configuration)'=='Release'">false</UseDebugLibraries>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="Exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" />
+    <Import Project="Dxr2Preview.props" />
+  </ImportGroup>
+  <PropertyGroup><TargetName>dxr_partitioned_tlas</TargetName></PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <Optimization Condition="'$(Configuration)'=='Release'">MaxSpeed</Optimization>
+      <Optimization Condition="'$(Configuration)'=='Debug'">Disabled</Optimization>
+      <PreprocessorDefinitions Condition="'$(Configuration)'=='Debug'">_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="'$(Configuration)'=='Release'">NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <Link><SubSystem>Windows</SubSystem></Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="src\D3D12RaytracingPartitionedTLAS.cpp" />
+    <ClCompile Include="src\DeviceResources.cpp" />
+    <ClCompile Include="src\DXR2SampleMain.cpp" />
+    <ClCompile Include="src\SampleUI.cpp" />
+    <ClCompile Include="src\ShaderCompiler.cpp" />
+    <ClCompile Include="src\Win32Application.cpp" />
+    <ClInclude Include="src\D3D12RaytracingPartitionedTLAS.h" />
+    <ClInclude Include="src\DeviceResources.h" />
+    <ClInclude Include="src\DXSampleHelper.h" />
+    <ClInclude Include="src\SampleUI.h" />
+    <ClInclude Include="src\SceneMath.h" />
+    <ClInclude Include="src\ShaderCompiler.h" />
+    <ClInclude Include="src\Win32Application.h" />
+    <ClInclude Include="src\SceneMeshes.h" />
+    <ClInclude Include="src\scene.hpp" />
+    <None Include="shaders\animation.hlsl" />
+    <None Include="shaders\compositing.hlsl" />
+    <None Include="shaders\physics_core.hlsli" />
+    <None Include="shaders\PtlasShaderBindings.h" />
+    <None Include="shaders\PtlasWrite.hlsli" />
+    <None Include="shaders\raytracing.hlsl" />
+    <None Include="shaders\RaytracingHlslCompat.h" />
+    <None Include="README.md" />
+    <None Include="PTLAS_WALKTHROUGH.md" />
+    <None Include="THIRD_PARTY_NOTICES.md" />
+    <None Include="LICENSES\MIT.txt" />
+    <None Include="LICENSES\GLM.txt" />
+    <None Include="LICENSES\DirectXTK12.txt" />
+    <None Include="assets\README.md" />
+    <None Include="assets\LICENSE.txt" />
+    <None Include="docs\screenshot.png" />
+    <None Include="packages.config" />
+    <None Include="tools\build.ps1" />
+    <None Include="tools\test_device_recovery.py" />
+    <None Include="tools\test_shader_reload.py" />
+    <None Include="tools\test_manual_topple.py" />
+    <None Include="tools\compare_dumps.py" />
+    <None Include="assets/SegoeUI_18.spritefont" />
+  </ItemGroup>
+  <ItemGroup>
+    <ShaderInclude Include="shaders\*.h;shaders\*.hlsli" />
+    <SampleShader Include="raytracing"><Source>shaders\raytracing.hlsl</Source><Profile>lib_6_6</Profile></SampleShader>
+    <SampleShader Include="animation"><Source>shaders\animation.hlsl</Source><Profile>cs_6_6</Profile><Options>-E Animate</Options></SampleShader>
+    <SampleShader Include="physics"><Source>shaders\animation.hlsl</Source><Profile>cs_6_6</Profile><Options>-E Simulate -Gis</Options></SampleShader>
+    <SampleShader Include="mark_partitions"><Source>shaders\animation.hlsl</Source><Profile>cs_6_6</Profile><Options>-E MarkPartitions</Options></SampleShader>
+    <SampleShader Include="compositing"><Source>shaders\compositing.hlsl</Source><Profile>cs_6_6</Profile><Options>-E Composite</Options></SampleShader>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+    <Import Project="$(RestoreRepositoryPath)\directxtk12_desktop_2019.2025.10.28.1\build\native\directxtk12_desktop_2019.targets" Condition="Exists('$(RestoreRepositoryPath)\directxtk12_desktop_2019.2025.10.28.1\build\native\directxtk12_desktop_2019.targets')" />
+    <Import Project="$(RestoreRepositoryPath)\WinPixEventRuntime.1.0.240308001\build\WinPixEventRuntime.targets" Condition="Exists('$(RestoreRepositoryPath)\WinPixEventRuntime.1.0.240308001\build\WinPixEventRuntime.targets')" />
+  </ImportGroup>
+  <Target Name="EnsureNuGetPackages" BeforeTargets="PrepareForBuild">
+    <Error Condition="!Exists('$(RestoreRepositoryPath)\directxtk12_desktop_2019.2025.10.28.1\build\native\directxtk12_desktop_2019.targets')" Text="Restore NuGet packages before building (tools/build.ps1)." />
+    <Error Condition="!Exists('$(RestoreRepositoryPath)\WinPixEventRuntime.1.0.240308001\build\WinPixEventRuntime.targets')" Text="Restore NuGet packages before building (tools/build.ps1)." />
+  </Target>
+  <Import Project="Dxr2Preview.targets" />
+</Project>

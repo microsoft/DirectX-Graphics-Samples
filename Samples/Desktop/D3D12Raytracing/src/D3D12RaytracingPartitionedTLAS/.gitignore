@@ -1,0 +1,26 @@
+# Build output and restored dependencies.
+/build/
+/_build/
+/bin/
+/obj/
+/packages/
+
+# Machine-specific settings and editor caches.
+/.vs/
+/Dxr2Preview.local.props
+*.user
+*.suo
+__pycache__/
+*.py[cod]
+
+# Runtime diagnostics, measurements, and captures.
+/artifacts/
+/captures/
+*.log
+*.csv
+*.dds
+*.bin
+*.dmp
+*.etl
+*.wpix
+*.pix3

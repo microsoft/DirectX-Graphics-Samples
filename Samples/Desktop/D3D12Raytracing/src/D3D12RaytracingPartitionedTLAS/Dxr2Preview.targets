@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <!-- One explicit DXC invocation per entry point; Visual Studio never invokes
+       FXC for the HLSL files shown in Solution Explorer. -->
+  <Target Name="CompileSampleShaders" BeforeTargets="ClCompile" Condition="'@(SampleShader)' != ''"
+          Inputs="%(SampleShader.Source);@(ShaderInclude);$(Dxr2SdkBinDirectory)dxc.exe;$(MSBuildProjectFullPath);$(MSBuildThisFileDirectory)Dxr2Preview.props;$(MSBuildThisFileFullPath)"
+          Outputs="$(OutDir)%(SampleShader.Identity).dxil">
+    <MakeDir Directories="$(OutDir)" />
+    <Exec WorkingDirectory="$(MSBuildProjectDirectory)" Command="&quot;$(Dxr2SdkBinDirectory)dxc.exe&quot; -T %(SampleShader.Profile) %(SampleShader.Options) -HV 2021 -Fo &quot;$(OutDir)%(SampleShader.Identity).dxil&quot; &quot;%(SampleShader.Source)&quot;" />
+  </Target>
+  <Target Name="CopyPreviewRuntime" AfterTargets="Build">
+    <MakeDir Directories="$(OutDir)D3D12" />
+    <Copy SourceFiles="$(Dxr2SdkBinDirectory)D3D12Core.dll;$(Dxr2SdkBinDirectory)d3d12SDKLayers.dll" DestinationFolder="$(OutDir)D3D12" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="$(Dxr2SdkBinDirectory)dxcompiler.dll;$(Dxr2SdkBinDirectory)dxil.dll" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" />
+  </Target>
+  <Target Name="CopySampleAssets" AfterTargets="Build" Condition="'@(SampleShader)' != ''">
+    <MakeDir Directories="$(OutDir)shaders;$(OutDir)LICENSES;$(OutDir)assets" />
+    <ItemGroup><ShaderSource Include="$(MSBuildThisFileDirectory)shaders\*" /></ItemGroup>
+    <Copy SourceFiles="@(ShaderSource)" DestinationFolder="$(OutDir)shaders" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="$(MSBuildThisFileDirectory)assets\SegoeUI_18.spritefont" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="$(MSBuildThisFileDirectory)LICENSES\MIT.txt;$(MSBuildThisFileDirectory)LICENSES\GLM.txt;$(MSBuildThisFileDirectory)LICENSES\DirectXTK12.txt" DestinationFolder="$(OutDir)LICENSES" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="$(MSBuildThisFileDirectory)THIRD_PARTY_NOTICES.md" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="$(MSBuildThisFileDirectory)assets\LICENSE.txt" DestinationFiles="$(OutDir)LICENSES\Microsoft-Font.txt" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="$(MSBuildThisFileDirectory)assets\LICENSE.txt" DestinationFolder="$(OutDir)assets" SkipUnchangedFiles="true" />
+  </Target>
+</Project>
