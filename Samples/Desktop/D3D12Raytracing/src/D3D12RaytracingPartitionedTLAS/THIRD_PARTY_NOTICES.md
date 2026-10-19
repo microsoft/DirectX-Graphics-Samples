@@ -73,11 +73,13 @@ under the [MIT license](assets/LICENSE.txt), Copyright (c) 2015 Microsoft.
 
 ## Build dependencies
 
-DirectXTK12 and WinPixEventRuntime are restored from the packages listed in
+DirectXTK12 is built from source through the repository's shared vcpkg manifest.
+Agility SDK, DXC, and WinPixEventRuntime are restored from the packages listed in
 `packages.config`. The DirectXTK12 MIT license is included in
 [LICENSES/DirectXTK12.txt](LICENSES/DirectXTK12.txt); WinPixEventRuntime's package
 contains its license and third-party notices. These notices remain applicable
 to their respective dependencies.
 
-The Windows SDK and DXR 2 preview SDK are obtained separately under their
-respective Microsoft terms. They are not included in this source contribution.
+The Windows SDK and the Agility SDK, DXC, and WinPixEventRuntime packages retain
+their respective Microsoft terms. Their binaries are not included in this source
+contribution.

@@ -12,6 +12,7 @@
     <UseDebugLibraries Condition="'$(Configuration)'=='Release'">false</UseDebugLibraries>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove('$(MSBuildThisFileDirectory)', 'vcpkg.json'))\vcpkg\DirectX.vcpkg.props" />
   <ImportGroup Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="Exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" />
     <Import Project="Dxr2Preview.props" />
@@ -76,13 +77,9 @@
     <SampleShader Include="compositing"><Source>shaders\compositing.hlsl</Source><Profile>cs_6_6</Profile><Options>-E Composite</Options></SampleShader>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove('$(MSBuildThisFileDirectory)', 'vcpkg.json'))\vcpkg\DirectX.vcpkg.targets" />
   <ImportGroup Label="ExtensionTargets">
-    <Import Project="$(RestoreRepositoryPath)\directxtk12_desktop_2019.2025.10.28.1\build\native\directxtk12_desktop_2019.targets" Condition="Exists('$(RestoreRepositoryPath)\directxtk12_desktop_2019.2025.10.28.1\build\native\directxtk12_desktop_2019.targets')" />
     <Import Project="$(RestoreRepositoryPath)\WinPixEventRuntime.1.0.240308001\build\WinPixEventRuntime.targets" Condition="Exists('$(RestoreRepositoryPath)\WinPixEventRuntime.1.0.240308001\build\WinPixEventRuntime.targets')" />
   </ImportGroup>
-  <Target Name="EnsureNuGetPackages" BeforeTargets="PrepareForBuild">
-    <Error Condition="!Exists('$(RestoreRepositoryPath)\directxtk12_desktop_2019.2025.10.28.1\build\native\directxtk12_desktop_2019.targets')" Text="Restore NuGet packages before building (tools/build.ps1)." />
-    <Error Condition="!Exists('$(RestoreRepositoryPath)\WinPixEventRuntime.1.0.240308001\build\WinPixEventRuntime.targets')" Text="Restore NuGet packages before building (tools/build.ps1)." />
-  </Target>
   <Import Project="Dxr2Preview.targets" />
 </Project>

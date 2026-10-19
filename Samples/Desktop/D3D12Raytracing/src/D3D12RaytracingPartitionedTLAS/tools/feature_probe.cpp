@@ -98,12 +98,6 @@ int main()
         return foundHardware ? 2 : 1;
     }
 
-    ComPtr<ID3D12DeviceRaytracing2> dxr2Device;
-    result = device.As(&dxr2Device);
-    std::printf("ID3D12DeviceRaytracing2: 0x%08lX\n", static_cast<unsigned long>(result));
-    if (FAILED(result))
-        return 2;
-
     D3D12_COMMAND_QUEUE_DESC queueDescription{};
     queueDescription.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
     ComPtr<ID3D12CommandQueue> queue;

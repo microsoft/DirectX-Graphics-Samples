@@ -2,24 +2,21 @@
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <!-- Optional, ignored settings for this checkout only. -->
   <Import Project="Dxr2Preview.local.props" Condition="Exists('Dxr2Preview.local.props')" />
-  <!-- Set Dxr2SdkRoot in a user property sheet or pass /p:Dxr2SdkRoot=... .
-       Use matching Agility headers/runtime and a compatible DXC. The root
-       contains include/ plus either bin/ or $(Platform)/sdkbin/.
-       SDK_RELEASE_TODO: Align these paths with Microsoft's shipping package layout. -->
   <PropertyGroup>
-    <Dxr2SdkRoot Condition="'$(Dxr2SdkRoot)' == ''">$(MSBuildThisFileDirectory)..\dxr2_preview</Dxr2SdkRoot>
-    <Dxr2SdkDirectory>$([MSBuild]::NormalizeDirectory('$(Dxr2SdkRoot)'))</Dxr2SdkDirectory>
-    <Dxr2SdkBinDirectory Condition="Exists('$(Dxr2SdkDirectory)bin\D3D12Core.dll')">$(Dxr2SdkDirectory)bin\</Dxr2SdkBinDirectory>
-    <Dxr2SdkBinDirectory Condition="'$(Dxr2SdkBinDirectory)' == ''">$(Dxr2SdkDirectory)$(Platform)\sdkbin\</Dxr2SdkBinDirectory>
+    <RestoreRepositoryPath Condition="'$(RestoreRepositoryPath)' == ''">$([MSBuild]::NormalizePath('$(MSBuildThisFileDirectory)..\..\..\..\..\Packages'))</RestoreRepositoryPath>
+    <Dxr2AgilityDirectory>$(RestoreRepositoryPath)\Microsoft.Direct3D.D3D12.1.722.0-160058127-preview\build\native\</Dxr2AgilityDirectory>
+    <Dxr2DxcDirectory>$(RestoreRepositoryPath)\Microsoft.Direct3D.DXC.1.10.2605.37-preview\build\native\</Dxr2DxcDirectory>
+    <DxcDirectory>$(Dxr2DxcDirectory)bin\$(Platform)\</DxcDirectory>
     <Dxr2ArtifactsRoot Condition="'$(Dxr2ArtifactsRoot)' == ''">$(MSBuildThisFileDirectory)</Dxr2ArtifactsRoot>
     <Dxr2ArtifactsDirectory>$([MSBuild]::NormalizeDirectory('$(Dxr2ArtifactsRoot)'))</Dxr2ArtifactsDirectory>
-    <RestoreRepositoryPath Condition="'$(RestoreRepositoryPath)' == ''">$(Dxr2ArtifactsDirectory)packages</RestoreRepositoryPath>
     <OutDir>$(Dxr2ArtifactsDirectory)bin\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(Dxr2ArtifactsDirectory)obj\$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
     <LocalDebuggerWorkingDirectory>$(OutDir)</LocalDebuggerWorkingDirectory>
     <LocalDebuggerCommandArguments>--full</LocalDebuggerCommandArguments>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
   </PropertyGroup>
+  <Import Project="$(Dxr2AgilityDirectory)Microsoft.Direct3D.D3D12.props" Condition="Exists('$(Dxr2AgilityDirectory)Microsoft.Direct3D.D3D12.props')" />
+  <Import Project="$(Dxr2DxcDirectory)Microsoft.Direct3D.DXC.props" Condition="Exists('$(Dxr2DxcDirectory)Microsoft.Direct3D.DXC.props')" />
   <ItemDefinitionGroup>
     <ClCompile>
       <LanguageStandard>stdcpp17</LanguageStandard>
@@ -28,7 +25,7 @@
       <ConformanceMode>true</ConformanceMode>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <FloatingPointModel>Precise</FloatingPointModel>
-      <AdditionalIncludeDirectories>$(Dxr2SdkDirectory)include;$(MSBuildThisFileDirectory)shaders;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(MSBuildThisFileDirectory)shaders;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32_LEAN_AND_MEAN;NOMINMAX;UNICODE;_UNICODE;USE_PIX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
@@ -37,11 +34,11 @@
     </Link>
   </ItemDefinitionGroup>
   <Target Name="ValidateDxr2Preview" BeforeTargets="PrepareForBuild">
-    <Error Condition="!Exists('$(Dxr2SdkDirectory)include\d3d12.h')"
-           Text="Set Dxr2SdkRoot to a DXR 2-capable Agility SDK/toolchain directory containing include\d3d12.h. See README.md." />
-    <Error Condition="!Exists('$(Dxr2SdkBinDirectory)D3D12Core.dll') or !Exists('$(Dxr2SdkBinDirectory)d3d12SDKLayers.dll')"
-           Text="Missing preview runtime in $(Dxr2SdkBinDirectory). The SDK must contain bin\ or $(Platform)\sdkbin\ with D3D12Core.dll and d3d12SDKLayers.dll." />
-    <Error Condition="!Exists('$(Dxr2SdkBinDirectory)dxc.exe') or !Exists('$(Dxr2SdkBinDirectory)dxcompiler.dll') or !Exists('$(Dxr2SdkBinDirectory)dxil.dll')"
-           Text="Missing compatible preview DXC in $(Dxr2SdkBinDirectory). Supply dxc.exe, dxcompiler.dll and dxil.dll from a matching DXC distribution compatible with the selected Agility SDK." />
+    <Error Condition="!Exists('$(Dxr2AgilityDirectory)Microsoft.Direct3D.D3D12.props') or !Exists('$(Dxr2AgilityDirectory)Microsoft.Direct3D.D3D12.targets')"
+           Text="Restore the Microsoft.Direct3D.D3D12 NuGet package before building (tools\build.ps1). See README.md for preview package sources." />
+    <Error Condition="!Exists('$(Dxr2DxcDirectory)Microsoft.Direct3D.DXC.props') or !Exists('$(Dxr2DxcDirectory)Microsoft.Direct3D.DXC.targets')"
+           Text="Restore the Microsoft.Direct3D.DXC NuGet package before building (tools\build.ps1)." />
+    <Error Condition="'@(SampleShader)' != '' and !Exists('$(RestoreRepositoryPath)\WinPixEventRuntime.1.0.240308001\build\WinPixEventRuntime.targets')"
+           Text="Restore the WinPixEventRuntime NuGet package before building (tools\build.ps1)." />
   </Target>
 </Project>

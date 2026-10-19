@@ -19,43 +19,36 @@ Start with [the PTLAS walkthrough](PTLAS_WALKTHROUGH.md) for annotated code, a r
 ## Requirements
 
 - Windows and a GPU/driver supporting DXR 2 PTLAS.
-- Visual Studio 2022 with **Desktop development with C++** and a Windows 10/11 SDK; build for x64 with C++17.
-- A DXR 2 PTLAS-capable Agility SDK preview and a compatible DirectX Shader Compiler (DXC).
-- NuGet package restore for DirectXTK12 and WinPixEventRuntime, pinned in [packages.config](packages.config). DirectXMath is supplied by the Windows SDK.
+- A full checkout of DirectX-Graphics-Samples.
+- Visual Studio 2022 with **Desktop development with C++**, a Windows 10/11 SDK, and the **vcpkg package manager** component (`Microsoft.VisualStudio.Component.Vcpkg`); build for x64 with C++17. Alternatively, set `VCPKG_ROOT` to your vcpkg installation.
+- Windows Developer Mode for experimental feature enablement.
 
-The Agility SDK and DXC are supplied separately from this sample. Use the headers
-and runtime from the same Agility SDK version, together with a compatible DXC.
+The sample uses the same Agility SDK and DXC NuGet versions as the Clustered
+Geometry sample, plus WinPixEventRuntime, pinned in [packages.config](packages.config):
+
+- `Microsoft.Direct3D.D3D12` **1.722.0-160058127-preview**.
+- `Microsoft.Direct3D.DXC` **1.10.2605.37-preview**.
+- `WinPixEventRuntime` **1.0.240308001**.
+
+DirectXTK12 is built from source through the repository's shared `vcpkg.json`
+manifest and `vcpkg\DirectX.vcpkg.props` / `.targets` integration. MSBuild installs
+the manifest dependencies for `x64-windows-static-md` and selects the appropriate
+Debug or Release libraries. No prebuilt DirectXTK NuGet package is required.
+DirectXMath is supplied by the Windows SDK.
 
 ### SDK package availability
 
-The public [DXR 2 ClusteredGeometry sample](../D3D12RaytracingClusteredGeometry/readme.md)
-documents using a locally supplied Agility NuGet package until its public version
-is available, then updating the package version and restoring from nuget.org.
-Keep any local package source in Visual Studio's NuGet settings or a user-level
-`NuGet.Config`; machine-specific feed locations should not be checked in.
-The sample preserves inherited NuGet feeds. If direct access to nuget.org is
-blocked, configure an appropriate feed in your user or machine NuGet settings.
+Until the pinned Agility package is published, add the folder containing its
+`.nupkg` as a local package source in Visual Studio's NuGet settings or a
+user-level `NuGet.Config`, as described by the
+[Clustered Geometry sample](../D3D12RaytracingClusteredGeometry/readme.md).
+Inherited feeds are preserved; if direct access to nuget.org is blocked, use an
+approved internal feed in your user or machine settings. No machine-specific
+feed locations are checked in.
 
-<!-- SDK_RELEASE_TODO: Confirm the Agility SDK and DXC package IDs/versions and
-     public availability with Microsoft, then finalize these instructions. -->
-
-This sample currently uses an extracted SDK/toolchain directory via
-`Dxr2SdkRoot`, rather than restoring Agility and DXC NuGet packages itself. That
-directory must contain `include/d3d12.h`. The runtime and compatible DXC must be
-in either `bin/` (the compact layout) or `x64/sdkbin/` (the full SDK layout).
-That directory must contain `D3D12Core.dll`, `d3d12SDKLayers.dll`, `dxc.exe`,
-`dxcompiler.dll`, and `dxil.dll`. Validation, shader compilation, and runtime
-copying all use the same selected binary directory, without moving SDK files.
-The NuGet restore described below currently installs only the helper
-dependencies in `packages.config`.
-
-<!-- SDK_RELEASE_TODO: Align Dxr2Preview.props, Dxr2Preview.targets and the project/
-     package configuration with the selected Microsoft Agility/DXC package layout.
-     Check D3D12_PREVIEW_SDK_VERSION and D3D12RaytracingPreview use in
-     src/DXR2SampleMain.cpp, src/DeviceResources.cpp and tools/feature_probe.cpp
-     against the shipping headers; these identifiers are intentional API uses.
-     Preview-named files/default folders are existing build interfaces, not pins
-     to a particular private SDK drop. -->
+When the public Agility package is available, update its version in
+`packages.config` and `Dxr2Preview.props` together with the Clustered Geometry
+sample, then restore normally from nuget.org.
 
 ## Build and run
 
@@ -69,26 +62,29 @@ Set-Location bin\x64\Release
 .\dxr_partitioned_tlas.exe --full
 ```
 
-The build script discovers Visual Studio with `vswhere` and runs MSBuild with package restore. [Dxr2Preview.props](Dxr2Preview.props) looks for the preview SDK at `..\dxr2_preview`. To use another location:
-
-```powershell
-.\tools\build.ps1 -Configuration Release -Dxr2SdkRoot C:\path\to\preview
-```
-
-You can also set `Dxr2SdkRoot` in a Visual Studio user property sheet or pass `/p:Dxr2SdkRoot=...` to MSBuild. The projects compile HLSL directly with the preview DXC and copy the runtime, shader sources, compiled shaders, font, and license texts to the output directory.
+The build script discovers Visual Studio with `vswhere` and runs MSBuild with
+NuGet restore and the shared vcpkg integration. NuGet packages are restored into
+the repository's `Packages` directory. Their build targets supply the headers,
+copy the matching Agility runtime into `D3D12\` beside the executable, and copy
+the DXC DLLs beside it. The projects use the packaged DXC to compile HLSL and also
+copy shader sources, compiled shaders, the font, and license texts to the output.
 
 To keep generated files outside the checkout, create an ignored `Dxr2Preview.local.props` next to the solution:
 
 ```xml
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
-    <Dxr2SdkRoot>C:\path\to\preview</Dxr2SdkRoot>
     <Dxr2ArtifactsRoot>C:\path\to\sample-artifacts</Dxr2ArtifactsRoot>
   </PropertyGroup>
 </Project>
 ```
 
-Use `tools/build.ps1` to restore packages and build with these settings. Output, intermediates, and restored packages then go into `bin`, `obj`, and `packages` under `Dxr2ArtifactsRoot`; Visual Studio uses the same output and SDK paths. Without this override, those directories stay inside the checkout and are ignored by Git. Keep captures and logs in the output directory or another directory outside the checkout.
+Use `tools/build.ps1` to restore packages and build with these settings. Output
+and intermediates go into `bin` and `obj` under `Dxr2ArtifactsRoot`; NuGet packages
+remain in the repository's `Packages` directory. Visual Studio uses the same
+paths. Without this override, `bin` and `obj` stay inside the sample directory
+and are ignored by Git. Keep captures and logs in the output directory or another
+directory outside the checkout.
 
 Run `dxr2_feature_probe.exe` to check preview feature enablement, find a hardware adapter with PTLAS support, and inspect the DXR 2 interfaces. The sample selects the first capable hardware adapter from DXGI's high-performance enumeration; `--adapter N` selects a specific ordinal.
 

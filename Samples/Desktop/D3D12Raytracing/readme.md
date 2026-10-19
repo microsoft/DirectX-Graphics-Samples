@@ -70,7 +70,7 @@ This sample demonstrates how to use Opacity Micromaps with a tree model.
 ## [Partitioned TLAS (DXR 2 preview)](src/D3D12RaytracingPartitionedTLAS/README.md)
 This sample adapts NVIDIA's public Vulkan partitioned-TLAS sample to DirectX Raytracing 2. A falling-domino scene demonstrates GPU-generated sparse instance writes, spatial and global partition policies, and comparisons with ordinary TLAS updates.
 
-Open the sample's standalone Visual Studio solution. It requires a compatible DXR 2 preview SDK and driver; the sample README explains how to supply the SDK separately.
+Open the sample's Visual Studio solution from a full repository checkout. It uses the shared vcpkg integration and restores Agility SDK/DXC NuGet packages; a compatible preview driver is required. See the sample README for package-source setup.
 
 ![Partitioned TLAS domino scene](src/D3D12RaytracingPartitionedTLAS/docs/screenshot.png)
 
