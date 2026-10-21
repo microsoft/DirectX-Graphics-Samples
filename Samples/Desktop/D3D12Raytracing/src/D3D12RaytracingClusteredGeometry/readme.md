@@ -243,8 +243,8 @@ comments focus on API contracts, synchronization, and resource lifetime.
   positions. Cluster templates enable data access so `TriangleObjectPositions()` can
   supply the quantized geometric normal for shadow-ray offsets. The SM 6.6 traditional
   path reconstructs the animated triangle from the same deformation function.
-  Its reflected radiance is scaled to half intensity, independently of refraction
-  and Fresnel blend weights.
+  Its reflection blend is halved in favor of surface shading, rather than dimming
+  the reflected image. The refracted contribution remains unchanged.
 - From a VS Developer PowerShell in this sample directory, run the CPU seam regression:
 
   ```powershell

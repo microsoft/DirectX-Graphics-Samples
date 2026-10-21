@@ -645,8 +645,8 @@ void OpaqueHit(inout Payload p, in Attribs a)
                                           p.depth + 1, /*inGlass*/0u);
         float3 reflectTint  = lerp(float3(1, 1, 1), ctx.clusterCol,
                                    ctx.clusterTint * ctx.meta.reflTintMul);
-        finalColor = lerp(finalColor, reflectedRGB * reflectTint * ctx.meta.reflectionScale,
-                          ctx.mat.reflectivity);
+        finalColor = lerp(finalColor, reflectedRGB * reflectTint,
+                          ctx.mat.reflectivity * ctx.meta.reflectionScale);
     }
 
     p.color = float4(finalColor, 1);
@@ -767,7 +767,11 @@ void GlassHit(inout Payload p, in Attribs a)
                                           myDepth + 1, childInGlass);
         float3 reflectTint  = lerp(float3(1, 1, 1), ctx.clusterCol,
                                    ctx.clusterTint * ctx.meta.reflTintMul);
-        finalColor = lerp(finalColor, reflectedRGB * reflectTint * ctx.meta.reflectionScale, F);
+        // Replace reduced reflection with surface shading, not black;
+        // retaining F here preserves the existing refracted contribution.
+        float3 reflectionSurface = lerp(ctx.base, reflectedRGB * reflectTint,
+                                        ctx.meta.reflectionScale);
+        finalColor = lerp(finalColor, reflectionSurface, F);
     }
 
     p.color = float4(finalColor, 1);
