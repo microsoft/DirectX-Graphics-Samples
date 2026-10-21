@@ -231,6 +231,10 @@ comments focus on API contracts, synchronization, and resource lifetime.
 
 ## Things to note
 
+- After a configuration change, the per-frame overlay collects 60 new frame samples
+  on hardware (five on software adapters), after discarding three stale readbacks.
+  The FPS average also restarts, excluding the rebuild pause and the previous mode's
+  frames. `--log-raw-every 1` logs sample progress and elapsed-time markers for diagnosis.
 - Slab faces use one canonical grid and matching edge subdivisions. Shared positions
   remain identical when float precision is reduced, even though face normals differ.
 - The animated sphere's shading normals follow the same radial deformation as its

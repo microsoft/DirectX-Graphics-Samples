@@ -1145,6 +1145,7 @@ private:
     //   - Save current overlay values to m_overlayStatsPrev (colour baseline)
     //   - Reset the accumulator and skip kPerFrameRingSlots readbacks so the
     //     first new snap is fully post-toggle data
+    //   - Reset the FPS window too, excluding old-mode frames and rebuild stalls
     //
     // Each frame:
     //   - If still skipping, decrement and return

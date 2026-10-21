@@ -202,6 +202,17 @@ void D3D12RaytracingClusteredGeometry::RefreshOverlayStatsCurrent()
     m_pfSnapSkipFramesLeft   = (INT)kPerFrameRingSlots;
     m_pfSnapSamplesCollected = 0;
     m_pfSnapAccum            = PfSnapAccum{};
+    // FPS must describe the same configuration as the new timing window,
+    // without carrying over old frames or the synchronous rebuild pause.
+    std::fill(m_frameTimeRing.begin(), m_frameTimeRing.end(), 0.0);
+    m_frameTimeRingIdx = 0;
+    m_frameTimeRingCount = 0;
+    m_frameTimeRingSum = 0.0;
+    m_lastFrameWallTime = now;
+    if (m_logRawPfEveryFrames > 0)
+        SampleLog::LogF(L"[pf-window reset] frame=%u wall=%.6f target=%d\n",
+            m_framesRendered, std::chrono::duration<double>(now.time_since_epoch()).count(),
+            m_pfSnapTargetCount);
     // Mark per-frame timings as settling (skipped on init -- no settle to
     // wait for on the first capture, just display whatever the first
     // post-init snap window produces).  The per-frame snap-window-complete
@@ -1313,7 +1324,9 @@ void D3D12RaytracingClusteredGeometry::RenderUI()
         swprintf_s(fpsBuf, L"%.1f", fps);
     else
         swprintf_s(fpsBuf, L"%u", (unsigned)(fps + 0.5));
-    if (msPerFrame >= 1000.0)
+    if (m_frameTimeRingCount == 0)
+        swprintf_s(buf, L"  measuring...");
+    else if (msPerFrame >= 1000.0)
         swprintf_s(buf, L"  %ls   (%.2f s/frame)", fpsBuf, secPerFrame);
     else
         swprintf_s(buf, L"  %ls   (%.1f ms/frame)", fpsBuf, msPerFrame);

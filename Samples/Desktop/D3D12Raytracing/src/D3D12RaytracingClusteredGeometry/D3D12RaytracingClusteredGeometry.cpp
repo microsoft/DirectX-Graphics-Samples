@@ -5926,6 +5926,14 @@ void D3D12RaytracingClusteredGeometry::DoRender()
                 if (m_logRawPfEveryFrames > 0 &&
                     (m_framesRendered % m_logRawPfEveryFrames) == 0)
                 {
+                    const double wallSeconds = std::chrono::duration<double>(
+                        std::chrono::steady_clock::now().time_since_epoch()).count();
+                    const double displayedFps = m_frameTimeRingSum > 0.0
+                        ? m_frameTimeRingCount / m_frameTimeRingSum : 0.0;
+                    SampleLog::LogF(L"[pf-progress] frame=%u wall=%.6f samples=%d "
+                                    L"skip=%d displayedFps=%.3f\n",
+                        m_framesRendered, wallSeconds, m_pfSnapSamplesCollected,
+                        m_pfSnapSkipFramesLeft, displayedFps);
                     SampleLog::LogF(L"[pf-raw frame=%u alloc=%ls rebuild=%ls] "
                                     L"raw=%.3fus ema=%.3fus snap=%.3fus  "
                                     L"(anim raw=%.3f ema=%.3f, animBlas raw=%.3f, tlas raw=%.3f)\n",
@@ -5968,6 +5976,10 @@ void D3D12RaytracingClusteredGeometry::DoRender()
                         // now reflect the new mode, drop the "recalculating..."
                         // placeholder.
                         m_pfTimingSettlingAfterToggle  = false;
+                        if (m_logRawPfEveryFrames > 0)
+                            SampleLog::LogF(L"[pf-window complete] frame=%u wall=%.6f\n",
+                                m_framesRendered, std::chrono::duration<double>(
+                                    std::chrono::steady_clock::now().time_since_epoch()).count());
                         m_pfSnapAccum            = PfSnapAccum{};
                         m_pfSnapSamplesCollected = 0;
                     }
