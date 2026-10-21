@@ -432,10 +432,8 @@ void D3D12RaytracingClusteredGeometry::QueryDXR2Support()
         SampleLog::LogF(L"  auto rays/pixel: %u  (%ls adapter)\n",
                         m_aaSamplesPerPixel, isSoftware ? L"software" : L"hardware");
     }
-    // Same auto-resolve for the per-frame timing snapshot window.  60
-    // samples on HW (~1 s at 60 fps), 5 samples on WARP (~30-50 s at
-    // 6-10 s/frame).  Without this, the PER-FRAME overlay line shows
-    // "recalculating..." for 10+ minutes on WARP after each toggle.
+    // Keep full averaging windows short enough for software rendering too.
+    // The first window publishes provisional averages as samples arrive.
     if (m_pfSnapTargetCount == 0)
     {
         const wchar_t* desc = m_deviceResources->GetAdapterDescription();
@@ -5854,8 +5852,8 @@ void D3D12RaytracingClusteredGeometry::OnRender()
     // ring buffer hasn't filled yet).  Pump up to m_pfSnapTargetCount + a
     // bit so the rolling per-frame snap window has actually completed when
     // we capture -- so screenshots after a config-change toggle show real
-    // post-toggle numbers, not the "recalculating..." placeholder we
-    // display during the ~1 s settle.  Old behaviour was a hardcoded
+    // post-toggle averages rather than a partly filled first window.
+    // Old behaviour was a hardcoded
     // frame 15 which exited too early on toggle-tests.
     if (m_screenshotAtSeconds >= 0 && m_framesRendered >= 80 && !m_screenshotTaken)
         capture = true;
@@ -5931,9 +5929,11 @@ void D3D12RaytracingClusteredGeometry::DoRender()
                     const double displayedFps = m_frameTimeRingSum > 0.0
                         ? m_frameTimeRingCount / m_frameTimeRingSum : 0.0;
                     SampleLog::LogF(L"[pf-progress] frame=%u wall=%.6f samples=%d "
-                                    L"skip=%d displayedFps=%.3f\n",
+                                    L"skip=%d displayedFps=%.3f valid=%u averaging=%u\n",
                         m_framesRendered, wallSeconds, m_pfSnapSamplesCollected,
-                        m_pfSnapSkipFramesLeft, displayedFps);
+                        m_pfSnapSkipFramesLeft, displayedFps,
+                        m_overlayStats.pfTimingValid ? 1u : 0u,
+                        m_pfTimingSettlingAfterToggle ? 1u : 0u);
                     SampleLog::LogF(L"[pf-raw frame=%u alloc=%ls rebuild=%ls] "
                                     L"raw=%.3fus ema=%.3fus snap=%.3fus  "
                                     L"(anim raw=%.3f ema=%.3f, animBlas raw=%.3f, tlas raw=%.3f)\n",
@@ -5945,9 +5945,8 @@ void D3D12RaytracingClusteredGeometry::DoRender()
                                     blasMs * 1000.0, tlasMs * 1000.0);
                 }
 
-                // Rolling per-frame snapshot.  Accumulate samples into
-                // m_pfSnapAccum; when we have m_pfSnapTargetCount, mean
-                // them into m_overlayStats and start the next window.
+                // Publish provisional means throughout the first new-config
+                // window; later windows publish only once full.
                 // m_pfSnapSkipFramesLeft != 0 means a recent toggle and we
                 // need to flush stale ring-buffer entries first.  See the
                 // header comment on m_pfSnapAccum for the full mechanism.
@@ -5963,18 +5962,19 @@ void D3D12RaytracingClusteredGeometry::DoRender()
                     m_pfSnapAccum.staticBlasMs += staticBlasMs;
                     m_pfSnapAccum.staticClasMs += staticClasMs;
                     ++m_pfSnapSamplesCollected;
-                    if (m_pfSnapSamplesCollected >= m_pfSnapTargetCount)
+                    const bool windowComplete = m_pfSnapSamplesCollected >= m_pfSnapTargetCount;
+                    if (m_pfTimingSettlingAfterToggle || windowComplete)
                     {
-                        const double inv = 1.0 / m_pfSnapTargetCount;
+                        const double inv = 1.0 / m_pfSnapSamplesCollected;
                         m_overlayStats.pfInstantiateMs = m_pfSnapAccum.instMs       * inv;
                         m_overlayStats.pfBlasRebuildMs = m_pfSnapAccum.blasMs       * inv;
                         m_overlayStats.pfTlasRebuildMs = m_pfSnapAccum.tlasMs       * inv;
                         m_overlayStats.pfStaticBlasMs  = m_pfSnapAccum.staticBlasMs * inv;
                         m_overlayStats.pfStaticClasMs  = m_pfSnapAccum.staticClasMs * inv;
                         m_overlayStats.pfTimingValid   = true;
-                        // First post-toggle window completed -- live timings
-                        // now reflect the new mode, drop the "recalculating..."
-                        // placeholder.
+                    }
+                    if (windowComplete)
+                    {
                         m_pfTimingSettlingAfterToggle  = false;
                         if (m_logRawPfEveryFrames > 0)
                             SampleLog::LogF(L"[pf-window complete] frame=%u wall=%.6f\n",

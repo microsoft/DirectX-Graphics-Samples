@@ -1144,8 +1144,9 @@ private:
     // On toggle (CaptureOverlayStatsSnapshot):
     //   - Save current overlay values to m_overlayStatsPrev (colour baseline)
     //   - Reset the accumulator and skip kPerFrameRingSlots readbacks so the
-    //     first new snap is fully post-toggle data
+    //     displayed timings contain only the new configuration's data
     //   - Reset the FPS window too, excluding old-mode frames and rebuild stalls
+    //   - Publish the running mean immediately, marked as averaging until full
     //
     // Each frame:
     //   - If still skipping, decrement and return
@@ -1167,13 +1168,8 @@ private:
         double staticClasMs = 0.0;
     };
     PfSnapAccum                          m_pfSnapAccum;
-    // True from the moment a config-change toggle fires (CaptureOverlayStatsSnapshot)
-    // until the first post-toggle per-frame snap window completes (~kPerFrameRingSlots
-    // + kSnapshotSampleCount frames = ~1.1 s at 60 FPS).  The overlay uses this to
-    // print "recalculating..." in place of the per-frame timing numbers during the
-    // settle, so the user isn't staring at the OLD mode's millisecond figures and
-    // wondering "did the toggle do anything?".  Set in CaptureOverlayStatsSnapshot
-    // (skipped on init), cleared in the snap-window-completes branch.
+    // The first window after init/configuration changes is shown progressively,
+    // with an averaging-progress label. Later windows publish only when full.
     bool                                 m_pfTimingSettlingAfterToggle = false;
 
     // ---------- App state ----------

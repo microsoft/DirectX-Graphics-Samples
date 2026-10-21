@@ -81,8 +81,8 @@ void D3D12RaytracingClusteredGeometry::StashOverlayStatsAsPrev()
 // Snapshot m_overlayStats from the current live GPU resource state.  Re-reads
 // every displayed value EXCEPT animatedPerFrameClasActualBytes (which is set by
 // MeasureAnimatedClasBytesOneShot at end-of-build and persists across calls).
-// Also arms the 5s delta-colour fade and the "recalculating..." per-frame
-// settle flag.  Does NOT stash prev -- that must already have been done by
+// Also arms the 5s delta-colour fade and the first-window averaging flag.
+// Does NOT stash prev -- that must already have been done by
 // either CaptureOverlayStatsSnapshot (one-shot callers) or by an earlier
 // StashOverlayStatsAsPrev (rebuild callers).
 // =====================================================================================
@@ -194,14 +194,13 @@ void D3D12RaytracingClusteredGeometry::RefreshOverlayStatsCurrent()
         s.traditionalBuildMs          = m_traditionalStaticBuildMs;
     }
 
-    // Reset the per-frame snap accumulator so the first post-toggle snap
-    // is built only from new-mode samples.  Don't touch m_overlayStats /
-    // pfTimingValid -- we keep displaying the previous value during the
-    // ~0.3 s settle until the new snap fires.  See the long comment on
-    // m_pfSnapAccum in the header for the full mechanism.
+    // Discard old-mode timings; publish a running mean after the first
+    // valid new-mode readback instead of hiding the whole averaging window.
     m_pfSnapSkipFramesLeft   = (INT)kPerFrameRingSlots;
     m_pfSnapSamplesCollected = 0;
     m_pfSnapAccum            = PfSnapAccum{};
+    s.pfTimingValid = false;
+    m_pfTimingSettlingAfterToggle = true;
     // FPS must describe the same configuration as the new timing window,
     // without carrying over old frames or the synchronous rebuild pause.
     std::fill(m_frameTimeRing.begin(), m_frameTimeRing.end(), 0.0);
@@ -213,18 +212,6 @@ void D3D12RaytracingClusteredGeometry::RefreshOverlayStatsCurrent()
         SampleLog::LogF(L"[pf-window reset] frame=%u wall=%.6f target=%d\n",
             m_framesRendered, std::chrono::duration<double>(now.time_since_epoch()).count(),
             m_pfSnapTargetCount);
-    // Mark per-frame timings as settling (skipped on init -- no settle to
-    // wait for on the first capture, just display whatever the first
-    // post-init snap window produces).  The per-frame snap-window-complete
-    // branch in DoRender clears this once the first post-toggle window
-    // averages settle into m_overlayStats.  While set, the overlay's
-    // PER-FRAME section prints "recalculating..." in place of the timing
-    // numbers (which would otherwise show the OLD mode's stale numbers
-    // for the ~1 s the rolling window takes to refill, leaving the user
-    // wondering "did the toggle do anything?").
-    if (!isInit)
-        m_pfTimingSettlingAfterToggle = true;
-
     // Refresh the delta-colour fade window: 5 seconds from NOW.  Each toggle
     // installs a fresh window (and a fresh prev above), so the user sees
     // immediate red/green vs the immediately previous toggle, fading back to
@@ -1090,35 +1077,22 @@ void D3D12RaytracingClusteredGeometry::RenderUI()
     }
 
     // ----- PER-FRAME section -----
-    // Times are snapped from the EMA a few frames after each config change so
-    // the displayed value belongs to the current config (not a smear of pre +
-    // post-rebuild samples).  Splitting INSTANTIATE vs BLAS vs TLAS is what
-    // makes the precision / vertex-format sweep meaningful: changing
-    // precision should move ONLY the INSTANTIATE column.
+    // Show current-configuration raw GPU samples, progressively averaged
+    // during the first window. Keep the build stages separate for comparisons.
     if (m_animatedObjectEnabled)
     {
         const auto& p = m_overlayStatsPrev;
-        draw(L"PER-FRAME:", pos, kAccent);
-        pos.y += kLineH;
-        // During the post-toggle settle (~kPerFrameRingSlots +
-        // m_pfSnapTargetCount frames), the rolling EMA window is still
-        // refilling with new-mode samples, and m_overlayStats.pf* still
-        // holds the OLD mode's averages.  Showing those would mislead
-        // the user into thinking the toggle had no effect on per-frame
-        // cost; print "recalculating..." instead so the lag is explicit.
-        // (N/M) progress is most useful on WARP where each sample is a
-        // full multi-second frame -- watching it tick from 0/5 to 5/5
-        // confirms the app is still alive and gives a rough ETA.
-        if (m_pfTimingSettlingAfterToggle)
+        wchar_t heading[64];
+        if (s.pfTimingValid && m_pfTimingSettlingAfterToggle)
         {
-            wchar_t pbuf[64];
-            swprintf_s(pbuf, L"  recalculating... (%d/%d)",
-                       (int)m_pfSnapSamplesCollected,
-                       (int)m_pfSnapTargetCount);
-            draw(pbuf, pos, kSubtle);
-            pos.y += kLineH;
+            swprintf_s(heading, L"PER-FRAME (averaging %d/%d):",
+                       m_pfSnapSamplesCollected, m_pfSnapTargetCount);
         }
-        else if (s.pfTimingValid)
+        else
+            swprintf_s(heading, L"PER-FRAME:");
+        draw(heading, pos, kAccent);
+        pos.y += kLineH;
+        if (s.pfTimingValid)
         {
             const double totalMs     = s.pfInstantiateMs + s.pfBlasRebuildMs + s.pfTlasRebuildMs;
             const double prevTotalMs = p.pfInstantiateMs + p.pfBlasRebuildMs + p.pfTlasRebuildMs;

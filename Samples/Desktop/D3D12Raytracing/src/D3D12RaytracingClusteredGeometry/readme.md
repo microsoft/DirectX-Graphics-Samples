@@ -233,6 +233,8 @@ comments focus on API contracts, synchronization, and resource lifetime.
 
 - After a configuration change, the per-frame overlay collects 60 new frame samples
   on hardware (five on software adapters), after discarding three stale readbacks.
+  New-mode timings appear as soon as the first valid sample arrives; the heading
+  shows averaging progress while those values are refined.
   The FPS average also restarts, excluding the rebuild pause and the previous mode's
   frames. `--log-raw-every 1` logs sample progress and elapsed-time markers for diagnosis.
 - Slab faces use one canonical grid and matching edge subdivisions. Shared positions
