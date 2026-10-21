@@ -135,7 +135,7 @@ static_assert(offsetof(ClusterMeta, surfTintMul) == 24);
 static_assert(offsetof(ClusterMeta, refrTintMul) == 28);
 static_assert(offsetof(ClusterMeta, reflTintMul) == 32);
 static_assert(offsetof(ClusterMeta, materialSlot) == 36);
-static_assert(offsetof(ClusterMeta, _pad0) == 40);
+static_assert(offsetof(ClusterMeta, reflectionScale) == 40);
 static_assert(offsetof(ClusterMeta, _pad1) == 44);
 
 // ==== Shader entry-point names (must match Raytracing.hlsl) ====
@@ -1049,6 +1049,7 @@ void D3D12RaytracingClusteredGeometry::BuildClusterMetadata()
         meta[i].surfTintMul    = 1.0f;
         meta[i].refrTintMul    = 0.50f;
         meta[i].reflTintMul    = 1.08f;   // = 0.70 / 0.65 (default clusterTint)
+        meta[i].reflectionScale = 1.0f;
     }
 
     // Generic per-cluster fill - works on any object type that has a
@@ -1119,8 +1120,11 @@ void D3D12RaytracingClusteredGeometry::BuildClusterMetadata()
                      checker, /*surf*/1.0f, /*refr*/0.75f, /*refl*/1.20f,
                      m_animatedObject.instanceID);
         for (const auto& cluster : m_animatedObject.mesh.clusters)
+        {
             meta[cluster.clusterID + m_animatedClusterIdOffset].flags
                 |= CLUSTER_META_FLAG_ANIMATED_SPHERE;
+            meta[cluster.clusterID + m_animatedClusterIdOffset].reflectionScale = 0.5f;
+        }
     }
 
     ResourceUploadBatch resourceUpload(device);

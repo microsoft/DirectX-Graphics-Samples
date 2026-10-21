@@ -135,6 +135,6 @@ struct ClusterMeta
     // mixed-region geometry lookup.  Cluster mode uses the canonical
     // g_perInstGeomMaterial[InstanceIndex(), GeometryIndex()] table.
     uint  materialSlot;
-    uint  _pad0;
+    float reflectionScale;     // reflected radiance multiplier; leaves refraction weights unchanged
     uint  _pad1;
 };
