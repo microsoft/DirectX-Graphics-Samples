@@ -37,6 +37,30 @@ using namespace DX;
 using namespace DirectX;
 using Microsoft::WRL::ComPtr;
 
+namespace
+{
+    void CreateReadOnlyShaderBuffer(ID3D12Device* device, ResourceUploadBatch& upload,
+                                    const void* data, size_t sizeInBytes,
+                                    ComPtr<ID3D12Resource>& buffer, const wchar_t* name)
+    {
+        const CD3DX12_HEAP_PROPERTIES heap(D3D12_HEAP_TYPE_DEFAULT);
+        const auto desc = CD3DX12_RESOURCE_DESC::Buffer(sizeInBytes);
+        ComPtr<ID3D12Resource> resource;
+        ThrowIfFailed(device->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_NONE, &desc,
+            D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&resource)));
+        resource->SetName(name);
+
+        D3D12_SUBRESOURCE_DATA source = {};
+        source.pData = data;
+        source.RowPitch = static_cast<LONG_PTR>(sizeInBytes);
+        source.SlicePitch = source.RowPitch;
+        upload.Upload(resource.Get(), 0, &source, 1);
+        upload.Transition(resource.Get(), D3D12_RESOURCE_STATE_COPY_DEST,
+                          D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+        buffer = std::move(resource);
+    }
+}
+
 // These layouts are emitted manually by GPU shaders.  A d3d12.h revision
 // must fail the host build until the matching HLSL byte offsets are updated.
 static_assert(sizeof(D3D12_RTAS_OPERATION_BUILD_CLAS_FROM_TRIANGLES_ARGS) == 80,
@@ -946,13 +970,22 @@ void D3D12RaytracingClusteredGeometry::BuildClusterShaderSideBuffers()
         for (const auto& c : m_animatedObject.mesh.clusters)
             appendCluster(c, c.clusterID + m_animatedClusterIdOffset);
 
-    AllocateUploadBuffer(device, normals.data(), normals.size() * sizeof(DirectX::XMFLOAT4),
-                         &m_clusterNormalsBuffer,
-                         L"Cluster vertex normals (per-vertex side channel)");
-    AllocateUploadBuffer(device, indices.data(), indices.size() * sizeof(UINT),
-                         &m_clusterIndicesBuffer, L"Cluster indices (uint32-widened side channel)");
-    AllocateUploadBuffer(device, offsets.data(), offsets.size() * sizeof(XMUINT2),
-                         &m_clusterOffsetsBuffer, L"Cluster vert/idx offset table");
+    // Hit shaders repeatedly read these immutable tables. Keep them in GPU-local
+    // memory and stage their contents only when creating or rebuilding the scene.
+    ResourceUploadBatch resourceUpload(device);
+    resourceUpload.Begin();
+    CreateReadOnlyShaderBuffer(device, resourceUpload, normals.data(),
+        normals.size() * sizeof(XMFLOAT4), m_clusterNormalsBuffer,
+        L"Cluster vertex normals (per-vertex side channel)");
+    CreateReadOnlyShaderBuffer(device, resourceUpload, indices.data(),
+        indices.size() * sizeof(UINT), m_clusterIndicesBuffer,
+        L"Cluster indices (uint32-widened side channel)");
+    CreateReadOnlyShaderBuffer(device, resourceUpload, offsets.data(),
+        offsets.size() * sizeof(XMUINT2), m_clusterOffsetsBuffer,
+        L"Cluster vert/idx offset table");
+    // Complete the copies and transitions before the first dispatch uses them.
+    // ResourceUploadBatch retains the staging allocations until completion.
+    resourceUpload.End(m_deviceResources->GetCommandQueue()).get();
 
     m_clusterNormalsCount = (UINT)normals.size();
     m_clusterIndicesCount = (UINT)indices.size();
@@ -1089,8 +1122,12 @@ void D3D12RaytracingClusteredGeometry::BuildClusterMetadata()
                      m_animatedObject.instanceID);
     }
 
-    AllocateUploadBuffer(device, meta.data(), meta.size() * sizeof(ClusterMeta),
-                         &m_clusterMetaBuffer, L"Per-cluster GENERIC metadata (ClusterMeta[])");
+    ResourceUploadBatch resourceUpload(device);
+    resourceUpload.Begin();
+    CreateReadOnlyShaderBuffer(device, resourceUpload, meta.data(),
+        meta.size() * sizeof(ClusterMeta), m_clusterMetaBuffer,
+        L"Per-cluster GENERIC metadata (ClusterMeta[])");
+    resourceUpload.End(m_deviceResources->GetCommandQueue()).get();
     m_clusterMetaCount = (UINT)meta.size();
 
     SampleLog::LogF(L"[clustermeta] %u entries (~%u KB)\n",
