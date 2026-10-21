@@ -19,6 +19,7 @@
 
 #define HLSL
 #include "RaytracingHlslCompat.h"
+#include "AnimatedSphere.hlsli"
 
 RaytracingAccelerationStructure   Scene       : register(t0);
 RWTexture2D<float4>               Output      : register(u0);
@@ -310,7 +311,7 @@ void ShadowMiss(inout ShadowPayload p)
 }
 
 // ----------------------------------------------------------------------------
-// Shared helper: fire a shadow ray from world-space hitPos along nWorld toward
+// Shared helper: fire a shadow ray offset along the surface normal toward
 // the sun and return the visibility scalar (0 = in shadow, 1 = lit).
 // ----------------------------------------------------------------------------
 float ShadowVisibility(float3 hitPos, float3 nWorld, float3 toSun)
@@ -392,6 +393,7 @@ struct HitContext
     ClusterMeta  meta;
     MaterialDesc mat;
     float3       nWorld;        // smooth world normal oriented toward the incoming ray
+    float3       geometricNormal;
     // Test entry against the unflipped smooth normal, rather than triangle
     // winding, to handle non-orientable surfaces such as the Klein bottle.
     bool         entering;
@@ -497,8 +499,13 @@ void LoadHitContext(in Attribs a, in bool allowBackFaceFlip, out HitContext ctx)
     float  bw1   = a.bary.x;
     float  bw2   = a.bary.y;
     float  bw0   = 1.0 - bw1 - bw2;
-    float3 nObj  = normalize(n0 * bw0 + n1 * bw1 + n2 * bw2);
-    ctx.nWorld   = normalize(mul((float3x3)ObjectToWorld3x4(), nObj));
+    const bool animated = (ctx.meta.flags & CLUSTER_META_FLAG_ANIMATED_SPHERE) != 0u;
+    float3 restNormal = normalize(n0 * bw0 + n1 * bw1 + n2 * bw2);
+    float3 nObj = animated
+        ? AnimatedSphereNormal(restNormal * ANIMATED_SPHERE_REST_RADIUS,
+                               g_scene.animationParams.x)
+        : restNormal;
+    ctx.nWorld = normalize(mul(nObj, (float3x3)WorldToObject3x4()));
 
     // ENTERING vs EXITING decision: use the SMOOTH NORMAL's direction,
     // not HitKind().  Reason: triangle winding (which determines
@@ -528,6 +535,39 @@ void LoadHitContext(in Attribs a, in bool allowBackFaceFlip, out HitContext ctx)
     if (allowBackFaceFlip && !ctx.entering)
         ctx.nWorld = -ctx.nWorld;
 
+    ctx.geometricNormal = ctx.nWorld;
+    if (animated)
+    {
+        float3 p0, p1, p2;
+#ifndef TRADITIONAL_ONLY
+        if (!isTraditional)
+        {
+            // Template data access returns the actual quantized hit triangle.
+            BuiltInTrianglePositions positions = TriangleObjectPositions();
+            p0 = positions.p0;
+            p1 = positions.p1;
+            p2 = positions.p2;
+        }
+        else
+#endif
+        {
+            // SM 6.6 has no triangle-position intrinsic; reproduce its input vertices.
+            p0 = AnimatedSpherePosition(n0 * ANIMATED_SPHERE_REST_RADIUS,
+                                        g_scene.animationParams.x);
+            p1 = AnimatedSpherePosition(n1 * ANIMATED_SPHERE_REST_RADIUS,
+                                        g_scene.animationParams.x);
+            p2 = AnimatedSpherePosition(n2 * ANIMATED_SPHERE_REST_RADIUS,
+                                        g_scene.animationParams.x);
+        }
+        float3 geometric = cross(p1 - p0, p2 - p0);
+        if (dot(geometric, geometric) > 1e-20)
+        {
+            ctx.geometricNormal = normalize(mul(geometric, (float3x3)WorldToObject3x4()));
+            if (dot(ctx.geometricNormal, ctx.nWorld) < 0.0)
+                ctx.geometricNormal = -ctx.geometricNormal;
+        }
+    }
+
     // Interior-surface back-face refractivity reduction.  Tunable per
     // cluster via the CLUSTER_META_FLAG_INTERIOR_SURFACE bit; when set,
     // back-face hits on this cluster lose a fraction of their refractivity
@@ -556,7 +596,7 @@ void LoadHitContext(in Attribs a, in bool allowBackFaceFlip, out HitContext ctx)
     ctx.hitPos       = WorldRayOrigin() + WorldRayDirection() * RayTCurrent();
     float3 toSun     = normalize(g_scene.lightDir.xyz);
     float  NdotL     = saturate(dot(ctx.nWorld, toSun));
-    float  visibility= ShadowVisibility(ctx.hitPos, ctx.nWorld, toSun);
+    float  visibility= ShadowVisibility(ctx.hitPos, ctx.geometricNormal, toSun);
     float  ambient   = g_scene.lightDir.w;
     // Sun is intentionally a bit "hot" (1.2x) so lit surfaces overshoot
     // 1.0 and clip toward white - reads as brighter direct sunlight

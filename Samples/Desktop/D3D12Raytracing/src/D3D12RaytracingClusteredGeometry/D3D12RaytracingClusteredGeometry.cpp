@@ -1120,6 +1120,9 @@ void D3D12RaytracingClusteredGeometry::BuildClusterMetadata()
         fillFromMesh(m_animatedObject.mesh, m_animatedClusterIdOffset,
                      checker, /*surf*/1.0f, /*refr*/0.75f, /*refl*/1.20f,
                      m_animatedObject.instanceID);
+        for (const auto& cluster : m_animatedObject.mesh.clusters)
+            meta[cluster.clusterID + m_animatedClusterIdOffset].flags
+                |= CLUSTER_META_FLAG_ANIMATED_SPHERE;
     }
 
     ResourceUploadBatch resourceUpload(device);
@@ -3162,13 +3165,12 @@ void D3D12RaytracingClusteredGeometry::BuildAnimatedObjectSetup()
 
     // 1) Mesh and deformation hints. Keep the envelope above the maximum
     // radial scale; the COMPRESSED1 exponent must cover the same range.
-    // kAnimWobbleAmp must match AnimateBall.hlsl.
-    constexpr float kRestRadius = 1.00f;
+    constexpr float kRestRadius = ANIMATED_SPHERE_REST_RADIUS;
     constexpr float kEnvelopeScale = 1.30f;
-    constexpr float kAnimWobbleAmp = 0.20f;
+    constexpr float kAnimWobbleAmp = ANIMATED_SPHERE_WOBBLE_AMPLITUDE;
     static_assert(1.0f + kAnimWobbleAmp < kEnvelopeScale,
         "kEnvelopeScale must leave headroom over the animation's max radial "
-        "displacement (1 + kAnimWobbleAmp).  See AnimateBall.hlsl::kWobbleAmp -- "
+        "displacement (1 + kAnimWobbleAmp).  See ANIMATED_SPHERE_WOBBLE_AMPLITUDE -- "
         "if you raise the wobble amplitude there, bump kEnvelopeScale here.");
     // A 24 x 32 grid of clusters, with 48 triangles per cluster.
     obj.mesh = ProceduralGeometry::GenerateUVSphereSpatialTiles(
@@ -3473,7 +3475,8 @@ void D3D12RaytracingClusteredGeometry::BuildAnimatedObjectSetup()
 
     D3D12_RTAS_CLUSTER_TEMPLATE_TRIANGLES_INPUTS_DESC tplDesc = {};
     tplDesc.ClusterLimits             = limits;
-    tplDesc.Flags                     = BuildFlagModeRtas();
+    tplDesc.Flags                     = BuildFlagModeRtas()
+        | D3D12_RTAS_OPERATION_FLAG_ALLOW_DATA_ACCESS;
     tplDesc.Mode                      = D3D12_RTAS_OPERATION_MODE_IMPLICIT_DESTINATIONS;
     tplDesc.VertexHintFormat          = D3D12_VERTEX_FORMAT_FLOAT32_3;
     tplDesc.VertexInstantiationFormat = useCompressedTemplate
@@ -5627,6 +5630,7 @@ void D3D12RaytracingClusteredGeometry::UpdateSceneConstantBuffer()
     cb.miscParams.y = std::tan(60.0f * (XM_PI / 180.0f) * 0.5f);   // 60deg vertical FOV
     cb.miscParams.z = (float)m_aaSamplesPerPixel;                  // raygen sample count (1/2/4)
     cb.miscParams.w = m_clusterTint; // 0..1 cluster-rainbow tint blend
+    cb.animationParams.x = (float)m_animSeconds;
 
     // Runtime knobs the shader reads each TraceRay.  See SceneConstantBuffer
     // in RaytracingHlslCompat.h for the slot reservations.

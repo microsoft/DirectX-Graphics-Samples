@@ -84,7 +84,7 @@
       <Command>if not exist "$(IntDir)CompiledShaders" mkdir "$(IntDir)CompiledShaders"
 "$(DxcDirectory)\dxc.exe" -nologo -T cs_6_6 -E main -HV 2021 $(DxcDebugArguments) -Fh "$(IntDir)CompiledShaders\%(Filename).hlsl.h" -Vn g_p%(Filename) "%(FullPath)"</Command>
       <Outputs>$(IntDir)CompiledShaders\%(Filename).hlsl.h</Outputs>
-      <AdditionalInputs>$(DxcDirectory)\dxc.exe;$(DxcDirectory)\dxcompiler.dll;$(DxcDirectory)\dxil.dll;$(MSBuildProjectFullPath);RaytracingHlslCompat.h;HlslCompat.h</AdditionalInputs>
+      <AdditionalInputs>$(DxcDirectory)\dxc.exe;$(DxcDirectory)\dxcompiler.dll;$(DxcDirectory)\dxil.dll;$(MSBuildProjectFullPath);RaytracingHlslCompat.h;HlslCompat.h;AnimatedSphere.hlsli</AdditionalInputs>
     </CustomBuild>
   </ItemDefinitionGroup>
 
@@ -149,6 +149,8 @@
 
   <!-- Loose files visible in IDE. -->
   <ItemGroup>
+    <None Include="AnimatedSphere.hlsli" />
+    <None Include="tests\ProceduralGeometryTests.cpp" />
     <None Include="packages.config" />
     <None Include="readme.md" />
     <!-- DirectXTK sprite-font asset for the on-screen overlay (see RenderUI()).

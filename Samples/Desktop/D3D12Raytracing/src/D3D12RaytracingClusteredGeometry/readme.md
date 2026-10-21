@@ -231,6 +231,21 @@ comments focus on API contracts, synchronization, and resource lifetime.
 
 ## Things to note
 
+- Slab faces use one canonical grid and matching edge subdivisions. Shared positions
+  remain identical when float precision is reduced, even though face normals differ.
+- The animated sphere's shading normals follow the same radial deformation as its
+  positions. Cluster templates enable data access so `TriangleObjectPositions()` can
+  supply the quantized geometric normal for shadow-ray offsets. The SM 6.6 traditional
+  path reconstructs the animated triangle from the same deformation function.
+- From a VS Developer PowerShell in this sample directory, run the CPU seam regression:
+
+  ```powershell
+  New-Item -ItemType Directory -Force bin,obj | Out-Null
+  cl /nologo /std:c++17 /EHsc /I. tests\ProceduralGeometryTests.cpp `
+    /Fe:bin\ProceduralGeometryTests.exe /Fo:obj\ProceduralGeometryTests.obj
+  .\bin\ProceduralGeometryTests.exe
+  ```
+
 - The static clustered scene and animated templates use the format selected
   by `[V]` or `--vertex-format`. Animated source vertices remain `FLOAT32_3`;
   template instantiation converts them to the selected stored format. In

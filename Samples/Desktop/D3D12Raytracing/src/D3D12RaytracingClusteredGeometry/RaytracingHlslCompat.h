@@ -22,6 +22,10 @@ typedef DirectX::XMMATRIX   XMMATRIX;
 typedef UINT                uint;
 #endif
 
+#define ANIMATED_SPHERE_REST_RADIUS 1.0f
+#define ANIMATED_SPHERE_WOBBLE_AMPLITUDE 0.20f
+#define ANIMATED_SPHERE_WOBBLE_FREQUENCY 20.0f
+
 struct SceneConstantBuffer
 {
     XMMATRIX  viewToWorld;       // ray gen camera basis (also applies translation)
@@ -31,6 +35,7 @@ struct SceneConstantBuffer
     XMFLOAT4  lightDir;          // .xyz = world-space direction TO the sun (normalized),
                                  // .w   = ambient floor [0..1] (so shadowed regions remain
                                  //        readable instead of pitch black)
+    XMFLOAT4  animationParams;   // .x = deformation time, shared with AnimateBall.
     // Runtime tweakable knobs (live-cycled via the keyboard, see OnKeyDown).
     // Kept distinct from miscParams so adding more sliders doesn't disturb
     // the existing fields the raygen / closesthit shaders already read.
@@ -103,6 +108,7 @@ struct MaterialDesc
 // at cid * sizeof(ClusterMeta).
 // ----------------------------------------------------------------------------
 #define CLUSTER_META_FLAG_INTERIOR_SURFACE 0x1u   // back-face refr *= 0.4
+#define CLUSTER_META_FLAG_ANIMATED_SPHERE  0x2u
 
 struct ClusterMeta
 {

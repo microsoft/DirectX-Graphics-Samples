@@ -346,16 +346,21 @@ namespace ProceduralGeometry
         float thickness = 0.0f)              // > 0 -> generate a closed SLAB (top + bottom + 4 side walls)
     {
         Mesh m;
-        // Slab mode: top + bottom (each tilesU*tilesV clusters) + 4 side
-        // walls (one cluster each).  Closed volume so refraction has well-
-        // defined enter / exit faces from any incoming direction.
+        // Duplicate face vertices retain distinct normals, but all faces
+        // sample the same grid so shared positions stay bit-identical.
         const bool slab = (thickness > 0.0f);
-        m.clusters.reserve((size_t)tilesU * tilesV * (slab ? 2u : 1u) + (slab ? 4u : 0u));
-        const int rowSize = tileQuadsU + 1;
-        const float tileWidthU = 2.0f * halfSizeU / (float)tilesU;
-        const float tileWidthV = 2.0f * halfSizeV / (float)tilesV;
-        const float quadWidthU = tileWidthU / (float)tileQuadsU;
-        const float quadWidthV = tileWidthV / (float)tileQuadsV;
+        m.clusters.reserve((size_t)tilesU * tilesV * (slab ? 2u : 1u) +
+                           (slab ? 2u * (tilesU + tilesV) : 0u));
+        const int rowSize = tileQuadsV + 1;
+        auto makeAxis = [](float halfSize, int quads)
+        {
+            std::vector<float> axis(quads + 1);
+            for (int i = 0; i <= quads; ++i)
+                axis[i] = float(double(halfSize) * (2.0 * double(i) / double(quads) - 1.0));
+            return axis;
+        };
+        const auto x = makeAxis(halfSizeU, tilesU * tileQuadsU);
+        const auto z = makeAxis(halfSizeV, tilesV * tileQuadsV);
 
         unsigned int clusterCounter = firstClusterID;
 
@@ -375,16 +380,13 @@ namespace ProceduralGeometry
             // when refracted rays come back UP through the slab; that
             // path uses the back-face refractivity boost.
             if (slab) c.flags |= CLUSTER_FLAG_INTERIOR_SURFACE;
-            const float baseU = -halfSizeU + (float)tu * tileWidthU;
-            const float baseV = -halfSizeV + (float)tv * tileWidthV;
-
             for (int li = 0; li <= tileQuadsU; ++li)
             for (int lj = 0; lj <= tileQuadsV; ++lj)
             {
                 c.positions.push_back({
-                    baseU + (float)li * quadWidthU,
+                    x[tu * tileQuadsU + li],
                     0.0f,
-                    baseV + (float)lj * quadWidthV
+                    z[tv * tileQuadsV + lj]
                 });
                 c.normals.push_back({ 0.0f, 1.0f, 0.0f });   // floor faces +Y
             }
@@ -416,16 +418,13 @@ namespace ProceduralGeometry
                 c.gridV = (unsigned int)tv;
                 c.matchedColorCid = m.clusters[(size_t)tu * tilesV + tv].clusterID;
                 c.flags |= CLUSTER_FLAG_INTERIOR_SURFACE;
-                const float baseU = -halfSizeU + (float)tu * tileWidthU;
-                const float baseV = -halfSizeV + (float)tv * tileWidthV;
-
                 for (int li = 0; li <= tileQuadsU; ++li)
                 for (int lj = 0; lj <= tileQuadsV; ++lj)
                 {
                     c.positions.push_back({
-                        baseU + (float)li * quadWidthU,
+                        x[tu * tileQuadsU + li],
                         -thickness,                              // bottom of slab
-                        baseV + (float)lj * quadWidthV
+                        z[tv * tileQuadsV + lj]
                     });
                     c.normals.push_back({ 0.0f, -1.0f, 0.0f });  // faces -Y
                 }
@@ -454,15 +453,11 @@ namespace ProceduralGeometry
             // 0..tilesV-1, -Z wall slots 0..tilesU-1, +Z wall slots
             // 0..tilesU-1.  Total: 2*tilesV + 2*tilesU = 24 sub-clusters
             // (for a 6x6 slab).
-            // pushSideWallSlot emits ONE quad (4 verts, 2 tris) that covers
-            // exactly one tile-slot's worth of the wall - matched 1:1 in
-            // position with the adjacent top tile.  matchedTopCid is the
-            // cid of the top tile this wall slice abuts so colour stays
-            // unified across the slab volume; (gridU,gridV) is the top
-            // tile's grid coord so the scene-build checker config picks
-            // the SAME parity for wall+top+bottom of one column.
+            // Wall strips use every adjacent tile-edge vertex, avoiding
+            // T-junctions while retaining the top tile's colour and parity.
             const unsigned int kFirstTopCidLocal = firstClusterID;
-            auto pushSideWallSlot = [&](float3 p0, float3 p1, float3 p2, float3 p3, float3 nrm,
+            auto pushSideWallSlot = [&](bool alongZ, float fixed, int first, int step,
+                                        int quads, float3 nrm,
                                         unsigned int gridU, unsigned int gridV)
             {
                 Cluster c;
@@ -471,24 +466,33 @@ namespace ProceduralGeometry
                 c.gridV           = gridV;
                 c.matchedColorCid = kFirstTopCidLocal + gridU * (unsigned int)tilesV + gridV;
                 c.flags          |= CLUSTER_FLAG_INTERIOR_SURFACE;
-                c.positions = { p0, p1, p2, p3 };
-                c.normals   = { nrm, nrm, nrm, nrm };
-                c.indices   = { 0, 1, 3, 0, 3, 2 };
-                m.totalTriangles += 2;
-                m.totalVertices  += 4;
+                for (int i = 0; i <= quads; ++i)
+                {
+                    const int index = first + step * i;
+                    const float px = alongZ ? fixed : x[index];
+                    const float pz = alongZ ? z[index] : fixed;
+                    c.positions.push_back({px, 0.0f, pz});
+                    c.positions.push_back({px, -thickness, pz});
+                    c.normals.push_back(nrm);
+                    c.normals.push_back(nrm);
+                }
+                for (int i = 0; i < quads; ++i)
+                {
+                    const uint8_t a = uint8_t(2 * i), b = uint8_t(2 * (i + 1));
+                    c.indices.insert(c.indices.end(), {a, uint8_t(a + 1), uint8_t(b + 1),
+                                                       a, uint8_t(b + 1), b});
+                }
+                m.totalTriangles += 2u * quads;
+                m.totalVertices  += 2u * (quads + 1);
                 m.clusters.push_back(std::move(c));
             };
-            const float xMin = -halfSizeU, xMax = halfSizeU;
-            const float zMin = -halfSizeV, zMax = halfSizeV;
-            const float yTop = 0.0f,       yBot = -thickness;
+            const float xMin = x.front(), xMax = x.back();
+            const float zMin = z.front(), zMax = z.back();
             // -X wall (x=xMin, normal=-X).  Slots iterate tv=0..tilesV-1.
             // Matching top column: tu=0.
             for (int tv = 0; tv < tilesV; ++tv)
             {
-                const float z0 = zMin + (float)tv       * tileWidthV;
-                const float z1 = zMin + (float)(tv + 1) * tileWidthV;
-                pushSideWallSlot({xMin, yTop, z0}, {xMin, yBot, z0},
-                                 {xMin, yTop, z1}, {xMin, yBot, z1}, {-1, 0, 0},
+                pushSideWallSlot(true, xMin, tv * tileQuadsV, 1, tileQuadsV, {-1, 0, 0},
                                  /*tu=*/0u, /*tv=*/(unsigned int)tv);
             }
             // +X wall (x=xMax, normal=+X).  Matching top column: tu=tilesU-1.
@@ -496,29 +500,20 @@ namespace ProceduralGeometry
             // { 0,1,3, 0,3,2 } still produces outward normal +X.
             for (int tv = 0; tv < tilesV; ++tv)
             {
-                const float z0 = zMin + (float)(tv + 1) * tileWidthV;
-                const float z1 = zMin + (float)tv       * tileWidthV;
-                pushSideWallSlot({xMax, yTop, z0}, {xMax, yBot, z0},
-                                 {xMax, yTop, z1}, {xMax, yBot, z1}, {+1, 0, 0},
+                pushSideWallSlot(true, xMax, (tv + 1) * tileQuadsV, -1, tileQuadsV, {+1, 0, 0},
                                  /*tu=*/(unsigned int)(tilesU - 1), /*tv=*/(unsigned int)tv);
             }
             // -Z wall (z=zMin, normal=-Z).  Matching top row: tv=0.
             // Reversed near/far order: x goes from xMax -> xMin per slot.
             for (int tu = 0; tu < tilesU; ++tu)
             {
-                const float x0 = xMin + (float)(tu + 1) * tileWidthU;
-                const float x1 = xMin + (float)tu       * tileWidthU;
-                pushSideWallSlot({x0, yTop, zMin}, {x0, yBot, zMin},
-                                 {x1, yTop, zMin}, {x1, yBot, zMin}, {0, 0, -1},
+                pushSideWallSlot(false, zMin, (tu + 1) * tileQuadsU, -1, tileQuadsU, {0, 0, -1},
                                  /*tu=*/(unsigned int)tu, /*tv=*/0u);
             }
             // +Z wall (z=zMax, normal=+Z).  Matching top row: tv=tilesV-1.
             for (int tu = 0; tu < tilesU; ++tu)
             {
-                const float x0 = xMin + (float)tu       * tileWidthU;
-                const float x1 = xMin + (float)(tu + 1) * tileWidthU;
-                pushSideWallSlot({x0, yTop, zMax}, {x0, yBot, zMax},
-                                 {x1, yTop, zMax}, {x1, yBot, zMax}, {0, 0, +1},
+                pushSideWallSlot(false, zMax, tu * tileQuadsU, 1, tileQuadsU, {0, 0, +1},
                                  /*tu=*/(unsigned int)tu, /*tv=*/(unsigned int)(tilesV - 1));
             }
         }
