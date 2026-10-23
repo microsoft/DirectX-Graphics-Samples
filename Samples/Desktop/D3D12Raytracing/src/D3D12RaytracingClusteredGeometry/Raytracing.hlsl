@@ -237,17 +237,12 @@ void RayGen()
         Payload p;
         p.depth   = 0;
         p.inGlass = 0;       // primary rays start in air
-        // Keep CULL_BACK_FACING_TRIANGLES globally for the cheap path on
-        // every orientable instance.  Non-orientable instances (Klein
-        // bottle) carry D3D12_RAYTRACING_INSTANCE_FLAG_TRIANGLE_CULL_DISABLE
-        // on the BLAS instance, which overrides this ray flag for those
-        // specific instances - they get double-sided traversal, the rest
-        // don't pay any cost.
-        // Override opaque geometry/instance flags only for the wireframe
-        // hit table, so its any-hit shader can reject triangle interiors.
-        uint rayFlags = RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
-        if (g_scene.runtimeParams.w != 0u)
-            rayFlags |= RAY_FLAG_FORCE_NON_OPAQUE;
+        // Wireframe shows both sides and overrides opacity so any-hit can
+        // reject interiors. Solid mode retains backface culling, except on
+        // instances such as the Klein bottle that explicitly disable it.
+        uint rayFlags = g_scene.runtimeParams.w != 0u
+            ? RAY_FLAG_FORCE_NON_OPAQUE
+            : RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
         TraceRay(Scene, rayFlags,
             /*InstanceInclusionMask*/0xff,
             /*RayContributionToHitGroupIndex*/0,

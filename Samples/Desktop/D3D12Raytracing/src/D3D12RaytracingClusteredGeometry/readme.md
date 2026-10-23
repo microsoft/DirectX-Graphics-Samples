@@ -129,7 +129,8 @@ and refraction rays are additional to this count. `--aa-samples` remains a
 compatibility alias for existing scripts.
 
 Use `--wireframe` to start in the same wireframe view as `[W]`. Triangle interiors
-are rejected by a dedicated any-hit shader, revealing edges behind them. Edges
+are rejected by a dedicated any-hit shader, revealing edges behind them.
+Backface culling is disabled in wireframe mode, showing both sides. Edges
 use the cluster palette without lighting, reflection, refraction, or stochastic
 transparency, against a black background. Line width is a fixed fraction of each
 triangle's barycentric coordinates, not a constant pixel width. Solid mode keeps
