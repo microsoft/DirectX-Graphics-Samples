@@ -125,6 +125,16 @@ On-screen overlay (right column) lists the active value for each toggle.
 | `[` `]`  | Vertex precision slider — fewer / more position bits (`FLOAT32_3` truncate-bits or      |
 |          | `COMPRESSED1` bits/component). Rebuilds static CLAS and animated templates together.    |
 
+Animated clones receive independent BLASes in both geometry modes; traditional
+mode does not cap that count or substitute shared BLAS instances. Large workloads
+can therefore use substantially more memory and build time in traditional mode.
+Both paths retain the same 96-by-192 animated sphere (36,864 triangles), regardless
+of `[N]`. `[F]` selects rebuild/refit for the animated source and every traditional
+animated clone. Choose a lower `[N]` tier for interactive use when necessary;
+compare the same tier in both paths.
+The full-detail 10,000-extra-object traditional preset can exceed 6 GiB of local
+video memory; do not assume that this maximum stress workload fits a 6 GB card.
+
 ### Headless / scripted runs
 
 For a timed run that writes a JSON snapshot and exits:

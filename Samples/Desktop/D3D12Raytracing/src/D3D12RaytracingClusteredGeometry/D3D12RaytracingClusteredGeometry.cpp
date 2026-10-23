@@ -4046,8 +4046,7 @@ void D3D12RaytracingClusteredGeometry::BuildAnimatedTraditionalAS()
 
 // =====================================================================================
 // Traditional animated clones use separate BLAS slices in one pool and a shared
-// scratch buffer. UpdateAnimatedTradPerFrame builds each slice individually;
-// a zero clone address tells the TLAS to use the source BLAS instead.
+// scratch buffer. UpdateAnimatedTradPerFrame rebuilds/refits each slice.
 // =====================================================================================
 void D3D12RaytracingClusteredGeometry::BuildAnimatedClonesTradSetup()
 {
@@ -4058,22 +4057,6 @@ void D3D12RaytracingClusteredGeometry::BuildAnimatedClonesTradSetup()
     auto device = m_deviceResources->GetD3DDevice();
     auto& obj   = m_animatedObject;
     const UINT N = (UINT)m_animatedClones.size();
-
-    // Cap individual DXR1 builds to bound serial per-frame work and resident
-    // memory. Excess clones still animate by sharing the source BLAS.
-    // The DXR2 path can batch all clone builds in one operation.
-    constexpr UINT kTradPerClonePoolMax =
-        200u; // moderate cap; high N falls back to shared source BLAS
-    const UINT N_pooled = std::min(N, kTradPerClonePoolMax);
-    if (N_pooled == 0)
-    {
-        // Nothing to pool -- all clones will share source's BLAS in the
-        // TLAS instance writeup via the (ac.blasGPUVA == 0) -> animBlasGVA
-        // fallback.
-        SampleLog::LogF(
-            L"[anim-clones trad phase2] N=%u: ALL clones share source's BLAS (N_pooled=0)\n", N);
-        return;
-    }
 
     // Same geom desc shape as BuildAnimatedTraditionalAS / UpdateAnimatedTradPerFrame
     // -- we just need the prebuild sizes here (driver doesn't actually
@@ -4095,14 +4078,16 @@ void D3D12RaytracingClusteredGeometry::BuildAnimatedClonesTradSetup()
     inputs.DescsLayout    = D3D12_ELEMENTS_LAYOUT_ARRAY;
     inputs.NumDescs       = 1;
     inputs.pGeometryDescs = &geomDesc;
-    inputs.Flags          = BuildFlagModeDxr1();
+    inputs.Flags          = BuildFlagModeDxr1()
+                          | D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_UPDATE;
     D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO pb = {};
     m_dxrDevice->GetRaytracingAccelerationStructurePrebuildInfo(&inputs, &pb);
 
     constexpr UINT64 kAlign = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT;  // 256
     const UINT64 perBlasBytes = (pb.ResultDataMaxSizeInBytes + kAlign - 1) & ~(kAlign - 1);
-    const UINT64 poolBytes    = perBlasBytes * (UINT64)N_pooled;
-    const UINT64 scratchBytes = std::max<UINT64>(pb.ScratchDataSizeInBytes, 256ull);
+    const UINT64 poolBytes    = perBlasBytes * (UINT64)N;
+    const UINT64 scratchBytes = std::max<UINT64>(
+        std::max(pb.ScratchDataSizeInBytes, pb.UpdateScratchDataSizeInBytes), 256ull);
 
     AllocateUAVBuffer(device, poolBytes, &m_animClonesTradBlasPool,
                       D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE,
@@ -4112,16 +4097,12 @@ void D3D12RaytracingClusteredGeometry::BuildAnimatedClonesTradSetup()
                       L"Animated clones trad BLAS scratch (shared)");
 
     const D3D12_GPU_VIRTUAL_ADDRESS poolBaseGVA = m_animClonesTradBlasPool->GetGPUVirtualAddress();
-    for (UINT k = 0; k < N_pooled; ++k)
+    for (UINT k = 0; k < N; ++k)
         m_animatedClones[k].blasGPUVA = poolBaseGVA + (UINT64)k * perBlasBytes;
-    // Clones beyond the pool cap fall back to source's BLAS (0 GVA -> ternary
-    // in BuildTlasClassic picks animBlasGVA).
-    for (UINT k = N_pooled; k < N; ++k)
-        m_animatedClones[k].blasGPUVA = 0;
 
     SampleLog::LogF(L"[anim-clones trad phase2] N=%u (pooled=%u, shared=%u), per-clone BLAS=%llu "
                     L"bytes, pool=%.2f MB\n",
-                    N, N_pooled, N - N_pooled, (unsigned long long)perBlasBytes,
+                    N, N, 0u, (unsigned long long)perBlasBytes,
                     poolBytes / (1024.0 * 1024.0));
 }
 
@@ -4218,7 +4199,7 @@ void D3D12RaytracingClusteredGeometry::UpdateAnimatedTradPerFrame(UINT pfTimesta
     obj.tradBlasInitialized = true;
 
     // ------------------------------------------------------------------
-    // 2b) Trad-mode phase-2 anim clones: per-clone BLAS rebuild.  Each
+    // 2b) Trad-mode animated clones: per-clone BLAS rebuild/refit. Each
     //     clone gets its own dest GVA in m_animClonesTradBlasPool (set
     //     by BuildAnimatedClonesTradSetup); same geom desc shape as the
     //     source above (same shared perFrameVertexBuffer +
@@ -4226,31 +4207,24 @@ void D3D12RaytracingClusteredGeometry::UpdateAnimatedTradPerFrame(UINT pfTimesta
     //     except for dest.  Scratch is SHARED across all N builds and
     //     serialised by UAV barriers between calls -- DXR1 has no
     //     batched-build API so this is genuinely N driver calls per
-    //     frame.  At [N]=10K that's 2000 calls (~tens of ms of CPU
-    //     overhead alone, plus the per-build GPU work) -- exactly the
-    //     overhead DXR2's batched ExecuteIndirectRTASOperations API
-    //     beats by ~100x in the cluster path.
+    //     frame. The source and clone pools are recreated together, so
+    //     wantRefit is valid for both after their initial builds.
     // ------------------------------------------------------------------
     if (m_animClonesTradBlasPool && !m_animatedClones.empty())
     {
         auto scratchBar = CD3DX12_RESOURCE_BARRIER::UAV(m_animClonesTradBlasScratch.Get());
-        D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS cInputs = {};
-        cInputs.Type           = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
-        cInputs.DescsLayout    = D3D12_ELEMENTS_LAYOUT_ARRAY;
-        cInputs.NumDescs       = 1;
-        cInputs.pGeometryDescs = &geomDesc;
-        cInputs.Flags          = BuildFlagModeDxr1();
+        const auto cInputs = inputs;
         D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC cBuildDesc = {};
         cBuildDesc.Inputs                          = cInputs;
         cBuildDesc.ScratchAccelerationStructureData =
             m_animClonesTradBlasScratch->GetGPUVirtualAddress();
         for (size_t k = 0; k < m_animatedClones.size(); ++k)
         {
-            // Skip clones beyond the trad-pool cap (their blasGPUVA is 0,
-            // they share source's tradBlasGPUVA via the TLAS fallback).
-            if (m_animatedClones[k].blasGPUVA == 0) continue;
+            ThrowIfFalse(m_animatedClones[k].blasGPUVA != 0,
+                L"Animated clone has no independent traditional BLAS.\n");
             cBuildDesc.DestAccelerationStructureData   = m_animatedClones[k].blasGPUVA;
-            cBuildDesc.SourceAccelerationStructureData = 0;  // always rebuild
+            cBuildDesc.SourceAccelerationStructureData = wantRefit
+                ? m_animatedClones[k].blasGPUVA : 0;
             m_dxrCommandList->BuildRaytracingAccelerationStructure(&cBuildDesc, 0, nullptr);
             if (k + 1 < m_animatedClones.size())
                 cl->ResourceBarrier(1, &scratchBar);
@@ -4722,17 +4696,12 @@ void D3D12RaytracingClusteredGeometry::BuildTlasClassic()
             (m_geometryMode == GeometryMode::Clusters) ? a.blasGPUVA : a.tradBlasGPUVA;
         (isGlass ? nGlass : nOpaque)++;
     }
-    // [N] animated clones: each is a TLAS instance pointing at the
-    // SAME shared animated BLAS GVA as the source instance above.
-    // Per-frame work is therefore O(1) regardless of clone count
-    // (phase 1; phase 2 will switch to per-clone CLAS+BLAS).
+    // Every animated clone has its own BLAS in either geometry mode.
     if (N_animClone > 0)
     {
         const auto& a = m_animatedObject;
         const auto& aMat = m_materials[a.instanceID];
         const bool isGlass = (aMat.refractivity > 0.0f) || (aMat.translucency > 0.0f);
-        const D3D12_GPU_VIRTUAL_ADDRESS animBlasGVA =
-            (m_geometryMode == GeometryMode::Clusters) ? a.blasGPUVA : a.tradBlasGPUVA;
         const UINT contrib = isGlass ? kHitGroupContribGlass : kHitGroupContribOpaque;
         const D3D12_RAYTRACING_INSTANCE_FLAGS animFlags = isGlass
             ? D3D12_RAYTRACING_INSTANCE_FLAG_NONE
@@ -4771,14 +4740,9 @@ void D3D12RaytracingClusteredGeometry::BuildTlasClassic()
             // source's chrome+checker look exactly.
             instances[row].InstanceContributionToHitGroupIndex = contrib;
             instances[row].Flags = animFlags;
-            // Phase 2: each clone may have its own per-frame-rebuilt BLAS
-            // in m_animClonesBlasPool (cluster mode) or
-            // m_animClonesTradBlasPool (trad mode, capped at
-            // kTradPerClonePoolMax clones via BuildAnimatedClonesTradSetup).
-            // Fall back to source's animated BLAS GVA when this clone
-            // didn't get its own pool slot (ac.blasGPUVA == 0).
-            instances[row].AccelerationStructure =
-                (ac.blasGPUVA != 0) ? ac.blasGPUVA : animBlasGVA;
+            ThrowIfFalse(ac.blasGPUVA != 0,
+                L"Animated clone has no independent BLAS for the TLAS.\n");
+            instances[row].AccelerationStructure = ac.blasGPUVA;
             (isGlass ? nGlass : nOpaque)++;
         }
     }

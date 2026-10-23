@@ -254,7 +254,7 @@ void D3D12RaytracingClusteredGeometry::RegenerateWorkloadCloneInstances()
     // -> N=100 yields 20 anim clones, N=1K yields 200, N=10K yields 2000).
     //
     // The animated setup allocates clone BLAS destinations after this list is
-    // generated; zero addresses retain the shared-source fallback.
+    // generated; every clone receives an independent BLAS before TLAS build.
     //
     // Match by instanceID rather than vector index so this stays
     // robust to scene-data reordering.

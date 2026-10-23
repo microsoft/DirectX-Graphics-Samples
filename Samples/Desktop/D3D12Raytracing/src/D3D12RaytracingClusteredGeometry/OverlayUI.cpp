@@ -134,10 +134,7 @@ void D3D12RaytracingClusteredGeometry::RefreshOverlayStatsCurrent()
         s.animClonesBlasScratchBytes     = sizeOf(m_animClonesBlasScratchBuffer);
         s.animClonesTradBlasPoolBytes    = sizeOf(m_animClonesTradBlasPool);
         s.animClonesTradBlasScratchBytes = sizeOf(m_animClonesTradBlasScratch);
-        // Count of clones that actually got their own per-clone BLAS slot
-        // (the rest share source's BLAS via the TLAS fallback).  In cluster
-        // mode all clones are pooled; in trad mode it's capped at
-        // kTradPerClonePoolMax via BuildAnimatedClonesTradSetup.
+        // Every animated clone receives an independent BLAS in both modes.
         s.animClonesPooledCount =
             (m_geometryMode == GeometryMode::Clusters)
                 ? (m_animClonesBlasPool ? (UINT)m_animatedClones.size() : 0u)
@@ -1395,10 +1392,8 @@ void D3D12RaytracingClusteredGeometry::RenderUI()
     // CLAS array + BLAS (in cluster mode) or its own DXR1 BLAS (in
     // trad mode), so the toggle progressively stresses the
     // CLAS+BLAS+templates paths rather than just the TLAS row count.
-    // ANIMATED clones currently SHARE the source's per-frame BLAS
-    // (phase 1) -- the breakdown count flags them separately so the
-    // reader can mentally subtract them when reasoning about the
-    // unique-BLAS budget.
+    // Animated clones share source vertices (and CLAS in cluster mode),
+    // but each has its own per-frame-built BLAS in both modes.
     if (m_extraInstancesMode == ExtraInstancesMode::None)
     {
         const wchar_t* label = (m_geometryMode == GeometryMode::Clusters)
@@ -1412,7 +1407,7 @@ void D3D12RaytracingClusteredGeometry::RenderUI()
         const UINT N_anim_clones   = (UINT)m_animatedClones.size();
         const wchar_t* fmt = (m_geometryMode == GeometryMode::Clusters)
             ? L"   extra unique BLAS+CLAS: %s   (%u static + %u animated [own BLAS, shared CLAS])   LOD reduces with distance"
-            : L"   extra unique BLASes:    %s   (%u static + %u animated [own BLAS, per-clone DXR1 rebuild])   LOD reduces with distance";
+            : L"   extra unique BLASes:    %s   (%u static + %u animated [own BLAS, per-clone DXR1 build/refit])   LOD reduces with distance";
         swprintf_s(kbuf, fmt,
                    ExtraInstancesModeName(), N_static_clones, N_anim_clones);
     }

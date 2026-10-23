@@ -759,8 +759,7 @@ private:
     bool                                    m_animatedObjectEnabled = false;
 
     // Clustered clones share deformed vertices and CLAS, with separate pooled
-    // BLASes. Traditional clones share vertices; clones above the pool
-    // cap also share its BLAS. A zero address selects that TLAS fallback.
+    // BLASes. Traditional clones share vertices but also get separate BLASes.
     struct AnimatedCloneInstance
     {
         DirectX::XMFLOAT3 worldPos      = {0, 0, 0};
@@ -768,7 +767,7 @@ private:
         float             worldScale    = 1.0f;
         UINT              materialOverrideSlot = 0;  // for the per-instance override buffer
         // Slot in the active clustered or traditional BLAS pool.
-        // Zero selects the source BLAS when building TLAS.
+        // Must be assigned before building the TLAS.
         D3D12_GPU_VIRTUAL_ADDRESS blasGPUVA = 0;
     };
     std::vector<AnimatedCloneInstance>      m_animatedClones;
