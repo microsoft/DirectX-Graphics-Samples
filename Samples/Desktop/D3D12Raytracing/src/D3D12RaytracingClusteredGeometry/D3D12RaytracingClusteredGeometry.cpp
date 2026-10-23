@@ -455,17 +455,15 @@ void D3D12RaytracingClusteredGeometry::QueryDXR2Support()
 
 
 // ---------------------------------------------------------------------------------
-// Re-encode every cluster's positions into Compressed1 blobs using the live
-// m_compressedBitsPerComponent.  Called once from BuildScene at startup and
-// again from RebuildStaticAccelerationStructures when the user cycles the
-// precision slider ('[' / ']' in COMPRESSED1 mode).
-//
-// We always populate obj.encoded even in FLOAT32_3 mode so the 'v' toggle
-// can flip vertex format without re-running scene build.  Cost is pure CPU
-// and ~50 ms one-time at scene scale; re-encode is comparable.
+// Encode only when the clustered path needs COMPRESSED1 inputs and either
+// their precision or the workload has changed. Float and traditional modes
+// retain any previous encoding for a later format/geometry switch.
 // ---------------------------------------------------------------------------------
 void D3D12RaytracingClusteredGeometry::EncodeCompressedClusters()
 {
+    if (m_geometryMode != GeometryMode::Clusters || m_vertexMode != VertexMode::Compressed1 ||
+        m_encodedPrecisionBits == m_compressedBitsPerComponent)
+        return;
     const UINT bitsPerComp = m_compressedBitsPerComponent;
 
     // Pick a single shared compressed1 exponent across the WHOLE scene (all
@@ -526,6 +524,7 @@ void D3D12RaytracingClusteredGeometry::EncodeCompressedClusters()
         L"worst-case roundtrip error %.6f units\n",
         m_totalClusterCount, bitsPerComp, totalCompressedBytes, totalUncompressedBytes,
         (double)totalUncompressedBytes / (double)totalCompressedBytes, maxRoundtripError);
+    m_encodedPrecisionBits = bitsPerComp;
 }
 
 
@@ -724,19 +723,17 @@ void D3D12RaytracingClusteredGeometry::RebuildStaticAccelerationStructures(const
     //    silently stops lighting up green/red on precision changes.
     StashOverlayStatsAsPrev();
 
-    // [N] workload-scaling: truncate previous clones, then regenerate
-    // for the current m_extraInstancesMode.  MUST happen BEFORE the
-    // per-object resource reset loop below so that the reset iterates
-    // the new full m_objects (clones have null ComPtrs so reset is a
-    // no-op for them) and the subsequent build pipeline allocates
-    // fresh CLAS+BLAS per clone.
-    RegenerateWorkloadCloneInstances();
-
-    // LOD clone meshes have their own ClusterID-indexed normals, indices, and
-    // metadata.  Refresh these tables after clone regeneration so the rebuilt
-    // shader bindings match the active meshes.
-    BuildClusterShaderSideBuffers();
-    BuildClusterMetadata();
+    // Geometry, cluster IDs, and shading tables do not change with AS settings.
+    // Only a new workload replaces clones and invalidates these inputs.
+    if (m_generatedExtraInstances != ExtraInstancesCount())
+    {
+        m_encodedPrecisionBits = 0;
+        m_tradCidLookupDirty = true;
+        RegenerateWorkloadCloneInstances();
+        BuildClusterShaderSideBuffers();
+        BuildClusterMetadata();
+        m_generatedExtraInstances = ExtraInstancesCount();
+    }
 
     // 2) Drop all CLAS-related GPU resources.  Each mode's BuildClas* will
     //    reallocate these via ComPtr assignment (which releases stale slots).
@@ -852,11 +849,10 @@ void D3D12RaytracingClusteredGeometry::RebuildStaticAccelerationStructures(const
             // calls.  Sets ac.blasGPUVA so BuildTlasClassic picks them up.
             BuildAnimatedClonesTradSetup();
             UpdateAnimatedTradPerFrame();
-            // Refresh the tri->cid table now that the animated mesh is
-            // part of the trad scene -- BuildTraditionalStaticAS already
-            // ran it for static-only, this picks up the animated tris.
-            BuildTradCidLookup();
         }
+        // The triangle/region ordering is unchanged by AS build settings.
+        if (m_tradCidLookupDirty)
+            BuildTradCidLookup();
     }
     // Per-(InstIdx, GeomIdx) material table must track the animated-
     // enabled state (which flips between modes).
@@ -901,33 +897,44 @@ void D3D12RaytracingClusteredGeometry::BuildClusterShaderSideBuffers()
 
     // Animated sphere clusters are reachable via templated INSTANTIATE with
     // m_animatedClusterIdOffset, so register the same IDs in the side tables.
-    // Pass 1: figure out the offset-table size.
+    // Size the packed arrays once instead of growing them per vertex/index.
     UINT maxClusterID = 0;
+    size_t normalCount = 0, indexCount = 0;
+    auto countCluster = [&](const ProceduralGeometry::Cluster& c, UINT cid)
+    {
+        maxClusterID = std::max(maxClusterID, cid);
+        normalCount += c.normals.size();
+        indexCount += c.indices.size();
+    };
     for (const auto& obj : m_objects)
         for (const auto& c : obj.mesh.clusters)
-            maxClusterID = std::max(maxClusterID, c.clusterID);
+            countCluster(c, c.clusterID);
     if (m_animatedObjectEnabled)
         for (const auto& c : m_animatedObject.mesh.clusters)
-            maxClusterID = std::max(maxClusterID, c.clusterID + m_animatedClusterIdOffset);
+            countCluster(c, c.clusterID + m_animatedClusterIdOffset);
 
     ThrowIfFalse(m_animatedClusterIdOffset >= m_totalClusterCount,
         L"Animated ClusterID range overlaps static CLAS IDs.\n");
+    ThrowIfFalse(normalCount <= UINT_MAX && indexCount <= UINT_MAX,
+        L"Cluster shading arrays exceed their 32-bit offset range.\n");
     const UINT offsetTableSize = maxClusterID + 1;
 
-    std::vector<XMFLOAT4> normals; // 16 bytes per normal (.w padding) to match HLSL's
-                                   // ByteAddressBuffer.Load3((off.x + i_k) * 16) stride.
-                                   // See Raytracing.hlsl declaration of g_clusterNormals.
-    std::vector<UINT>     indices;
+    std::vector<XMFLOAT4> normals(normalCount); // 16-byte HLSL normal stride
+    std::vector<UINT>     indices(indexCount);
     std::vector<XMUINT2>  offsets(offsetTableSize, XMUINT2(0u, 0u));
+    size_t nextNormal = 0, nextIndex = 0;
 
     // Helper: append one cluster's data and stamp its offset entry.
     auto appendCluster = [&](const ProceduralGeometry::Cluster& c, UINT cidForOffsetTable)
     {
-        offsets[cidForOffsetTable] = XMUINT2((UINT)normals.size(), (UINT)indices.size());
-        for (const auto& n : c.normals)
-            normals.push_back(XMFLOAT4(n.x, n.y, n.z, 0.0f));
-        for (uint8_t i : c.indices)
-            indices.push_back((UINT)i);
+        offsets[cidForOffsetTable] = XMUINT2((UINT)nextNormal, (UINT)nextIndex);
+        const auto* source = c.normals.data();
+        auto* destination = normals.data() + nextNormal;
+        for (size_t i = 0; i < c.normals.size(); ++i)
+            destination[i] = XMFLOAT4(source[i].x, source[i].y, source[i].z, 0.0f);
+        std::copy_n(c.indices.data(), c.indices.size(), indices.data() + nextIndex);
+        nextNormal += c.normals.size();
+        nextIndex += c.indices.size();
     };
 
     for (const auto& obj : m_objects)
@@ -2304,11 +2311,14 @@ void D3D12RaytracingClusteredGeometry::BuildTraditionalStaticAS()
     // ~16 seconds of CreateCommittedResource overhead disappears.
     std::vector<XMFLOAT3> poolVbData;
     std::vector<UINT32>   poolIbData;
-    // Pre-allocate a reasonable hint (avoids quadratic-amortized
-    // reallocations during the loop's verts.size() push-backs).  Each
-    // object will adjust the actual sizes as it accumulates.
-    poolVbData.reserve(1024u * 1024u);   // 1M verts initial; grows on demand
-    poolIbData.reserve(2u * 1024u * 1024u); // 2M indices initial
+    size_t poolVertexCount = 0, poolIndexCount = 0;
+    for (const auto& obj : m_objects)
+    {
+        poolVertexCount += obj.mesh.totalVertices;
+        poolIndexCount += size_t(obj.mesh.totalTriangles) * 3;
+    }
+    poolVbData.reserve(poolVertexCount);
+    poolIbData.reserve(poolIndexCount);
 
     // -------- PASS A: per-object VB+IB + geom desc build + prebuild --------
     // per-object since they hold distinct mesh data) but DON'T yet
@@ -2343,8 +2353,9 @@ void D3D12RaytracingClusteredGeometry::BuildTraditionalStaticAS()
         // Walk in sorted order, building VB+IB and recording per-region
         // ranges (first-vertex-in-VB / first-tri-in-IB / vertex count /
         // tri count).
-        std::vector<XMFLOAT3> verts;
-        std::vector<UINT32>   idx32;
+        std::vector<XMFLOAT3> verts(obj.mesh.totalVertices);
+        std::vector<UINT32>   idx32(size_t(obj.mesh.totalTriangles) * 3);
+        size_t nextVertex = 0, nextIndex = 0;
         struct RegionRange {
             UINT regionIdx;
             UINT firstVbIdx;   // first vertex of region's first cluster in verts[]
@@ -2361,24 +2372,35 @@ void D3D12RaytracingClusteredGeometry::BuildTraditionalStaticAS()
             // be region-local 0..N_region_verts so the geom desc's
             // VertexBuffer.StartAddress can point at the region's first
             // vertex and the indices stay valid.
-            const UINT clusterVertBase = (UINT)verts.size();
+            ThrowIfFalse(cl.positions.size() <= verts.size() - nextVertex &&
+                         cl.indices.size() <= idx32.size() - nextIndex,
+                L"Traditional mesh totals do not cover the cluster data.\n");
+            const UINT clusterVertBase = (UINT)nextVertex;
             if (cl.matRegionIdx != prevRegion)
             {
                 regions.push_back({ cl.matRegionIdx,
                                     clusterVertBase,
                                     0u,
-                                    (UINT)(idx32.size() / 3),
+                                    (UINT)(nextIndex / 3),
                                     0u });
                 prevRegion = cl.matRegionIdx;
             }
             const UINT clusterVertBaseInRegion = clusterVertBase - regions.back().firstVbIdx;
-            for (const auto& p : cl.positions)
-                verts.push_back({ p.x, p.y, p.z });
-            for (auto i : cl.indices)
-                idx32.push_back((UINT32)i + clusterVertBaseInRegion);
+            const auto* positions = cl.positions.data();
+            auto* vertexDest = verts.data() + nextVertex;
+            for (size_t i = 0; i < cl.positions.size(); ++i)
+                vertexDest[i] = {positions[i].x, positions[i].y, positions[i].z};
+            const auto* indices = cl.indices.data();
+            auto* indexDest = idx32.data() + nextIndex;
+            for (size_t i = 0; i < cl.indices.size(); ++i)
+                indexDest[i] = UINT32(indices[i]) + clusterVertBaseInRegion;
+            nextVertex += cl.positions.size();
+            nextIndex += cl.indices.size();
             regions.back().vertCount += (UINT)cl.positions.size();
             regions.back().triCount  += (UINT)(cl.indices.size() / 3);
         }
+        ThrowIfFalse(nextVertex == verts.size() && nextIndex == idx32.size(),
+            L"Traditional mesh totals do not match the packed data.\n");
         obj.tradVertexCount   = (UINT)verts.size();
         obj.tradTriangleCount = (UINT)(idx32.size() / 3);
 
@@ -2624,8 +2646,6 @@ void D3D12RaytracingClusteredGeometry::BuildTraditionalStaticAS()
         m_traditionalStaticTotalResultBytes  = totalResultBytes;
         m_traditionalStaticTotalActualBytes  = totalActualBytes;
         m_traditionalStaticBuildMs           = cpuMs;
-        // Per-tri cid lookup (matches the cluster-sort order we just used).
-        BuildTradCidLookup();
         return;
     }
 
@@ -2757,11 +2777,6 @@ void D3D12RaytracingClusteredGeometry::BuildTraditionalStaticAS()
     m_traditionalStaticTotalActualBytes  = totalActualBytes;
     m_traditionalStaticBuildMs           = cpuMs;
 
-    // Build the per-triangle cid lookup + per-(InstIdx, GeomIdx) tri-base
-    // table.  Cheap, but must be rebuilt whenever the static AS rebuilds
-    // because the matRegionIdx-sorted cluster order in BuildTraditionalStaticAS
-    // is what defines the geom layout the lookups have to match.
-    BuildTradCidLookup();
 }
 
 // =====================================================================================
@@ -2816,7 +2831,17 @@ void D3D12RaytracingClusteredGeometry::BuildTradCidLookup()
     // source cluster -- using it directly would index outside that cluster.
     // So we precompute the per-cluster
     // local prim alongside the cid and the shader uses BOTH values.
-    std::vector<XMUINT2> triToCidLocal;   // .x = cid, .y = localPrimIdxWithinCluster
+    std::vector<XMUINT2> triToCidLocal(m_totalTriangleCount);
+    size_t nextTriangle = 0;
+    auto appendTriangles = [&](UINT cid, UINT count)
+    {
+        ThrowIfFalse(count <= triToCidLocal.size() - nextTriangle,
+            L"Traditional triangle lookup exceeds the scene triangle count.\n");
+        auto* destination = triToCidLocal.data() + nextTriangle;
+        for (UINT t = 0; t < count; ++t)
+            destination[t] = XMUINT2(cid, t);
+        nextTriangle += count;
+    };
     // Size for static instances + the animated source instance + every
     // anim clone (they SHARE the source's BLAS / geom-desc layout so they
     // need an entry pointing at the same tri-base as the source).  Without
@@ -2831,7 +2856,6 @@ void D3D12RaytracingClusteredGeometry::BuildTradCidLookup()
     const UINT animCloneCount = (UINT)m_animatedClones.size();
     const UINT instCount      = (UINT)m_objects.size() + animSlots + animCloneCount;
     std::vector<UINT>    geomTriBase(instCount * kMaxGeomsPerInstance, 0);
-    triToCidLocal.reserve(m_totalTriangleCount);
 
     for (size_t oi = 0; oi < m_objects.size(); ++oi)
     {
@@ -2864,12 +2888,10 @@ void D3D12RaytracingClusteredGeometry::BuildTradCidLookup()
                                     oi, c, region, kMaxGeomsPerInstance);
                     continue;
                 }
-                geomTriBase[oi * kMaxGeomsPerInstance + region] = (UINT)triToCidLocal.size();
+                geomTriBase[oi * kMaxGeomsPerInstance + region] = (UINT)nextTriangle;
                 prevRegion = region;
             }
-            const UINT triCount = (UINT)(cl.indices.size() / 3);
-            for (UINT t = 0; t < triCount; ++t)
-                triToCidLocal.push_back(XMUINT2(cl.clusterID, t));
+            appendTriangles(cl.clusterID, (UINT)(cl.indices.size() / 3));
         }
     }
 
@@ -2882,13 +2904,12 @@ void D3D12RaytracingClusteredGeometry::BuildTradCidLookup()
     // checker overrides hit the right slots.
     if (m_animatedObjectEnabled)
     {
-        const UINT animSourceTriBase = (UINT)triToCidLocal.size();
+        const UINT animSourceTriBase = (UINT)nextTriangle;
         geomTriBase[m_objects.size() * kMaxGeomsPerInstance + 0] = animSourceTriBase;
         for (const auto& cl : m_animatedObject.mesh.clusters)
         {
-            const UINT triCount = (UINT)(cl.indices.size() / 3);
-            for (UINT t = 0; t < triCount; ++t)
-                triToCidLocal.push_back(XMUINT2(cl.clusterID + m_animatedClusterIdOffset, t));
+            appendTriangles(cl.clusterID + m_animatedClusterIdOffset,
+                            (UINT)(cl.indices.size() / 3));
         }
         // Anim clones share source's tradBlasGPUVA (or per-clone BLAS pool
         // slots that were built from the source's geometry).  Either way
@@ -2905,6 +2926,8 @@ void D3D12RaytracingClusteredGeometry::BuildTradCidLookup()
         }
     }
 
+    ThrowIfFalse(nextTriangle == triToCidLocal.size(),
+        L"Traditional triangle lookup does not match the scene triangle count.\n");
     AllocateUploadBuffer(device, triToCidLocal.data(),
                          triToCidLocal.size() * sizeof(XMUINT2),
                          &m_tradTriToCidBuffer,
@@ -2913,6 +2936,7 @@ void D3D12RaytracingClusteredGeometry::BuildTradCidLookup()
                          geomTriBase.size() * sizeof(UINT),
                          &m_tradGeomTriBaseBuffer,
                          L"Traditional per-(InstIdx, GeomIdx) tri-base table");
+    m_tradCidLookupDirty = false;
     SampleLog::LogF(L"[traditional] cid-lookup tables: %zu (cid,localPrim) entries (%.1f KB) + "
                     L"%zu base entries (%zu bytes)\n",
                     triToCidLocal.size(), triToCidLocal.size() * sizeof(XMUINT2) / 1024.0,
@@ -6204,6 +6228,9 @@ void D3D12RaytracingClusteredGeometry::OnDestroy()
     // would release the device first - DXGI doesn't love that.)
     m_objects.clear();
     m_sourceObjectCount = 0;
+    m_generatedExtraInstances = 0;
+    m_encodedPrecisionBits = 0;
+    m_tradCidLookupDirty = true;
     m_totalClusterCount = 0;
     m_totalTriangleCount = 0;
     m_clusterInputBuffer.Reset();

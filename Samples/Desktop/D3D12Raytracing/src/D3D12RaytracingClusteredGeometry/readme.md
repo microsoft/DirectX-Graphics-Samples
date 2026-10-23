@@ -254,6 +254,12 @@ comments focus on API contracts, synchronization, and resource lifetime.
 
 ## Things to note
 
+- AS setting changes retain unchanged CPU clone meshes and GPU shading tables.
+  These are regenerated only when `[N]` changes the workload. Compressed inputs
+  are encoded lazily for the clustered `COMPRESSED1` path and reused until the
+  workload or compressed precision changes. Traditional triangle-to-cluster lookup
+  tables are likewise retained while their layout is unchanged. Independent
+  per-clone AS storage and the selected build/allocation operations are unchanged.
 - After a configuration change, the per-frame overlay collects 60 new frame samples
   on hardware (five on software adapters), after discarding three stale readbacks.
   New-mode timings appear as soon as the first valid sample arrives; the heading

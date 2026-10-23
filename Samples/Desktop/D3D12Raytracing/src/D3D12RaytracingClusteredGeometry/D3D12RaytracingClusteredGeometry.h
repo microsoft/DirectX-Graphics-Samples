@@ -61,12 +61,8 @@ namespace GlobalRootSig {
 struct ClusterObject
 {
     ProceduralGeometry::Mesh                 mesh;            // CPU-side mesh + cluster decomp
-    // Per-cluster vertex payload for the COMPRESSED1 path.  Populated for
-    // every object at scene-build time regardless of the active VertexMode
-    // (cheap CPU encode; ~50 ms one-time) so the runtime keyboard toggle
-    // ('v' in OnKeyDown) can swap formats without re-running BuildScene.
-    // The FLOAT32_3 path reads obj.mesh.clusters[i].positions directly at
-    // upload time and never touches this buffer.
+    // Per-cluster COMPRESSED1 payload, encoded lazily and retained across
+    // format switches. FLOAT32_3 uploads read mesh positions directly.
     std::vector<Compressed1::EncodedCluster>             encoded;
     UINT                                     globalClusterStart = 0;
     UINT                                     clusterCount       = 0;
@@ -199,6 +195,7 @@ private:
     // for the geom tri-base table.  See BuildTradCidLookup.
     ComPtr<ID3D12Resource>               m_tradTriToCidBuffer;
     ComPtr<ID3D12Resource>               m_tradGeomTriBaseBuffer;
+    bool                                m_tradCidLookupDirty = true;
     // Per-(InstanceIdx, GeometryIdx) material slot lookup.  One uint
     // per slot.  Closesthit reads
     //   matSlot = g_perInstGeomMaterial[InstIdx*MaxGeoms + GeomIdx]
@@ -575,12 +572,11 @@ private:
     // Source-object count captured the first time the scene is built.
     // m_objects[0..m_sourceObjectCount) are the "real" scene objects;
     // m_objects[m_sourceObjectCount..end()) are clones spawned by the
-    // [N] workload-scaling toggle.  RebuildStaticAccelerationStructures
-    // truncates m_objects back to m_sourceObjectCount at the top, then
-    // regenerates clones for the current m_extraInstancesMode before
-    // running the per-object build pipeline.  Zero until the first
-    // BuildScene finishes.
+    // [N] workload-scaling toggle. Clones are regenerated only when the
+    // requested count changes. Zero until the first BuildScene finishes.
     UINT                                 m_sourceObjectCount   = 0;
+    UINT                                 m_generatedExtraInstances = 0;
+    UINT                                 m_encodedPrecisionBits = 0; // 0 = invalid
     UINT                                 m_totalClusterCount = 0;
     UINT m_totalTriangleCount = 0; // sum of all clusters' tris across static objects + animated
                                    // (cached at scene-build time for the title bar)

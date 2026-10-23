@@ -68,6 +68,7 @@ namespace Compressed1
     inline void WriteBitsLSB(std::vector<uint8_t>& dst, uint64_t& bitOff,
                              uint32_t value, uint32_t nBits)
     {
+        auto* bytes = dst.data();
         uint32_t written = 0;
         while (written < nBits)
         {
@@ -76,8 +77,8 @@ namespace Compressed1
             const uint32_t take      = std::min<uint32_t>(8 - bitInByte, nBits - written);
             const uint32_t mask      = (1u << take) - 1u;
             const uint32_t chunk     = (value >> written) & mask;
-            dst[(size_t)bytePos] &= (uint8_t)(~(mask << bitInByte));
-            dst[(size_t)bytePos] |= (uint8_t)(chunk << bitInByte);
+            bytes[(size_t)bytePos] &= (uint8_t)(~(mask << bitInByte));
+            bytes[(size_t)bytePos] |= (uint8_t)(chunk << bitInByte);
             written += take;
             bitOff  += take;
         }
@@ -85,6 +86,7 @@ namespace Compressed1
 
     inline uint32_t ReadBitsLSB(const std::vector<uint8_t>& src, uint64_t& bitOff, uint32_t nBits)
     {
+        const auto* bytes = src.data();
         uint32_t value = 0, read = 0;
         while (read < nBits)
         {
@@ -92,7 +94,7 @@ namespace Compressed1
             const uint32_t bitInByte = (uint32_t)(bitOff & 7);
             const uint32_t take      = std::min<uint32_t>(8 - bitInByte, nBits - read);
             const uint32_t mask      = (1u << take) - 1u;
-            const uint32_t chunk     = (src[(size_t)bytePos] >> bitInByte) & mask;
+            const uint32_t chunk     = (bytes[(size_t)bytePos] >> bitInByte) & mask;
             value |= (chunk << read);
             read   += take;
             bitOff += take;
@@ -129,7 +131,7 @@ namespace Compressed1
         const uint64_t maxDeltaValue = (maxPrecisionBits >= 32) ? ~0ull : ((1ull << maxPrecisionBits) - 1ull);
         int    exponent = (forcedBiasedExponent > 0) ? forcedBiasedExponent : 1;
         int32_t anchor[3] = { 0, 0, 0 };
-        std::vector<uint32_t> deltas; deltas.reserve(verts.size() * 3);
+        std::vector<uint32_t> deltas(verts.size() * 3);
         uint32_t maxDelta[3] = { 0, 0, 0 };
         bool ok = false;
 
@@ -148,7 +150,7 @@ namespace Compressed1
                 anchor[i] = (int32_t)a;
             }
 
-            deltas.clear();
+            auto* nextDelta = deltas.data();
             maxDelta[0] = maxDelta[1] = maxDelta[2] = 0;
             bool overflow = false;
             for (const auto& v : verts)
@@ -160,7 +162,7 @@ namespace Compressed1
                     const uint64_t d = (uint64_t)(int64_t)qd - (uint64_t)anchor[i];
                     if (d > 0xFFFFFFFFull) { overflow = true; }
                     if (d > maxDeltaValue) { overflow = true; }
-                    deltas.push_back((uint32_t)d);
+                    *nextDelta++ = (uint32_t)d;
                     if ((uint32_t)d > maxDelta[i]) maxDelta[i] = (uint32_t)d;
                 }
             }

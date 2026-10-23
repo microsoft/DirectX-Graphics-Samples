@@ -49,10 +49,9 @@ using Microsoft::WRL::ComPtr;
 // =====================================================================================
 void D3D12RaytracingClusteredGeometry::BuildScene()
 {
-    // (COMPRESSED1 precision used to be a constexpr 12 here; promoted to the
-    // m_compressedBitsPerComponent member so the '[' / ']' keys can cycle it
-    // live in COMPRESSED1 mode.  EncodeCompressedClusters() reads the live
-    // member, so re-calling it after a slider change re-encodes everything.)
+    m_generatedExtraInstances = 0;
+    m_encodedPrecisionBits = 0;
+    m_tradCidLookupDirty = true;
     // GENERIC scene-build pass.  Iterates over the pure-data scene
     // definition (SceneData::BuildSceneDefinition()) and dispatches to
     // the right ProceduralGeometry generator per ObjectSpec.  All art /
@@ -176,10 +175,7 @@ void D3D12RaytracingClusteredGeometry::BuildScene()
     // m_animatedObject.mesh.totalTriangles is added later (after animated
     // mesh is generated in BuildAnimatedObjectSetup).
 
-    // Capture how many m_objects are SOURCES (not clones).  Any future
-    // RebuildStaticAccelerationStructures call will truncate m_objects
-    // back to this count before regenerating clones for the current
-    // [N] workload-scaling mode.
+    // Workload changes retain these sources and replace only their clones.
     m_sourceObjectCount = (UINT)m_objects.size();
 
     SampleLog::LogF(L"\n[scene] %zu objects, %u total clusters\n",
@@ -196,9 +192,7 @@ void D3D12RaytracingClusteredGeometry::BuildScene()
                     m_vertexMode == VertexMode::Compressed1 ? L"COMPRESSED1 (shared-exponent quantized)"
                                                             : L"FLOAT32_3 (no quantization)");
 
-    // COMPRESSED1 is encoded eagerly so the runtime format toggle can rebuild
-    // without reconstructing the scene.  The exact per-cluster vertex bound is
-    // validated on the current experimental WARP.
+    // Float/traditional startup does not need compressed inputs.
     EncodeCompressedClusters();
     // FLOAT32_3 path uses obj.mesh.clusters[i].positions directly at upload
     // time; obj.rawPositions is unused and intentionally left empty.  Log
