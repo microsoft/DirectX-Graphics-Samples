@@ -235,7 +235,6 @@ void RayGen()
         r.TMax      = 1000.0;
 
         Payload p;
-        p.color   = float4(0, 0, 0, 1);
         p.depth   = 0;
         p.inGlass = 0;       // primary rays start in air
         // Keep CULL_BACK_FACING_TRIANGLES globally for the cheap path on
@@ -358,7 +357,6 @@ float3 TraceBounce(float3 origin, float3 dir, uint cullFlags, uint childDepth, u
     r.TMin      = 0.001;
     r.TMax      = 100.0;
     Payload bp;
-    bp.color   = float4(0, 0, 0, 1);
     bp.depth   = childDepth;        // dedicated write(caller)/read(closesthit) field
     bp.inGlass = childInGlass;      // 1 if the new ray is travelling INSIDE a glass volume
     TraceRay(Scene, cullFlags, 0xff, /*RayContrib*/0, /*MultiplierGeoContrib*/2,
