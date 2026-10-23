@@ -79,19 +79,11 @@ void DeviceResources::InitializeDXGIAdapter()
     bool debugDXGI = false;
 
 #if defined(_DEBUG)
-    // Enable the debug layer (requires the Graphics Tools "optional feature").
-    // NOTE: Enabling the debug layer after device creation will invalidate the active device.
+    // Uncomment before device creation to enable D3D12 validation (requires Graphics Tools).
+    // ComPtr<ID3D12Debug> debugController;
+    // ThrowIfFailed(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)));
+    // debugController->EnableDebugLayer();
     {
-        ComPtr<ID3D12Debug> debugController;
-        if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController))))
-        {
-            debugController->EnableDebugLayer();
-        }
-        else
-        {
-            OutputDebugStringA("WARNING: Direct3D Debug Device is not available\n");
-        }
-
         ComPtr<IDXGIInfoQueue> dxgiInfoQueue;
         if (SUCCEEDED(DXGIGetDebugInterface1(0, IID_PPV_ARGS(&dxgiInfoQueue))))
         {
@@ -156,15 +148,6 @@ void DeviceResources::CreateDeviceResources()
         d3dInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, true);
         d3dInfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, true);
 #endif
-        D3D12_MESSAGE_ID hide[] =
-        {
-            D3D12_MESSAGE_ID_MAP_INVALID_NULLRANGE,
-            D3D12_MESSAGE_ID_UNMAP_INVALID_NULLRANGE
-        };
-        D3D12_INFO_QUEUE_FILTER filter = {};
-        filter.DenyList.NumIDs = _countof(hide);
-        filter.DenyList.pIDList = hide;
-        d3dInfoQueue->AddStorageFilterEntries(&filter);
     }
 #endif
 

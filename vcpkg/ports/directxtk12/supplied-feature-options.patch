@@ -1,0 +1,52 @@
+diff --git a/Inc/ResourceUploadBatch.h b/Inc/ResourceUploadBatch.h
+index d77357b..b679ea1 100644
+--- a/Inc/ResourceUploadBatch.h
++++ b/Inc/ResourceUploadBatch.h
+@@ -55,6 +55,10 @@ namespace DirectX
+     public:
+         DIRECTX_TOOLKIT_API explicit ResourceUploadBatch(_In_ ID3D12Device* device) noexcept(false);
+ 
++        // Use capabilities already queried by the caller (for example, with CheckFeatureSupport1).
++        DIRECTX_TOOLKIT_API ResourceUploadBatch(_In_ ID3D12Device* device,
++            const D3D12_FEATURE_DATA_D3D12_OPTIONS& featureOptions) noexcept(false);
++
+         DIRECTX_TOOLKIT_API ResourceUploadBatch(ResourceUploadBatch&&) noexcept;
+         DIRECTX_TOOLKIT_API ResourceUploadBatch& operator= (ResourceUploadBatch&&) noexcept;
+ 
+diff --git a/Src/ResourceUploadBatch.cpp b/Src/ResourceUploadBatch.cpp
+index 27e1177..a6e147f 100644
+--- a/Src/ResourceUploadBatch.cpp
++++ b/Src/ResourceUploadBatch.cpp
+@@ -302,7 +302,8 @@ class ResourceUploadBatch::Impl
+ {
+ public:
+     Impl(
+-        _In_ ID3D12Device* device)
++        _In_ ID3D12Device* device,
++        const D3D12_FEATURE_DATA_D3D12_OPTIONS* featureOptions = nullptr)
+         : mDevice(device)
+         , mCommandType(D3D12_COMMAND_LIST_TYPE_DIRECT)
+         , mInBeginEndBlock(false)
+@@ -313,7 +314,9 @@ public:
+             throw std::invalid_argument("Direct3D device is null");
+ 
+         D3D12_FEATURE_DATA_D3D12_OPTIONS options = {};
+-        if (SUCCEEDED(device->CheckFeatureSupport(
++        if (featureOptions)
++            options = *featureOptions;
++        if (featureOptions || SUCCEEDED(device->CheckFeatureSupport(
+             D3D12_FEATURE_D3D12_OPTIONS,
+             &options,
+             sizeof(options))))
+@@ -1090,6 +1093,11 @@ ResourceUploadBatch::ResourceUploadBatch(_In_ ID3D12Device* device) noexcept(fal
+     : pImpl(std::make_unique<Impl>(device))
+ {}
+ 
++ResourceUploadBatch::ResourceUploadBatch(_In_ ID3D12Device* device,
++    const D3D12_FEATURE_DATA_D3D12_OPTIONS& featureOptions) noexcept(false)
++    : pImpl(std::make_unique<Impl>(device, &featureOptions))
++{}
++
+ 
+ ResourceUploadBatch::ResourceUploadBatch(ResourceUploadBatch&&) noexcept = default;
+ ResourceUploadBatch& ResourceUploadBatch::operator= (ResourceUploadBatch&&) noexcept = default;

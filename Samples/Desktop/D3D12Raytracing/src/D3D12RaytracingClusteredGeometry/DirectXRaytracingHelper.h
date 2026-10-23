@@ -114,11 +114,16 @@ inline void AllocateUAVBuffer(ID3D12Device* pDevice, UINT64 bufferSize, ID3D12Re
 {
     auto uploadHeapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
     auto bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(bufferSize, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+    // Default-heap buffers start in COMMON and promote on first use.
+    // Acceleration structures must instead be created in their permanent AS state.
+    const auto bufferState =
+        initialResourceState == D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE
+            ? initialResourceState : D3D12_RESOURCE_STATE_COMMON;
     ThrowIfFailed(pDevice->CreateCommittedResource(
         &uploadHeapProperties,
         D3D12_HEAP_FLAG_NONE,
         &bufferDesc,
-        initialResourceState,
+        bufferState,
         nullptr,
         IID_PPV_ARGS(ppResource)));
     if (resourceName)
@@ -163,9 +168,11 @@ inline void AllocateUploadBuffer(ID3D12Device* pDevice, void *pData, UINT64 data
         (*ppResource)->SetName(resourceName);
     }
     void *pMappedData;
-    (*ppResource)->Map(0, nullptr, &pMappedData);
+    const D3D12_RANGE noRead = {0, 0};
+    ThrowIfFailed((*ppResource)->Map(0, &noRead, &pMappedData));
     memcpy(pMappedData, pData, datasize);
-    (*ppResource)->Unmap(0, nullptr);
+    const D3D12_RANGE written = {0, static_cast<SIZE_T>(datasize)};
+    (*ppResource)->Unmap(0, &written);
 }
 
 // Pretty-print a state object tree.

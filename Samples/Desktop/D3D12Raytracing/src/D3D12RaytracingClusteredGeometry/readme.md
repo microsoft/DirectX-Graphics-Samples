@@ -28,6 +28,11 @@ DirectXTK12 (text overlay) is built from source through the repository's shared
 matching the other raytracing samples. MSBuild automatically installs the
 manifest dependencies for `x64-windows-static-md`, using the appropriate Debug
 or Release libraries. No prebuilt DirectXTK NuGet package is required.
+The pinned vcpkg overlay adds a `ResourceUploadBatch` constructor accepting
+caller-supplied `D3D12_FEATURE_DATA_D3D12_OPTIONS`. This sample queries those
+capabilities with `CheckFeatureSupport1`, avoiding deprecated helper-library
+queries. The original constructor remains compatible, and the toolkit patch
+does not depend on preview Agility SDK headers or runtime interfaces.
 
 Until the Agility package is published, add the folder containing its `.nupkg`
 as a **local package source** in Visual Studio's NuGet Package Manager settings,
@@ -88,6 +93,11 @@ traditional fallback and disables the `[T]` toggle. On capable adapters, `[T]`
 switches both the geometry and its matching shader pipeline.
 Diagnostic output goes to `%TEMP%\D3D12RaytracingClusteredGeometry.log`, or the
 path specified by the `SAMPLE_LOG` environment variable.
+D3D12 debug-layer validation is disabled by default, including Debug builds,
+to avoid its runtime overhead. To validate changes, uncomment the three
+debug-controller lines in `DeviceResources::InitializeDXGIAdapter` before
+device creation. The info-queue callback reports messages without suppressing
+resource-state, mapping-range, or deprecated-API warnings.
 
 ### Runtime controls
 

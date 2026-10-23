@@ -272,7 +272,7 @@ void D3D12RaytracingClusteredGeometry::CreateUIFont()
     // but the overlay itself disables depth read/write via SpriteBatch's
     // default state -- the format just has to match the bound DSV slot at
     // draw time, even if we render with no depth.
-    ResourceUploadBatch resourceUpload(device);
+    ResourceUploadBatch resourceUpload(device, m_resourceUploadOptions);
     resourceUpload.Begin();
     {
         RenderTargetState rtState(m_deviceResources->GetBackBufferFormat(),
@@ -292,7 +292,7 @@ void D3D12RaytracingClusteredGeometry::CreateUIFont()
         m_descriptorHeap->GetGPUDescriptorHandleForHeapStart(), fontSlot, m_descriptorSize);
 
     {
-        ResourceUploadBatch fontUpload(device);
+        ResourceUploadBatch fontUpload(device, m_resourceUploadOptions);
         fontUpload.Begin();
         m_uiFont = std::make_unique<SpriteFont>(device, fontUpload,
             GetAssetFullPath(L"SegoeUI_24.spritefont").c_str(),
@@ -315,7 +315,7 @@ void D3D12RaytracingClusteredGeometry::CreateUIFont()
     // ResourceUploadBatch pattern as the spritefont, dropped into the
     // next descriptor heap slot, GPU handle stashed for SpriteBatch::Draw.
     {
-        ResourceUploadBatch upload(device);
+        ResourceUploadBatch upload(device, m_resourceUploadOptions);
         upload.Begin();
 
         D3D12_RESOURCE_DESC texDesc = {};

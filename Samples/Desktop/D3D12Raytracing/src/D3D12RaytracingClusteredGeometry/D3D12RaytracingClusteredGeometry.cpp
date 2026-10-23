@@ -47,7 +47,7 @@ namespace
         const auto desc = CD3DX12_RESOURCE_DESC::Buffer(sizeInBytes);
         ComPtr<ID3D12Resource> resource;
         ThrowIfFailed(device->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_NONE, &desc,
-            D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&resource)));
+            D3D12_RESOURCE_STATE_COMMON, nullptr, IID_PPV_ARGS(&resource)));
         resource->SetName(name);
 
         D3D12_SUBRESOURCE_DATA source = {};
@@ -265,26 +265,7 @@ void D3D12RaytracingClusteredGeometry::CreateDeviceDependentResources()
     // is attached) the process exits with STATUS_BREAKPOINT (0xC0000005-ish)
     // without us ever seeing WHY - which makes WARP and other layered failures
     // very hard to diagnose. The callback runs in-process before the break.
-    //
-    // Also mute id=1328 (CREATERESOURCE_STATE_IGNORED) - this is a benign
-    // D3D12 quirk: buffer resources are always created in COMMON state
-    // regardless of pInitialState, and the debug layer reminds you per
-    // CreateCommittedResource. Filtering it via SetMessageFilter() leaves
-    // every other warning category active, so we still see real bugs.
     {
-        ComPtr<ID3D12InfoQueue> infoQueue0;
-        if (SUCCEEDED(device->QueryInterface(IID_PPV_ARGS(&infoQueue0))))
-        {
-            D3D12_MESSAGE_ID denied[] = {
-                D3D12_MESSAGE_ID_CREATERESOURCE_STATE_IGNORED, // 1328
-            };
-            D3D12_INFO_QUEUE_FILTER filter = {};
-            filter.DenyList.NumIDs  = _countof(denied);
-            filter.DenyList.pIDList = denied;
-            HRESULT hrFilter = infoQueue0->AddStorageFilterEntries(&filter);
-            SampleLog::LogF(L"InfoQueue: muted id=1328 hr=0x%08X\n", (unsigned)hrFilter);
-        }
-
         ComPtr<ID3D12InfoQueue1> infoQueue1;
         if (SUCCEEDED(device->QueryInterface(IID_PPV_ARGS(&infoQueue1))))
         {
@@ -295,9 +276,6 @@ void D3D12RaytracingClusteredGeometry::CreateDeviceDependentResources()
                    D3D12_MESSAGE_ID id,
                    LPCSTR desc, void* /*ctx*/)
                 {
-                    // Mute the persistent benign id=1328 in the callback path
-                    // too (storage-filter doesn't reach the callback).
-                    if (id == D3D12_MESSAGE_ID_CREATERESOURCE_STATE_IGNORED) return;
                     const wchar_t* sevStr =
                         sev == D3D12_MESSAGE_SEVERITY_CORRUPTION ? L"CORRUPTION" :
                         sev == D3D12_MESSAGE_SEVERITY_ERROR      ? L"ERROR" :
@@ -380,6 +358,8 @@ void D3D12RaytracingClusteredGeometry::CreateDeviceDependentResources()
 
 void D3D12RaytracingClusteredGeometry::QueryDXR2Support()
 {
+    ThrowIfFailed(m_dxrDevice->CheckFeatureSupport1(D3D12_FEATURE_D3D12_OPTIONS,
+        &m_resourceUploadOptions, sizeof(m_resourceUploadOptions), D3D12_PREVIEW_SDK_VERSION));
     D3D12_FEATURE_DATA_D3D12_OPTIONS_RAYTRACING2 opts = {};
     HRESULT hr = m_dxrDevice->CheckFeatureSupport1(
         D3D12_FEATURE_D3D12_OPTIONS_RAYTRACING2, &opts, sizeof(opts), D3D12_PREVIEW_SDK_VERSION);
@@ -960,7 +940,7 @@ void D3D12RaytracingClusteredGeometry::BuildClusterShaderSideBuffers()
 
     // Hit shaders repeatedly read these immutable tables. Keep them in GPU-local
     // memory and stage their contents only when creating or rebuilding the scene.
-    ResourceUploadBatch resourceUpload(device);
+    ResourceUploadBatch resourceUpload(device, m_resourceUploadOptions);
     resourceUpload.Begin();
     CreateReadOnlyShaderBuffer(device, resourceUpload, normals.data(),
         normals.size() * sizeof(XMFLOAT4), m_clusterNormalsBuffer,
@@ -1117,7 +1097,7 @@ void D3D12RaytracingClusteredGeometry::BuildClusterMetadata()
         }
     }
 
-    ResourceUploadBatch resourceUpload(device);
+    ResourceUploadBatch resourceUpload(device, m_resourceUploadOptions);
     resourceUpload.Begin();
     CreateReadOnlyShaderBuffer(device, resourceUpload, meta.data(),
         meta.size() * sizeof(ClusterMeta), m_clusterMetaBuffer,
@@ -3543,15 +3523,14 @@ void D3D12RaytracingClusteredGeometry::BuildAnimatedObjectSetup()
     // ------------------------------------------------------------------
     const size_t vbBytes = (size_t)obj.totalVertexCount * sizeof(XMFLOAT3);
     {
-        // GPU-only animated vertex buffer (UAV; the compute shader writes;
-        // INSTANTIATE reads).  Starts in UNORDERED_ACCESS so the first frame's
-        // compute pass works without an initial state transition.
+        // GPU-only animated vertex buffer; COMMON promotes to UAV on the
+        // first compute write, then INSTANTIATE reads it after a transition.
         auto defaultHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
         auto vbDesc = CD3DX12_RESOURCE_DESC::Buffer(alignTo(vbBytes, 256),
                                                     D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
         ThrowIfFailed(device->CreateCommittedResource(
             &defaultHeap, D3D12_HEAP_FLAG_NONE, &vbDesc,
-            D3D12_RESOURCE_STATE_UNORDERED_ACCESS, nullptr,
+            D3D12_RESOURCE_STATE_COMMON, nullptr,
             IID_PPV_ARGS(&obj.perFrameVertexBuffer)));
         obj.perFrameVertexBuffer->SetName(
             L"Animated: per-frame vertex buffer (UAV, compute-written)");
@@ -3567,7 +3546,7 @@ void D3D12RaytracingClusteredGeometry::BuildAnimatedObjectSetup()
         auto restDesc = CD3DX12_RESOURCE_DESC::Buffer(alignTo(vbBytes, 256));
         ThrowIfFailed(device->CreateCommittedResource(
             &defaultHeap, D3D12_HEAP_FLAG_NONE, &restDesc,
-            D3D12_RESOURCE_STATE_COPY_DEST, nullptr,
+            D3D12_RESOURCE_STATE_COMMON, nullptr,
             IID_PPV_ARGS(&obj.restPositionsBuffer)));
         obj.restPositionsBuffer->SetName(L"Animated: rest-pose positions (SRV, compute-read)");
 

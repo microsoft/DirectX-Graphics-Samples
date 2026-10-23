@@ -174,6 +174,7 @@ private:
     ComPtr<ID3D12DeviceRaytracing2>      m_dxr2Device;
     ComPtr<ID3D12CommandListRaytracing2> m_dxr2CommandList;
     bool m_clustersAndPtlasSupported = false;
+    D3D12_FEATURE_DATA_D3D12_OPTIONS m_resourceUploadOptions = {};
     // Aggregated traditional-static-BLAS sizes, refreshed each rebuild for
     // the overlay's apples-to-apples comparison vs the cluster path's
     // CLAS+BLAS totals.  See BuildTraditionalStaticAS.
