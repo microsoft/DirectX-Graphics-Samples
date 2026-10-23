@@ -43,7 +43,7 @@ using Microsoft::WRL::ComPtr;
 // Multiple procedurally-generated objects, each becoming one Cluster BLAS:
 //   - 4 spheres of varying subdivisions (different cluster counts per BLAS)
 //   - 1 torus
-//   - 1 subdivided cube
+//   - 1 cube (one quad per face)
 // All clusters use **spatial-tile** decomposition - small contiguous patches
 // of the surface (meshlet-style), not long latitude bands.
 // =====================================================================================

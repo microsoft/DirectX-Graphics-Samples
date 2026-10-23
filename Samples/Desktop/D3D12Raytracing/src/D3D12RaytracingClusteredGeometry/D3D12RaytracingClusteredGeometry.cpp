@@ -149,10 +149,13 @@ const wchar_t* D3D12RaytracingClusteredGeometry::c_raygenName            = L"Ray
 const wchar_t* D3D12RaytracingClusteredGeometry::c_opaqueClosestHitName  = L"OpaqueHit";
 const wchar_t* D3D12RaytracingClusteredGeometry::c_glassClosestHitName   = L"GlassHit";
 const wchar_t* D3D12RaytracingClusteredGeometry::c_glassAnyHitName       = L"GlassAnyHit";
+const wchar_t* D3D12RaytracingClusteredGeometry::c_wireframeClosestHitName = L"WireframeHit";
+const wchar_t* D3D12RaytracingClusteredGeometry::c_wireframeAnyHitName    = L"WireframeAnyHit";
 const wchar_t* D3D12RaytracingClusteredGeometry::c_missName              = L"Miss";
 const wchar_t* D3D12RaytracingClusteredGeometry::c_shadowMissName        = L"ShadowMiss";
 const wchar_t* D3D12RaytracingClusteredGeometry::c_opaqueHitGroupName    = L"OpaqueHitGroup";
 const wchar_t* D3D12RaytracingClusteredGeometry::c_glassHitGroupName     = L"GlassHitGroup";
+const wchar_t* D3D12RaytracingClusteredGeometry::c_wireframeHitGroupName = L"WireframeHitGroup";
 const wchar_t* D3D12RaytracingClusteredGeometry::c_shadowHitGroupName    = L"ShadowHitGroup";
 
 // =====================================================================================
@@ -418,20 +421,7 @@ void D3D12RaytracingClusteredGeometry::QueryDXR2Support()
         (unsigned)shaderModel.HighestShaderModel >> 4,
         (unsigned)shaderModel.HighestShaderModel & 0xfu);
 
-    // Resolve the auto-default for m_aaSamplesPerPixel now that the adapter
-    // description is known.  Sentinel 0 in the header means "not set by
-    // CLI"; an explicit --rays-per-pixel N takes precedence and skips this
-    // branch.  WARP / Basic Render -> 1 (4x on a software rasterizer
-    // pushes a 1280x720 frame to seconds-per-frame); HW -> 4.
-    if (m_aaSamplesPerPixel == 0)
-    {
-        const wchar_t* desc = m_deviceResources->GetAdapterDescription();
-        const bool isSoftware = (wcsstr(desc, L"WARP") != nullptr) ||
-                                (wcsstr(desc, L"Basic Render") != nullptr);
-        m_aaSamplesPerPixel = isSoftware ? 1u : 4u;
-        SampleLog::LogF(L"  auto rays/pixel: %u  (%ls adapter)\n",
-                        m_aaSamplesPerPixel, isSoftware ? L"software" : L"hardware");
-    }
+    SampleLog::LogF(L"  rays/pixel: %u\n", m_aaSamplesPerPixel);
     // Keep full averaging windows short enough for software rendering too.
     // The first window publishes provisional averages as samples arrive.
     if (m_pfSnapTargetCount == 0)
@@ -5108,6 +5098,8 @@ void D3D12RaytracingClusteredGeometry::CreateRaytracingPipelineAndShaderTables()
     lib->DefineExport(c_opaqueClosestHitName);
     lib->DefineExport(c_glassClosestHitName);
     lib->DefineExport(c_glassAnyHitName);
+    lib->DefineExport(c_wireframeClosestHitName);
+    lib->DefineExport(c_wireframeAnyHitName);
     lib->DefineExport(c_missName);
     lib->DefineExport(c_shadowMissName);
 
@@ -5137,6 +5129,12 @@ void D3D12RaytracingClusteredGeometry::CreateRaytracingPipelineAndShaderTables()
     glassHG->SetAnyHitShaderImport(c_glassAnyHitName);
     glassHG->SetHitGroupExport(c_glassHitGroupName);
     glassHG->SetHitGroupType(D3D12_HIT_GROUP_TYPE_TRIANGLES);
+
+    auto wireframeHG = pipeline.CreateSubobject<CD3DX12_HIT_GROUP_SUBOBJECT>();
+    wireframeHG->SetClosestHitShaderImport(c_wireframeClosestHitName);
+    wireframeHG->SetAnyHitShaderImport(c_wireframeAnyHitName);
+    wireframeHG->SetHitGroupExport(c_wireframeHitGroupName);
+    wireframeHG->SetHitGroupType(D3D12_HIT_GROUP_TYPE_TRIANGLES);
 
     // Shadow hit group: empty (no closest-hit, no any-hit). Shadow rays use
     // SKIP_CLOSEST_HIT_SHADER + FORCE_OPAQUE so neither shader can run on a
@@ -5178,6 +5176,7 @@ void D3D12RaytracingClusteredGeometry::CreateRaytracingPipelineAndShaderTables()
     void* shadowMissID    = props->GetShaderIdentifier(c_shadowMissName);
     void* opaqueHgID      = props->GetShaderIdentifier(c_opaqueHitGroupName);
     void* glassHgID       = props->GetShaderIdentifier(c_glassHitGroupName);
+    void* wireframeHgID   = props->GetShaderIdentifier(c_wireframeHitGroupName);
     void* shadowHgID      = props->GetShaderIdentifier(c_shadowHitGroupName);
     const UINT idSize = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
     const UINT recordSize = Align(idSize, D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT);
@@ -5235,7 +5234,12 @@ void D3D12RaytracingClusteredGeometry::CreateRaytracingPipelineAndShaderTables()
         + 2u * kMaxGeomsPerInstance;
     auto makeHitGroupTable = [&](ComPtr<ID3D12Resource>& outTable, const wchar_t* name)
     {
-        std::vector<uint8_t> data(recordSize * kHitGroupRecordCount, 0);
+        // Two equally sized, table-aligned halves share the existing TLAS
+        // contribution indices. Solid rendering never selects the edge test.
+        const UINT tableBytes = recordSize * kHitGroupRecordCount;
+        static_assert((D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES * kHitGroupRecordCount) %
+            D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT == 0);
+        std::vector<uint8_t> data(tableBytes * 2, 0);
         memcpy(data.data() + 0 * recordSize, opaqueHgID, idSize);
         memcpy(data.data() + 1 * recordSize, shadowHgID, idSize);
         for (UINT record = 2; record < kHitGroupRecordCount; record += 2)
@@ -5243,13 +5247,15 @@ void D3D12RaytracingClusteredGeometry::CreateRaytracingPipelineAndShaderTables()
             memcpy(data.data() + record * recordSize, glassHgID, idSize);
             memcpy(data.data() + (record + 1) * recordSize, shadowHgID, idSize);
         }
+        for (UINT record = 0; record < kHitGroupRecordCount; ++record)
+            memcpy(data.data() + tableBytes + record * recordSize, wireframeHgID, idSize);
         AllocateUploadBuffer(device, data.data(), data.size(), &outTable, name);
     };
 
     makeTable1(rgID,                    m_rayGenShaderTable,   L"raygen shader table");
     makeTable2(missID, shadowMissID, m_missShaderTable, L"miss shader table (primary + shadow)");
     makeHitGroupTable(m_hitGroupShaderTable,
-                      L"hit-group shader table (opaque + all legal glass geometry indices)");
+                      L"hit-group shader table (solid + wireframe)");
 }
 
 // ---------------------------------------------------------------------------------
@@ -5641,6 +5647,7 @@ void D3D12RaytracingClusteredGeometry::UpdateSceneConstantBuffer()
     cb.runtimeParams.z =
         IsTraditional() ? 1u
                         : 0u; // 1 -> closest-hit uses per-instance lookups instead of ClusterID
+    cb.runtimeParams.w = m_wireframe ? 1u : 0u;
     // Sun in upper-back-right. Direction TO the light, normalized. .w is the
     // ambient floor: even fully-shadowed pixels get this fraction of base
     // colour so the scene reads instead of going pitch black.
@@ -5771,6 +5778,8 @@ void D3D12RaytracingClusteredGeometry::OnRender()
             else if (_wcsicmp(act, L"flags-fast-trace")  == 0)
             {   m_buildFlagMode = BuildFlagMode::FastTrace;
                 RebuildStaticAccelerationStructures(L"scheduled flags-fast-trace"); }
+            else if (_wcsicmp(act, L"wireframe")         == 0)
+            {   OnKeyDown('W'); }
             else if (_wcsicmp(act, L"log")               == 0)
             {   SampleLog::LogF(L"[scheduled-snap frame=%u alloc=%ls rebuild=%ls] "
                                 L"inst=%.3fus animBlas=%.3fus tlas=%.3fus "
@@ -6086,8 +6095,10 @@ void D3D12RaytracingClusteredGeometry::DoRender()
     // table now has TWO records (primary + shadow); each TraceRay's
     // MissShaderIndex selects which one by stepping `stride` bytes in.
     drd.MissShaderTable.StrideInBytes          = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
-    drd.HitGroupTable.StartAddress             = m_hitGroupShaderTable->GetGPUVirtualAddress();
-    drd.HitGroupTable.SizeInBytes              = m_hitGroupShaderTable->GetDesc().Width;
+    const UINT64 hitTableBytes = m_hitGroupShaderTable->GetDesc().Width / 2;
+    drd.HitGroupTable.StartAddress = m_hitGroupShaderTable->GetGPUVirtualAddress()
+        + (m_wireframe ? hitTableBytes : 0);
+    drd.HitGroupTable.SizeInBytes              = hitTableBytes;
     drd.HitGroupTable.StrideInBytes            = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
     drd.Width  = (UINT)bbDesc.Width;
     drd.Height = (UINT)bbDesc.Height;
@@ -6681,6 +6692,7 @@ void D3D12RaytracingClusteredGeometry::WriteBenchmarkSnapshot()
     kvU  ("position_truncate_bits",        m_positionTruncateBits);
     kvU  ("compressed_bits_per_component", m_compressedBitsPerComponent);
     kvU  ("aa_samples_per_pixel",          m_aaSamplesPerPixel);
+    kvB  ("wireframe",                     m_wireframe);
     kvD  ("cluster_tint",                  (double)m_clusterTint);
     kvI  ("bounce_slider",                 (long long)m_bounceSlider);
     kvU  ("reflection_bounces",            ReflectionBounces());

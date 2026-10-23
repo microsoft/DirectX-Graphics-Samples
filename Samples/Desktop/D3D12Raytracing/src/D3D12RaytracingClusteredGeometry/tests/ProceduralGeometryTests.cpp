@@ -33,6 +33,9 @@ void CheckSlab(int tilesU, int tilesV, int quadsU, int quadsV)
     const auto topCount = static_cast<size_t>(tilesU * tilesV);
     Require(mesh.clusters.size() == 2 * topCount + 2 * (tilesU + tilesV),
             "Unexpected slab cluster count");
+    Require(mesh.totalTriangles == 4u * tilesU * tilesV * quadsU * quadsV +
+                                   4u * (tilesU * quadsU + tilesV * quadsV),
+            "Unexpected slab triangle count");
     std::map<Edge, std::pair<unsigned, int>> edges;
     unsigned triangles = 0, vertices = 0;
     for (size_t c = 0; c < mesh.clusters.size(); ++c)
@@ -101,17 +104,54 @@ void CheckSlab(int tilesU, int tilesV, int quadsU, int quadsV)
     }
 }
 
+void CheckCube()
+{
+    const auto mesh = ProceduralGeometry::GenerateCubeSpatialTiles(0.45f, 1, 1, 500);
+    Require(mesh.clusters.size() == 6 && mesh.totalTriangles == 12 && mesh.totalVertices == 24,
+            "Cube is not one quad per face");
+    std::map<Edge, std::pair<unsigned, int>> edges;
+    for (size_t c = 0; c < mesh.clusters.size(); ++c)
+    {
+        const auto& cluster = mesh.clusters[c];
+        Require(cluster.positions.size() == 4 && cluster.normals.size() == 4 &&
+                cluster.indices.size() == 6, "Cube face is not a single quad");
+        Require(cluster.clusterID == 500 + c && cluster.matchedColorCid == cluster.clusterID,
+                "Cube face lost its cluster color");
+        for (size_t i = 0; i < cluster.indices.size(); i += 3)
+        {
+            for (unsigned corner = 0; corner < 3; ++corner)
+            {
+                const auto a = cluster.indices[i + corner];
+                const auto b = cluster.indices[i + (corner + 1) % 3];
+                Require(a < 4 && b < 4, "Cube triangle index out of bounds");
+                auto first = Bits(cluster.positions[a]), second = Bits(cluster.positions[b]);
+                const int direction = first < second ? 1 : -1;
+                if (second < first)
+                    std::swap(first, second);
+                auto& usage = edges[{first, second}];
+                ++usage.first;
+                usage.second += direction;
+            }
+        }
+    }
+    for (const auto& edge : edges)
+        Require(edge.second.first == 2 && edge.second.second == 0,
+                "Cube has a crack or inconsistent shared-edge winding");
+}
+
 int main()
 {
     try
     {
         CheckSlab(6, 6, 4, 4);
+        CheckSlab(6, 6, 1, 1);
         CheckSlab(3, 5, 2, 7);
         CheckSlab(1, 1, 1, 1);
+        CheckCube();
         const auto plane = ProceduralGeometry::GeneratePlaneSpatialTiles(3.5f, 2.9f, 3, 5, 2, 7);
         Require(plane.clusters.size() == 15 && plane.totalTriangles == 420,
                 "Zero-thickness plane behavior changed");
-        std::puts("Slab seams, winding, CLAS limits, materials, and float truncation: PASS");
+        std::puts("Cube/slab quads, seams, winding, CLAS limits, materials, and truncation: PASS");
         return 0;
     }
     catch (const std::exception& error)

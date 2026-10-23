@@ -244,8 +244,12 @@ void RayGen()
         // on the BLAS instance, which overrides this ray flag for those
         // specific instances - they get double-sided traversal, the rest
         // don't pay any cost.
-        TraceRay(Scene,
-            RAY_FLAG_CULL_BACK_FACING_TRIANGLES,
+        // Override opaque geometry/instance flags only for the wireframe
+        // hit table, so its any-hit shader can reject triangle interiors.
+        uint rayFlags = RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
+        if (g_scene.runtimeParams.w != 0u)
+            rayFlags |= RAY_FLAG_FORCE_NON_OPAQUE;
+        TraceRay(Scene, rayFlags,
             /*InstanceInclusionMask*/0xff,
             /*RayContributionToHitGroupIndex*/0,
             /*MultiplierForGeometryContributionToHitGroupIndex*/2,
@@ -260,6 +264,11 @@ void RayGen()
 [shader("miss")]
 void Miss(inout Payload p)
 {
+    if (g_scene.runtimeParams.w != 0u)
+    {
+        p.color = float4(0, 0, 0, 1);
+        return;
+    }
     // Sunset sky / ground gradient.  The ray direction tells us where the
     // camera is looking - we synthesise a believable environment from the
     // y component:
@@ -379,6 +388,26 @@ void GlassAnyHit(inout Payload p, in Attribs a)
             IgnoreHit();
     }
     // Otherwise fall through, accept the hit.
+}
+
+[shader("anyhit")]
+void WireframeAnyHit(inout Payload p, in Attribs a)
+{
+    const float3 bary = float3(1.0 - a.bary.x - a.bary.y, a.bary);
+    if (min(bary.x, min(bary.y, bary.z)) > 0.025)
+        IgnoreHit();
+}
+
+[shader("closesthit")]
+void WireframeHit(inout Payload p, in Attribs a)
+{
+#ifdef TRADITIONAL_ONLY
+    const uint cid = LoadTraditionalHitIndices().x;
+#else
+    const uint cid = ClusterID();
+#endif
+    const uint colorIndex = g_clusterMeta.Load(cid * 48u);
+    p.color = float4(ClusterColor(colorIndex), 1);
 }
 
 // ============================================================================

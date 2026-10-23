@@ -125,34 +125,13 @@ void D3D12RaytracingClusteredGeometry::EnsureCloneSourceLodMeshes()
         m_cloneSourceLodMeshes[8] = std::move(chain);
     }
 
-    // CUBE copper glass.  Source: halfExtent=0.45, faceSubdiv=11, tileSize=11.
-    // Each face is one cluster -> 6 clusters total at LOD 0.  Cube
-    // generator's faceSubdiv must divide evenly by tileSize, so we
-    // can't strictly halve in a clean chain.  Pick LOD pairs that
-    // approximate halving each step's triangle count while keeping
-    // a single cluster per face:
-    //   LOD 0: 11/11 -> 6 clusters x 242 tris (= source)
-    //   LOD 1:  6/6  -> 6 clusters x  72 tris
-    //   LOD 2:  4/4  -> 6 clusters x  32 tris
-    //   LOD 3:  2/2  -> 6 clusters x   8 tris
-    {
-        const int cubeFaceSubdivs[]   = { 11, 6, 4, 2 };
-        std::vector<ProceduralGeometry::Mesh> chain;
-        for (int lod = 0; lod < kMaxLodLevels && lod < (int)_countof(cubeFaceSubdivs); ++lod)
-        {
-            const int fs = cubeFaceSubdivs[lod];
-            chain.push_back(ProceduralGeometry::GenerateCubeSpatialTiles(
-                0.45f, fs, fs, 0));
-        }
-        m_cloneSourceLodMeshes[5] = std::move(chain);
-    }
+    // Cube clones keep the source's single quad per face; no tessellation LOD is needed.
 
     SampleLog::LogF(
-        L"[clone-lod] generated %zu chains: sphere0=%zu, torus=%zu, cube=%zu, klein=%zu\n",
+        L"[clone-lod] generated %zu chains: sphere0=%zu, torus=%zu, klein=%zu\n",
         m_cloneSourceLodMeshes.size(),
         m_cloneSourceLodMeshes.count(0) ? m_cloneSourceLodMeshes[0].size() : 0,
         m_cloneSourceLodMeshes.count(4) ? m_cloneSourceLodMeshes[4].size() : 0,
-        m_cloneSourceLodMeshes.count(5) ? m_cloneSourceLodMeshes[5].size() : 0,
         m_cloneSourceLodMeshes.count(8) ? m_cloneSourceLodMeshes[8].size() : 0);
 }
 

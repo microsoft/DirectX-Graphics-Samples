@@ -7,6 +7,9 @@ indirect acceleration-structure operations API, with both the static path
 formats) and the animated path (`BUILD_CLUSTER_TEMPLATES_FROM_TRIANGLES` + per-frame
 `INSTANTIATE_CLUSTER_TEMPLATES`).
 
+Flat surfaces use one quad per cube face or floor tile, preserving the floor's
+checker-tile cluster colors and materials. Cube clones use the same minimal mesh.
+
 ## Build
 
 Use Visual Studio 2022 with the Desktop development with C++ workload, a
@@ -108,6 +111,7 @@ On-screen overlay (right column) lists the active value for each toggle.
 |          | variant as radius grows, so the back rings stay cheap.                                  |
 | `,` `.`  | Bounce slider — reflection + refraction depth (held +2 apart, range 0..5).              |
 | `/`      | Primary rays/pixel — cycle `1` → `2` → `4` → `1` for anti-aliasing.                    |
+| `[W]`    | Toggle cluster-colored triangle wireframe (both geometry paths).                       |
 | `[` `]`  | Vertex precision slider — fewer / more position bits (`FLOAT32_3` truncate-bits or      |
 |          | `COMPRESSED1` bits/component). Rebuilds static CLAS and animated templates together.    |
 
@@ -120,9 +124,16 @@ D3D12RaytracingClusteredGeometry.exe --geometry-mode clusters --vertex-format co
 ```
 
 Use `--rays-per-pixel 1`, `2`, or `4` to set the primary ray count at startup.
-The default is four on hardware and one on WARP. Secondary shadow, reflection,
+The default is one on all adapters. Secondary shadow, reflection,
 and refraction rays are additional to this count. `--aa-samples` remains a
 compatibility alias for existing scripts.
+
+Use `--wireframe` to start in the same wireframe view as `[W]`. Triangle interiors
+are rejected by a dedicated any-hit shader, revealing edges behind them. Edges
+use the cluster palette without lighting, reflection, refraction, or stochastic
+transparency, against a black background. Line width is a fixed fraction of each
+triangle's barycentric coordinates, not a constant pixel width. Solid mode keeps
+its original hit shaders and does not execute the barycentric edge test.
 
 The snapshot's `memory_bytes.total_as` matches the overlay's resident AS-memory
 total: static and animated BVH allocations (including cluster templates,
@@ -170,6 +181,7 @@ the same frame run in command-line order. Actions:
 | `flags-none`         | `[B]` → no build preference                |
 | `flags-fast-build`   | `[B]` → prefer fast build                  |
 | `flags-fast-trace`   | `[B]` → prefer fast trace                  |
+| `wireframe`          | `[W]` toggle                               |
 | `log`                | Write a timing snapshot to the sample log  |
 | `exit`               | Exit the sample                            |
 

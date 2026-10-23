@@ -45,7 +45,7 @@ struct SceneConstantBuffer
                                  //      ClusterID() lookups; 1 = traditional/
                                  //      DXR1 -- use InstanceID() + per-instance
                                  //      offsets table).
-                                 // .w reserved for future sliders.
+                                 // .w = wireframe enabled.
 };
 
 // Per-instance material.  Each instance carries an independent BLEND of

@@ -499,16 +499,9 @@ private:
     // MaxCompressedClusterPositionsSize there).
     UINT                                 m_positionTruncateBits = 12;
 
-    // ANTIALIASING / SUPERSAMPLING.  How many primary rays per output pixel,
-    // Primary rays per pixel for the raygen shader. Each pixel
-    // gets N jittered primary rays; supported values are 1, 2, 4.
-    //   Default 0 = AUTO (resolved in OnInit once the adapter is known):
-    //     - WARP / Basic Render -> 1 to limit per-pixel ray cost.
-    //     - Hardware -> 4 for smoother reflective/refractive surfaces.
-    //   Explicit override via --rays-per-pixel N takes precedence over the
-    //   auto-default and skips the OnInit resolve below.
-    // Pass-through to the raygen shader is via SceneConstantBuffer.miscParams.z.
-    UINT                                 m_aaSamplesPerPixel = 0;
+    // Primary rays per pixel (1, 2, or 4), passed through miscParams.z.
+    UINT                                 m_aaSamplesPerPixel = 1;
+    bool                                 m_wireframe = false;
 
     // CLUSTER-RAINBOW VISUALISATION KNOB.  miscParams.w in the scene CB.
     // Multiplies the cosine-palette per-cluster tint into the material
@@ -1388,9 +1381,12 @@ private:
     static const wchar_t* c_opaqueClosestHitName;
     static const wchar_t* c_glassClosestHitName;
     static const wchar_t* c_glassAnyHitName;
+    static const wchar_t* c_wireframeClosestHitName;
+    static const wchar_t* c_wireframeAnyHitName;
     static const wchar_t* c_missName;
     static const wchar_t* c_shadowMissName;
     static const wchar_t* c_opaqueHitGroupName;
     static const wchar_t* c_glassHitGroupName;
+    static const wchar_t* c_wireframeHitGroupName;
     static const wchar_t* c_shadowHitGroupName;
 };

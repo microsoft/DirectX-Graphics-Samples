@@ -16,7 +16,7 @@
 //   * ParseCommandLineArgs -- CLI options for screenshots, benchmarks,
 //     geometry/build modes, scheduled actions, and deterministic captures.
 //   * OnKeyDown            -- hotkey routing for Space, [M], [A], [V], [R],
-//     [T], [F], [N], [B], "," ".", "[" "]" runtime toggles.  Each hotkey
+//     [T], [F], [N], [B], [W], "," ".", "[" "]" runtime toggles.  Each hotkey
 //     either mutates a piece of state and triggers a
 //     RebuildStaticAccelerationStructures, or flips a per-frame flag.
 //
@@ -298,6 +298,10 @@ void D3D12RaytracingClusteredGeometry::ParseCommandLineArgs(_In_reads_(argc) WCH
             m_aaSamplesPerPixel = (UINT)n;
             i += 1;
         }
+        else if (_wcsicmp(argv[i], L"--wireframe") == 0)
+        {
+            m_wireframe = true;
+        }
         else if (_wcsicmp(argv[i], L"--cluster-tint") == 0 && i + 1 < argc)
         {
             // Cluster-rainbow tint blend in [0..1].  0 = pure material
@@ -484,6 +488,11 @@ void D3D12RaytracingClusteredGeometry::OnKeyDown(UINT8 key)
         m_aaSamplesPerPixel = m_aaSamplesPerPixel == 1u ? 2u
             : m_aaSamplesPerPixel == 2u ? 4u : 1u;
         SampleLog::LogF(L"[input] rays/pixel -> %u\n", m_aaSamplesPerPixel);
+    }
+    else if (key == 'W' || key == 'w')
+    {
+        m_wireframe = !m_wireframe;
+        SampleLog::LogF(L"[input] wireframe %s\n", m_wireframe ? L"ON" : L"OFF");
     }
     // ----- '[' / ']' = per-cluster precision slider.  Direction is the same
     //   in both modes: '[' -> LESS precision, ']' -> MORE precision.

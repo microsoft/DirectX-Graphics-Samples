@@ -107,7 +107,7 @@ namespace SceneData
         scene.push_back({
             "cube_copper_glass",
             GenKind::Cube,
-            { .cubeHalfExtent = 0.45f, .cubeFaceSubdiv = 11, .cubeTileSize = 11 },
+            { .cubeHalfExtent = 0.45f, .cubeFaceSubdiv = 1, .cubeTileSize = 1 },
             500,
             with_y(hex(5), 0.0f), {0,0,0}, 1.0f, 5,
             {}, 1.0f, 0.50f, 1.08f
@@ -135,7 +135,7 @@ namespace SceneData
             GenKind::Slab,
             { .slabHalfSizeU = 3.5f, .slabHalfSizeV = 3.5f,
               .slabTilesU    = 6,    .slabTilesV    = 6,
-              .slabTileQuadsU= 4,    .slabTileQuadsV= 4,
+              .slabTileQuadsU= 1,    .slabTileQuadsV= 1,
               .slabThickness = 0.28f },
             600,
             { 0.0f, -0.7f, 0.0f }, {0,0,0}, 1.0f, 6,
