@@ -368,8 +368,9 @@ private:
     // [N] cycles through {None, Hundred, Thousand, TenThousand} to add
     // a tail of extra TLAS instances after the static + animated ones.
     // Static clones get independent AS storage; every fifth clone is animated
-    // and shares the source CLAS. Pool allocation and the traditional build cap
-    // are handled by the animated setup helpers. All clones use spiral placement
+    // and shares the source CLAS in cluster mode, but not its BLAS.
+    // Animated setup helpers allocate a separate BLAS for every copy.
+    // All clones use spiral placement
     // and per-instance material overrides; see ScenePopulation.cpp.
     enum class ExtraInstancesMode : UINT {
         None        = 0,
@@ -377,7 +378,7 @@ private:
         Thousand    = 1000,
         TenThousand = 10000,
     };
-    ExtraInstancesMode                   m_extraInstancesMode = ExtraInstancesMode::None;
+    ExtraInstancesMode                   m_extraInstancesMode = ExtraInstancesMode::Hundred;
     UINT ExtraInstancesCount() const
     {
         return (UINT)m_extraInstancesMode;

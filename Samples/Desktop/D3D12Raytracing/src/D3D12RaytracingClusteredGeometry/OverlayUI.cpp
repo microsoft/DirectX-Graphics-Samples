@@ -1371,32 +1371,18 @@ void D3D12RaytracingClusteredGeometry::RenderUI()
     swprintf_s(kbuf, L"   BVH build flag:   %s", BuildFlagModeName());
     drawKeyLine(L"[B]", kbuf);
 
-    // Workload-scaling [N] toggle.  Always shown so the user knows the
-    // hotkey exists even when N=0.  Reports the count + breakdown
-    // (static clones + animated clones share-source-BLAS) + LOD state.
-    //
-    // Mode-aware label so it's clear these are NOT cheap TLAS-instance
-    // copies of a shared BLAS -- each STATIC clone gets its own full
-    // CLAS array + BLAS (in cluster mode) or its own DXR1 BLAS (in
-    // trad mode), so the toggle progressively stresses the
-    // CLAS+BLAS+templates paths rather than just the TLAS row count.
-    // Animated clones share source vertices (and CLAS in cluster mode),
-    // but each has its own per-frame-built BLAS in both modes.
+    // Every copy has a separate BLAS in both paths. Only static curved
+    // meshes use generation-time radial LOD; animated detail is selected by [L].
     if (m_extraInstancesMode == ExtraInstancesMode::None)
     {
-        const wchar_t* label = (m_geometryMode == GeometryMode::Clusters)
-            ? L"   extra unique BLAS+CLAS: %s"
-            : L"   extra unique BLASes:    %s";
-        swprintf_s(kbuf, label, ExtraInstancesModeName());
+        swprintf_s(kbuf, L"   extra BLASes:     %s", ExtraInstancesModeName());
     }
     else
     {
         const UINT N_static_clones = (UINT)(m_objects.size() - m_sourceObjectCount);
         const UINT N_anim_clones   = (UINT)m_animatedClones.size();
-        const wchar_t* fmt = (m_geometryMode == GeometryMode::Clusters)
-            ? L"   extra unique BLAS+CLAS: %s   (%u static + %u animated [own BLAS, shared CLAS])   LOD reduces with distance"
-            : L"   extra unique BLASes:    %s   (%u static + %u animated [own BLAS, per-clone DXR1 build/refit])   LOD reduces with distance";
-        swprintf_s(kbuf, fmt,
+        swprintf_s(kbuf,
+                   L"   extra BLASes:     %s  (%u static + %u anim; 1 BLAS/copy)  static radial LOD",
                    ExtraInstancesModeName(), N_static_clones, N_anim_clones);
     }
     drawKeyLine(L"[N]", kbuf);

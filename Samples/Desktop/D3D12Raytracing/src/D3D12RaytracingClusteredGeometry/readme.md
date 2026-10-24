@@ -115,11 +115,9 @@ On-screen overlay (right column) lists the active value for each toggle.
 | `[B]`    | Build preference: `none` → `fast-build` → `fast-trace`. Re-sizes and rebuilds AS resources in every rebuild mode. |
 | `Space`  | Pause / resume camera motion.                                                           |
 | `[M]`    | Pause / resume animation.                                                               |
-| `[N]`    | Workload scaling — cycle extra clones (`0` → `100` → `1,000` → `10,000` → `0`).         |
-|          | Each clone gets its OWN CLAS array + BLAS (1:1 instance:BLAS), so toggling progressively |
-|          | stresses the CLAS/BLAS/template paths.  Clones spiral out from the floor in a           |
-|          | sunflower pattern; distance-based LOD swaps the source mesh for a lower-tessellation    |
-|          | variant as radius grows, so the back rings stay cheap.                                  |
+| `[N]`    | Extra BLASes — cycle `0` → `100` → `1,000` → `10,000` → `0`; **default: 100**.          |
+|          | One separate BLAS for each copied object in both geometry paths. Copies spiral outward. |
+|          | Static curved meshes use lower-tessellation variants farther from the scene center.    |
 | `,` `.`  | Bounce slider — reflection + refraction depth (held +2 apart, range 0..5).              |
 | `/`      | Primary rays/pixel — cycle `1` → `2` → `4` → `1` for anti-aliasing.                    |
 | `[W]`    | Toggle cluster-colored triangle wireframe (both geometry paths).                       |
@@ -130,11 +128,16 @@ On-screen overlay (right column) lists the active value for each toggle.
 Animated clones receive independent BLASes in both geometry modes; traditional
 mode does not cap that count or substitute shared BLAS instances. Large workloads
 can therefore use substantially more memory and build time in traditional mode.
+In cluster mode, static copies also have separate CLAS arrays; animated copies
+share the source CLAS, but never its BLAS. The default adds 80 static and 20 animated
+copies. Static radial LOD is chosen when copies are generated, not as the camera
+moves; cube copies already use minimal geometry, and animated copies do not use
+radial LOD.
 Both paths default to the original 96-by-192 animated sphere (36,864 triangles).
 `[L]` or `--animated-detail low` explicitly selects a 64-by-144 mesh (18,432
 triangles), halving animated triangles without changing the independent BLAS
 count. Use this setting for VRAM headroom on 6–8 GB cards at the largest preset.
-Detail never changes automatically with `[N]` or geometry mode. `[F]` selects
+Animated detail never changes automatically with `[N]` or geometry mode. `[F]` selects
 rebuild/refit for the animated source and every traditional animated clone.
 Choose a lower `[N]` tier for interactive use when necessary; compare the same
 tier and detail setting in both paths.
