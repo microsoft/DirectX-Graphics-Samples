@@ -1382,7 +1382,7 @@ void D3D12RaytracingClusteredGeometry::RenderUI()
         const UINT N_static_clones = (UINT)(m_objects.size() - m_sourceObjectCount);
         const UINT N_anim_clones   = (UINT)m_animatedClones.size();
         swprintf_s(kbuf,
-                   L"   extra BLASes:     %s  (%u static + %u anim; 1 BLAS/copy)  static radial LOD",
+                   L"   extra BLASes:     %s  (%u static + %u anim; 1 BLAS/copy)  static distance LOD",
                    ExtraInstancesModeName(), N_static_clones, N_anim_clones);
     }
     drawKeyLine(L"[N]", kbuf);
