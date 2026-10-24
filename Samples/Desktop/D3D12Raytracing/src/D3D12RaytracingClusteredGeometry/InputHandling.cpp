@@ -16,7 +16,7 @@
 //   * ParseCommandLineArgs -- CLI options for screenshots, benchmarks,
 //     geometry/build modes, scheduled actions, and deterministic captures.
 //   * OnKeyDown            -- hotkey routing for Space, [M], [A], [V], [R],
-//     [T], [F], [N], [B], [W], "," ".", "[" "]" runtime toggles.  Each hotkey
+//     [T], [F], [N], [B], [W], [L], "," ".", "[" "]" runtime toggles. Each hotkey
 //     either mutates a piece of state and triggers a
 //     RebuildStaticAccelerationStructures, or flips a per-frame flag.
 //
@@ -302,6 +302,16 @@ void D3D12RaytracingClusteredGeometry::ParseCommandLineArgs(_In_reads_(argc) WCH
         {
             m_wireframe = true;
         }
+        else if (_wcsicmp(argv[i], L"--animated-detail") == 0)
+        {
+            ThrowIfFalse(i + 1 < argc,
+                L"--animated-detail requires full or low.\n");
+            const bool low = _wcsicmp(argv[i + 1], L"low") == 0;
+            ThrowIfFalse(low || _wcsicmp(argv[i + 1], L"full") == 0,
+                L"--animated-detail requires full or low.\n");
+            m_lowVramAnimatedDetail = low;
+            ++i;
+        }
         else if (_wcsicmp(argv[i], L"--cluster-tint") == 0 && i + 1 < argc)
         {
             // Cluster-rainbow tint blend in [0..1].  0 = pure material
@@ -369,6 +379,13 @@ void D3D12RaytracingClusteredGeometry::OnKeyDown(UINT8 key)
         SampleLog::LogF(L"[input] vertex format -> %s\n",
                         m_vertexMode == VertexMode::Compressed1 ? L"COMPRESSED1" : L"FLOAT32_3");
         RebuildStaticAccelerationStructures(L"vertex-format toggle");
+    }
+    else if (key == 'L' || key == 'l')
+    {
+        m_lowVramAnimatedDetail = !m_lowVramAnimatedDetail;
+        SampleLog::LogF(L"[input] animated detail -> %s\n",
+            m_lowVramAnimatedDetail ? L"LOW VRAM" : L"FULL");
+        RebuildStaticAccelerationStructures(L"animated-detail toggle");
     }
     else if (key == 'R' || key == 'r')
     {

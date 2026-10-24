@@ -500,6 +500,8 @@ private:
     // Primary rays per pixel (1, 2, or 4), passed through miscParams.z.
     UINT                                 m_aaSamplesPerPixel = 1;
     bool                                 m_wireframe = false;
+    bool                                 m_lowVramAnimatedDetail = false;
+    bool                                 m_uploadedLowVramAnimatedDetail = false;
 
     // CLUSTER-RAINBOW VISUALISATION KNOB.  miscParams.w in the scene CB.
     // Multiplies the cosine-palette per-cluster tint into the material
@@ -771,6 +773,11 @@ private:
         D3D12_GPU_VIRTUAL_ADDRESS blasGPUVA = 0;
     };
     std::vector<AnimatedCloneInstance>      m_animatedClones;
+    UINT64 InstancedTriangleCount() const
+    {
+        return UINT64(m_totalTriangleCount) + (m_animatedObjectEnabled
+            ? UINT64(m_animatedClones.size()) * m_animatedObject.mesh.totalTriangles : 0);
+    }
     // Cluster mode only: per-clone BLAS storage pool.  Allocated by
     // BuildAnimatedClonesSetup; each clone's blasGPUVA = poolBase + k*size.
     Microsoft::WRL::ComPtr<ID3D12Resource>  m_animClonesBlasPool;

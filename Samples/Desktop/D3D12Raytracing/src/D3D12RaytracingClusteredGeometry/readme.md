@@ -122,18 +122,30 @@ On-screen overlay (right column) lists the active value for each toggle.
 | `,` `.`  | Bounce slider — reflection + refraction depth (held +2 apart, range 0..5).              |
 | `/`      | Primary rays/pixel — cycle `1` → `2` → `4` → `1` for anti-aliasing.                    |
 | `[W]`    | Toggle cluster-colored triangle wireframe (both geometry paths).                       |
+| `[L]`    | Animated detail: original full mesh ↔ explicit Low VRAM mesh (same in both paths).      |
 | `[` `]`  | Vertex precision slider — fewer / more position bits (`FLOAT32_3` truncate-bits or      |
 |          | `COMPRESSED1` bits/component). Rebuilds static CLAS and animated templates together.    |
 
 Animated clones receive independent BLASes in both geometry modes; traditional
 mode does not cap that count or substitute shared BLAS instances. Large workloads
 can therefore use substantially more memory and build time in traditional mode.
-Both paths retain the same 96-by-192 animated sphere (36,864 triangles), regardless
-of `[N]`. `[F]` selects rebuild/refit for the animated source and every traditional
-animated clone. Choose a lower `[N]` tier for interactive use when necessary;
-compare the same tier in both paths.
+Both paths default to the original 96-by-192 animated sphere (36,864 triangles).
+`[L]` or `--animated-detail low` explicitly selects a 64-by-144 mesh (18,432
+triangles), halving animated triangles without changing the independent BLAS
+count. Use this setting for VRAM headroom on 6–8 GB cards at the largest preset.
+Detail never changes automatically with `[N]` or geometry mode. `[F]` selects
+rebuild/refit for the animated source and every traditional animated clone.
+Choose a lower `[N]` tier for interactive use when necessary; compare the same
+tier and detail setting in both paths.
 The full-detail 10,000-extra-object traditional preset can exceed 6 GiB of local
 video memory; do not assume that this maximum stress workload fits a 6 GB card.
+The scene triangle line counts every instance, including animated clones. The
+animated section reports its mesh counts per instance. Benchmark JSON records
+`config.animated_detail`, `scene.animated_triangles`, `scene.animated_instances`,
+and `scene.instanced_triangles`; legacy `scene.total_triangles` and its explicit
+alias `scene.mesh_input_triangles` count mesh inputs with the shared animated
+source mesh counted once. Halving animated triangles does not halve total scene
+memory or frame time.
 
 ### Headless / scripted runs
 

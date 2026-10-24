@@ -332,6 +332,7 @@ void D3D12RaytracingClusteredGeometry::CreateDeviceDependentResources()
     BuildPerInstGeomMaterialTable();
     SampleLog::Write(L">>> BuildClusterMetadata\n");
     BuildClusterMetadata();
+    m_uploadedLowVramAnimatedDetail = m_lowVramAnimatedDetail;
     SampleLog::Write(L">>> CreateRaytracingPipelineAndShaderTables\n");
     CreateRaytracingPipelineAndShaderTables();
     SampleLog::Write(L">>> CreateDescriptorHeapAndRaytracingOutput\n");
@@ -723,15 +724,17 @@ void D3D12RaytracingClusteredGeometry::RebuildStaticAccelerationStructures(const
     //    silently stops lighting up green/red on precision changes.
     StashOverlayStatsAsPrev();
 
-    // Geometry, cluster IDs, and shading tables do not change with AS settings.
-    // Only a new workload replaces clones and invalidates these inputs.
-    if (m_generatedExtraInstances != ExtraInstancesCount())
+    // AS settings retain scene inputs. Workload changes replace clones;
+    // animated-detail changes refresh only the affected shading layout.
+    const bool workloadChanged = m_generatedExtraInstances != ExtraInstancesCount();
+    const bool shadingChanged = workloadChanged ||
+        m_uploadedLowVramAnimatedDetail != m_lowVramAnimatedDetail;
+    if (shadingChanged)
+        m_tradCidLookupDirty = true;
+    if (workloadChanged)
     {
         m_encodedPrecisionBits = 0;
-        m_tradCidLookupDirty = true;
         RegenerateWorkloadCloneInstances();
-        BuildClusterShaderSideBuffers();
-        BuildClusterMetadata();
         m_generatedExtraInstances = ExtraInstancesCount();
     }
 
@@ -853,6 +856,13 @@ void D3D12RaytracingClusteredGeometry::RebuildStaticAccelerationStructures(const
         // The triangle/region ordering is unchanged by AS build settings.
         if (m_tradCidLookupDirty)
             BuildTradCidLookup();
+    }
+    // The new animated mesh must exist before rebuilding its shading tables.
+    if (shadingChanged)
+    {
+        BuildClusterShaderSideBuffers();
+        BuildClusterMetadata();
+        m_uploadedLowVramAnimatedDetail = m_lowVramAnimatedDetail;
     }
     // Per-(InstIdx, GeomIdx) material table must track the animated-
     // enabled state (which flips between modes).
@@ -3168,10 +3178,14 @@ void D3D12RaytracingClusteredGeometry::BuildAnimatedObjectSetup()
         "kEnvelopeScale must leave headroom over the animation's max radial "
         "displacement (1 + kAnimWobbleAmp).  See ANIMATED_SPHERE_WOBBLE_AMPLITUDE -- "
         "if you raise the wobble amplitude there, bump kEnvelopeScale here.");
-    // A 24 x 32 grid of clusters, with 48 triangles per cluster.
+    // Low VRAM halves animated triangles explicitly, never as a hidden
+    // consequence of workload size or the active AS representation.
     obj.mesh = ProceduralGeometry::GenerateUVSphereSpatialTiles(
-        kRestRadius, /*numLat*/96, /*numLong*/192, /*tileLat*/4, /*tileLong*/6, 0);
+        kRestRadius, m_lowVramAnimatedDetail ? 64 : 96,
+        m_lowVramAnimatedDetail ? 144 : 192, /*tileLat*/4, /*tileLong*/6, 0);
     obj.clusterCount         = (UINT)obj.mesh.clusters.size();
+    ThrowIfFalse(m_animatedClusterIdOffset <= UINT_MAX - (obj.clusterCount - 1),
+        L"Animated ClusterID range overflows UINT.\n");
     obj.worldPos             = XMFLOAT3(0.0f, 1.10f, 0.0f);
     obj.worldScale           = 1.0f;
     obj.instanceID           = 7;       // refractive glass material
@@ -6194,6 +6208,7 @@ void D3D12RaytracingClusteredGeometry::OnDestroy()
     m_sourceObjectCount = 0;
     m_generatedExtraInstances = 0;
     m_encodedPrecisionBits = 0;
+    m_uploadedLowVramAnimatedDetail = false;
     m_tradCidLookupDirty = true;
     m_totalClusterCount = 0;
     m_totalTriangleCount = 0;
@@ -6658,6 +6673,7 @@ void D3D12RaytracingClusteredGeometry::WriteBenchmarkSnapshot()
     kvStr("static_rebuild",    w2u(rebuildTok()));
     kvStr("build_flags",       w2u(buildFlagTok()));
     kvStr("trad_anim_mode",    w2u(tradAnimTok()));
+    kvStr("animated_detail",   m_lowVramAnimatedDetail ? "low" : "full");
     kvI  ("extra_instances",   (long long)extraTok());
     kvU  ("position_truncate_bits",        m_positionTruncateBits);
     kvU  ("compressed_bits_per_component", m_compressedBitsPerComponent);
@@ -6747,6 +6763,8 @@ void D3D12RaytracingClusteredGeometry::WriteBenchmarkSnapshot()
     o << "  \"scene\": {\n";
     kvU("total_clusters",       m_overlayStats.totalClusterCount);
     kvU("total_triangles",      m_overlayStats.totalTriangleCount);
+    kvU("mesh_input_triangles", m_overlayStats.totalTriangleCount);
+    kvU("instanced_triangles",  InstancedTriangleCount());
     // Baseline-scene object count (set in BuildScene as m_sourceObjectCount).
     // The benchmark x-axis 'extra instances' is measured AGAINST this baseline,
     // so reports can label charts as 'Extra unique objects (vs N-object
@@ -6759,6 +6777,7 @@ void D3D12RaytracingClusteredGeometry::WriteBenchmarkSnapshot()
     // normalisation by the cluster counts.
     kvU("animated_clusters",    m_animatedObjectEnabled ? m_animatedObject.clusterCount : 0u);
     kvU("animated_triangles", m_animatedObjectEnabled ? m_animatedObject.mesh.totalTriangles : 0u);
+    kvU("animated_instances", m_animatedObjectEnabled ? 1u + m_animatedClones.size() : 0u);
     kvU("anim_clones_pooled",   m_overlayStats.animClonesPooledCount, /*last=*/true);
     o << "  },\n";
 

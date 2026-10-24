@@ -668,10 +668,10 @@ void D3D12RaytracingClusteredGeometry::RenderUI()
     pos.y += kLineH * 1.6f;
 
     // Triangle-count short form.
-    auto formatTris = [](UINT n, wchar_t* out, size_t cch) {
+    auto formatTris = [](UINT64 n, wchar_t* out, size_t cch) {
         if      (n >= 1000000u) swprintf_s(out, cch, L"%.1fM", n / 1.0e6);
         else if (n >= 1000u)    swprintf_s(out, cch, L"%.1fK", n / 1.0e3);
-        else                    swprintf_s(out, cch, L"%u",    n);
+        else swprintf_s(out, cch, L"%llu", static_cast<unsigned long long>(n));
     };
     // ----- All numeric stats below read from m_overlayStats (snapshotted on
     //       config change) so the per-frame overhead of this overlay is just
@@ -687,7 +687,7 @@ void D3D12RaytracingClusteredGeometry::RenderUI()
     const float kSectionGap = kLineH * 0.4f;
 
     wchar_t trisBuf[16];
-    formatTris(s.totalTriangleCount, trisBuf, _countof(trisBuf));
+    formatTris(InstancedTriangleCount(), trisBuf, _countof(trisBuf));
     const UINT animClusters = m_animatedObjectEnabled ? m_animatedObject.clusterCount : 0u;
     // Add anim clones' own BLASes when phase-2 pool exists.
     const UINT animCloneBlasCount =
@@ -707,10 +707,10 @@ void D3D12RaytracingClusteredGeometry::RenderUI()
     const float col2StartY = pos.y;
     pos.y += kLineH;
     if (isTraditional)
-        swprintf_s(buf, L"  %u BLASes  /  %s tris   (traditional BLAS)",
+        swprintf_s(buf, L"  %u BLASes  /  %s instanced tris   (traditional BLAS)",
                    sceneBlasCount, trisBuf);
     else
-        swprintf_s(buf, L"  %u BLASes  /  %u CLASes  /  %s tris   (clustered BLAS)",
+        swprintf_s(buf, L"  %u BLASes  /  %u CLASes  /  %s instanced tris   (clustered BLAS)",
                    sceneBlasCount, sceneClusterCount, trisBuf);
     draw(buf, pos, kSubtle);
     pos.y += kLineH + kSectionGap;
@@ -878,13 +878,13 @@ void D3D12RaytracingClusteredGeometry::RenderUI()
         pos.y += kLineH;
         if (isTradMode)
         {
-            swprintf_s(buf, L"  %u clusters / %u verts / %u tris   (per-frame DXR1 %s)",
+            swprintf_s(buf, L"  mesh/instance: %u clusters / %u verts / %u tris   (per-frame DXR1 %s)",
                        a.clusterCount, a.totalVertexCount, a.mesh.totalTriangles,
                        s.animatedTradModeIsRefit ? L"refit" : L"rebuild");
         }
         else
         {
-            swprintf_s(buf, L"  %u clusters / %u verts / %u tris   (template + per-frame template instantiate path)",
+            swprintf_s(buf, L"  mesh/instance: %u clusters / %u verts / %u tris   (template + per-frame template instantiate path)",
                        a.clusterCount, a.totalVertexCount, a.mesh.totalTriangles);
         }
         draw(buf, pos, kSubtle); pos.y += kLineH;
@@ -1419,6 +1419,11 @@ void D3D12RaytracingClusteredGeometry::RenderUI()
 
     swprintf_s(kbuf, L"   rays/pixel:       %u", m_aaSamplesPerPixel);
     drawKeyLine(L"/", kbuf);
+
+    swprintf_s(kbuf, L"   animated detail:  %s  (%u tris/mesh)",
+        m_lowVramAnimatedDetail ? L"LOW VRAM" : L"FULL",
+        m_animatedObject.mesh.totalTriangles);
+    drawKeyLine(L"[L]", kbuf);
 
     swprintf_s(kbuf, L"   wireframe:        %s", m_wireframe ? L"ON (cluster colors)" : L"OFF");
     drawKeyLine(L"[W]", kbuf);
