@@ -1082,11 +1082,11 @@ void D3D12RaytracingClusteredGeometry::RenderUI()
         wchar_t heading[64];
         if (s.pfTimingValid && m_pfTimingSettlingAfterToggle)
         {
-            swprintf_s(heading, L"PER-FRAME (averaging %d/%d):",
+            swprintf_s(heading, L"PER-FRAME GPU (averaging %d/%d):",
                        m_pfSnapSamplesCollected, m_pfSnapTargetCount);
         }
         else
-            swprintf_s(heading, L"PER-FRAME:");
+            swprintf_s(heading, L"PER-FRAME GPU:");
         draw(heading, pos, kAccent);
         pos.y += kLineH;
         if (s.pfTimingValid)
@@ -1245,6 +1245,12 @@ void D3D12RaytracingClusteredGeometry::RenderUI()
                 }
                 pos.y += kLineH;
             }
+            XMFLOAT2 renderPos = pos;
+            drawSeg(L"  render ", renderPos, kSubtle);
+            drawSeg(fmtTime(fnum, _countof(fnum), s.pfRenderMs), renderPos,
+                    pfPickV(s.pfRenderMs, pX.pfRenderMs, pXValid));
+            drawSeg(L"   (DispatchRays)", renderPos, kSubtle);
+            pos.y += kLineH;
         }
         else
         {

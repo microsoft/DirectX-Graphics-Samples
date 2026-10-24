@@ -980,13 +980,13 @@ private:
     ComPtr<ID3D12QueryHeap>              m_pfQueryHeap;
     ComPtr<ID3D12Resource>               m_pfQueryReadback;
     static const UINT                    kBuildTimestampCount    = 8;
-    // 5 op pairs per frame: INSTANTIATE / BLAS-from-CLAS (animated) /
-    // TLAS rebuild / static-BLAS rebuild / static-CLAS rebuild.  The
-    // last two are unused when m_staticRebuildMode == None (timestamps
+    // 6 op pairs per frame: INSTANTIATE / BLAS-from-CLAS (animated) /
+    // TLAS rebuild / static-BLAS rebuild / static-CLAS rebuild / render.
+    // The static pairs are unused when m_staticRebuildMode == None (timestamps
     // still recorded, just delta = ~0).  Splitting INSTANTIATE out from
     // BLAS lets the overlay attribute time changes to vertex format and
     // precision (which only affect INSTANTIATE).
-    static const UINT                    kPerFrameTsPerSlot      = 10;
+    static const UINT                    kPerFrameTsPerSlot      = 12;
     static const UINT                    kPerFrameRingSlots      = 3;
     UINT64                               m_timestampFrequency = 0;
     double                               m_clasBuildMs        = 0.0;
@@ -1000,6 +1000,7 @@ private:
     double                               m_pfTlasRebuildMs    = 0.0;  // TLAS rebuild
     double m_pfStaticBlasMs = 0.0; // [R] mode 1+2: re-run static BLAS
     double m_pfStaticClasMs = 0.0; // [R] mode 2: re-run static CLAS
+    double m_pfRenderMs = 0.0; // scene DispatchRays
     UINT                                 m_pfWriteSlot        = 0;
     UINT                                 m_pfFramesCaptured   = 0;
     UINT64                               m_totalClasBytes     = 0;
@@ -1078,6 +1079,7 @@ private:
         double pfTlasRebuildMs           = 0.0;
         double pfStaticBlasMs            = 0.0;  // [R] per-frame static BLAS
         double pfStaticClasMs            = 0.0;  // [R] per-frame static CLAS
+        double pfRenderMs                = 0.0;
         bool   pfTimingValid             = false;
         // Cluster + tri counts (only change when geometry changes; updated at rebuild).
         UINT   totalClusterCount         = 0;
@@ -1162,6 +1164,7 @@ private:
         double tlasMs       = 0.0;
         double staticBlasMs = 0.0;
         double staticClasMs = 0.0;
+        double renderMs     = 0.0;
     };
     PfSnapAccum                          m_pfSnapAccum;
     // The first window after init/configuration changes is shown progressively,

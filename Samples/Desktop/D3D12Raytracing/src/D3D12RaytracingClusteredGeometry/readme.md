@@ -276,6 +276,11 @@ comments focus on API contracts, synchronization, and resource lifetime.
 
 ## Things to note
 
+- Per-frame GPU render time covers the scene's `DispatchRays`, excluding the output
+  copy, overlay, CPU time, and Present/vsync waits. It uses the same timestamp
+  ring and averaging window as the AS timings. Render-setting and size changes
+  restart that window. Logs and benchmark JSON include render time (`pf_render_us`
+  and `pf_render_us_snap` in `frame_perf`).
 - AS setting changes retain unchanged CPU clone meshes and GPU shading tables.
   These are regenerated only when `[N]` changes the workload. Compressed inputs
   are encoded lazily for the clustered `COMPRESSED1` path and reused until the

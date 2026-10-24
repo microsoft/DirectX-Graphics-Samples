@@ -563,7 +563,7 @@ void D3D12RaytracingClusteredGeometry::BuildAccelerationStructures()
                         (unsigned long long)m_timestampFrequency);
     }
 
-    // Per-frame timestamp heap + readback. 3 ring slots * 6 timestamps each.
+    // Per-frame timestamp heap + readback. One complete timing set per ring slot.
     // Per-frame writes to one slot, resolves to its matching range in the
     // readback buffer; CPU reads from the slot ~3 frames behind the write
     // (safe past GPU completion).
@@ -5764,12 +5764,12 @@ void D3D12RaytracingClusteredGeometry::OnRender()
             else if (_wcsicmp(act, L"log")               == 0)
             {   SampleLog::LogF(L"[scheduled-snap frame=%u alloc=%ls rebuild=%ls] "
                                 L"inst=%.3fus animBlas=%.3fus tlas=%.3fus "
-                                L"staticBlas=%.3fus staticClas=%.3fus\n",
+                                L"staticBlas=%.3fus staticClas=%.3fus render=%.3fus\n",
                                 m_framesRendered, ClasAllocModeName(), StaticRebuildModeName(),
                                 m_pfInstantiateMs * 1000.0, m_pfBlasRebuildMs * 1000.0,
                                 m_pfTlasRebuildMs   * 1000.0,
                                 m_pfStaticBlasMs    * 1000.0,
-                                m_pfStaticClasMs    * 1000.0); }
+                                m_pfStaticClasMs    * 1000.0, m_pfRenderMs * 1000.0); }
             else if (_wcsicmp(act, L"exit")              == 0)
             {   Win32Application::RequestExit(); return; }
             // Remove fired action so it doesn't refire.
@@ -5790,12 +5790,12 @@ void D3D12RaytracingClusteredGeometry::OnRender()
     {
         SampleLog::LogF(L"[pf-stats frame=%u alloc=%ls rebuild=%ls] "
                         L"inst=%.3fus animBlas=%.3fus tlas=%.3fus "
-                        L"staticBlas=%.3fus staticClas=%.3fus\n",
+                        L"staticBlas=%.3fus staticClas=%.3fus render=%.3fus\n",
                         m_framesRendered, ClasAllocModeName(), StaticRebuildModeName(),
                         m_pfInstantiateMs * 1000.0, m_pfBlasRebuildMs * 1000.0,
                         m_pfTlasRebuildMs   * 1000.0,
                         m_pfStaticBlasMs    * 1000.0,
-                        m_pfStaticClasMs    * 1000.0);
+                        m_pfStaticClasMs    * 1000.0, m_pfRenderMs * 1000.0);
     }
     if (m_exitAfterFrames > 0 && m_framesRendered >= m_exitAfterFrames)
     {
@@ -5865,6 +5865,7 @@ void D3D12RaytracingClusteredGeometry::DoRender()
     m_deviceResources->Prepare();
     auto cl  = m_deviceResources->GetCommandList();
     auto cl4 = m_dxrCommandList.Get();
+    const UINT pfBase = m_pfWriteSlot * kPerFrameTsPerSlot;
 
     // ---- Per-frame AS work + timestamp queries -----------------------------
     // Read back the slot that was written N-frames ago first (data is safely
@@ -5892,7 +5893,8 @@ void D3D12RaytracingClusteredGeometry::DoRender()
                 const double freq = (double)m_timestampFrequency;
                 // Slot pairs: (0,1)=anim INSTANTIATE, (2,3)=anim BLAS,
                 // (4,5)=TLAS, (6,7)=static BLAS rebuild ([R]),
-                // (8,9)=static CLAS rebuild ([R] mode 2 + Implicit).
+                // (8,9)=static CLAS rebuild ([R] mode 2 + Implicit),
+                // (10,11)=scene DispatchRays.
                 auto deltaMs = [&](UINT a, UINT b) {
                     return (ts[b] >= ts[a]) ? (double)(ts[b] - ts[a]) * 1000.0 / freq : 0.0;
                 };
@@ -5901,6 +5903,7 @@ void D3D12RaytracingClusteredGeometry::DoRender()
                 const double tlasMs       = deltaMs(4, 5);
                 const double staticBlasMs = deltaMs(6, 7);
                 const double staticClasMs = deltaMs(8, 9);
+                const double renderMs     = deltaMs(10, 11);
                 // EMA, alpha=0.1 for a sub-second smoothing window.
                 constexpr double a = 0.1;
                 m_pfInstantiateMs = m_pfInstantiateMs * (1.0 - a) + instMs * a;
@@ -5908,6 +5911,7 @@ void D3D12RaytracingClusteredGeometry::DoRender()
                 m_pfTlasRebuildMs = m_pfTlasRebuildMs * (1.0 - a) + tlasMs * a;
                 m_pfStaticBlasMs  = m_pfStaticBlasMs  * (1.0 - a) + staticBlasMs * a;
                 m_pfStaticClasMs  = m_pfStaticClasMs  * (1.0 - a) + staticClasMs * a;
+                m_pfRenderMs      = m_pfRenderMs      * (1.0 - a) + renderMs * a;
 
                 // Headless raw-per-frame log (--log-raw): dump the unfiltered
                 // timestamp deltas for this frame so we can see transients the
@@ -5930,13 +5934,16 @@ void D3D12RaytracingClusteredGeometry::DoRender()
                         m_pfTimingSettlingAfterToggle ? 1u : 0u);
                     SampleLog::LogF(L"[pf-raw frame=%u alloc=%ls rebuild=%ls] "
                                     L"raw=%.3fus ema=%.3fus snap=%.3fus  "
-                                    L"(anim raw=%.3f ema=%.3f, animBlas raw=%.3f, tlas raw=%.3f)\n",
+                                    L"(anim raw=%.3f ema=%.3f, animBlas raw=%.3f, tlas raw=%.3f, "
+                                    L"render raw=%.3f ema=%.3f snap=%.3f)\n",
                                     m_framesRendered, ClasAllocModeName(), StaticRebuildModeName(),
                                     staticBlasMs * 1000.0,
                                     m_pfStaticBlasMs * 1000.0,
                                     m_overlayStats.pfStaticBlasMs * 1000.0,
                                     instMs * 1000.0, m_pfInstantiateMs * 1000.0,
-                                    blasMs * 1000.0, tlasMs * 1000.0);
+                                    blasMs * 1000.0, tlasMs * 1000.0,
+                                    renderMs * 1000.0, m_pfRenderMs * 1000.0,
+                                    m_overlayStats.pfRenderMs * 1000.0);
                 }
 
                 // Publish provisional means throughout the first new-config
@@ -5955,6 +5962,7 @@ void D3D12RaytracingClusteredGeometry::DoRender()
                     m_pfSnapAccum.tlasMs       += tlasMs;
                     m_pfSnapAccum.staticBlasMs += staticBlasMs;
                     m_pfSnapAccum.staticClasMs += staticClasMs;
+                    m_pfSnapAccum.renderMs     += renderMs;
                     ++m_pfSnapSamplesCollected;
                     const bool windowComplete = m_pfSnapSamplesCollected >= m_pfSnapTargetCount;
                     if (m_pfTimingSettlingAfterToggle || windowComplete)
@@ -5965,6 +5973,7 @@ void D3D12RaytracingClusteredGeometry::DoRender()
                         m_overlayStats.pfTlasRebuildMs = m_pfSnapAccum.tlasMs       * inv;
                         m_overlayStats.pfStaticBlasMs  = m_pfSnapAccum.staticBlasMs * inv;
                         m_overlayStats.pfStaticClasMs  = m_pfSnapAccum.staticClasMs * inv;
+                        m_overlayStats.pfRenderMs      = m_pfSnapAccum.renderMs     * inv;
                         m_overlayStats.pfTimingValid   = true;
                     }
                     if (windowComplete)
@@ -5988,12 +5997,13 @@ void D3D12RaytracingClusteredGeometry::DoRender()
         //   base+4..5  TLAS rebuild
         //   base+6..7  static BLAS rebuild  ([R] mode 1 or 2; else no-op)
         //   base+8..9  static CLAS rebuild  ([R] mode 2 + Implicit alloc; else no-op)
+        //   base+10..11 render (recorded below, after AS management)
         // Static CLAS must run BEFORE static BLAS (BLAS reads CLAS); static
         // BLAS must run BEFORE TLAS (TLAS sees BLAS).  Timestamps emitted
         // unconditionally so the resolve range is always valid -- when the
         // mode says no work, the begin/end pair brackets nothing and the
         // delta is ~0 (just GPU query overhead).
-        const UINT base = m_pfWriteSlot * kPerFrameTsPerSlot;
+        const UINT base = pfBase;
         // Per-frame animated update: cluster path uses the
         // INSTANTIATE_CLUSTER_TEMPLATES + BLAS_FROM_CLAS pipeline; trad
         // path uses BuildRaytracingAccelerationStructure (rebuild or
@@ -6025,15 +6035,6 @@ void D3D12RaytracingClusteredGeometry::DoRender()
         cl4->EndQuery(m_pfQueryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, base + 4);
         RebuildTlasPerFrame();
         cl4->EndQuery(m_pfQueryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, base + 5);
-
-
-        cl->ResolveQueryData(m_pfQueryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP,
-            base, kPerFrameTsPerSlot, m_pfQueryReadback.Get(),
-            base * sizeof(UINT64));
-
-        m_pfWriteSlot = (m_pfWriteSlot + 1) % kPerFrameRingSlots;
-        if (m_pfFramesCaptured < kPerFrameRingSlots * 2)
-            ++m_pfFramesCaptured;
     }
     cl4->SetComputeRootSignature(m_globalRootSignature.Get());
     ID3D12DescriptorHeap* heaps[] = { m_descriptorHeap.Get() };
@@ -6084,7 +6085,11 @@ void D3D12RaytracingClusteredGeometry::DoRender()
     drd.Width  = (UINT)bbDesc.Width;
     drd.Height = (UINT)bbDesc.Height;
     drd.Depth  = 1;
+    if (m_animatedObjectEnabled)
+        cl4->EndQuery(m_pfQueryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, pfBase + 10);
     cl4->DispatchRays(&drd);
+    if (m_animatedObjectEnabled)
+        cl4->EndQuery(m_pfQueryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, pfBase + 11);
 
     D3D12_RESOURCE_BARRIER toCopy[2] = {
         CD3DX12_RESOURCE_BARRIER::Transition(m_raytracingOutput.Get(),
@@ -6107,6 +6112,15 @@ void D3D12RaytracingClusteredGeometry::DoRender()
     // we hand off to Present() which transitions to PRESENT internally.
     RenderUI();
 
+    if (m_animatedObjectEnabled)
+    {
+        cl->ResolveQueryData(m_pfQueryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP,
+            pfBase, kPerFrameTsPerSlot, m_pfQueryReadback.Get(),
+            pfBase * sizeof(UINT64));
+        m_pfWriteSlot = (m_pfWriteSlot + 1) % kPerFrameRingSlots;
+        if (m_pfFramesCaptured < kPerFrameRingSlots * 2)
+            ++m_pfFramesCaptured;
+    }
     m_deviceResources->Present();
 
     // DirectXTK: tag per-frame upload pages with the queue's current fence value
@@ -6159,6 +6173,7 @@ void D3D12RaytracingClusteredGeometry::OnSizeChanged(UINT width, UINT height, bo
         uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
         device->CreateUnorderedAccessView(m_raytracingOutput.Get(), nullptr, &uavDesc, cpuHandle);
     }
+    CaptureOverlayStatsSnapshot();
 }
 
 void D3D12RaytracingClusteredGeometry::OnDestroy()
@@ -6166,10 +6181,10 @@ void D3D12RaytracingClusteredGeometry::OnDestroy()
     SampleLog::Write(L"OnDestroy: starting shutdown\n");
     if (m_animatedObjectEnabled && m_pfFramesCaptured >= kPerFrameRingSlots)
     {
-        SampleLog::LogF(L"[per-frame wall-clock, EMA] INSTANTIATE=%.4f ms  BLAS=%.4f ms  TLAS=%.4f "
-                        L"ms  total=%.4f ms\n",
+        SampleLog::LogF(L"[per-frame GPU, EMA] INSTANTIATE=%.4f ms  BLAS=%.4f ms  TLAS=%.4f "
+                        L"ms  staticBLAS=%.4f ms  staticCLAS=%.4f ms  render=%.4f ms\n",
                         m_pfInstantiateMs, m_pfBlasRebuildMs, m_pfTlasRebuildMs,
-                        m_pfInstantiateMs + m_pfBlasRebuildMs + m_pfTlasRebuildMs);
+                        m_pfStaticBlasMs, m_pfStaticClasMs, m_pfRenderMs);
     }
 
     if (m_deviceResources)
@@ -6281,6 +6296,7 @@ void D3D12RaytracingClusteredGeometry::OnDestroy()
     m_pfFramesCaptured = 0;
     m_pfInstantiateMs = m_pfBlasRebuildMs = m_pfTlasRebuildMs = 0.0;
     m_pfStaticBlasMs = m_pfStaticClasMs = 0.0;
+    m_pfRenderMs = 0.0;
     m_totalClasBytes = m_totalBlasBytes = 0;
     m_clasMemStats = ClasMemStats{};
     m_traditionalStaticTotalResultBytes = 0;
@@ -6697,24 +6713,20 @@ void D3D12RaytracingClusteredGeometry::WriteBenchmarkSnapshot()
     kvD("ms_per_frame",         msPerFrame);
     kvU("frames_in_avg_window", m_frameTimeRingCount);
     kvU("avg_window_size",      m_frameTimeWindow);
-    // Per-frame timing: use the EMA (alpha=0.1 ~ 10-sample smoothing) instead
-    // of m_overlayStats.pf*Ms.  The overlay-snap values require a full
-    // pfSnapTargetCount=60 sample window to populate, which at low FPS
-    // (e.g. n=1000 trad at 8 fps) takes 7.5 s -- longer than typical bench
-    // windows, so the snap values would read zero.  EMA is current after
-    // ~10 frames in any path.  pf_timing_valid still reflects whether the
-    // snap window completed, for callers that want the strict mean.
+    // Publish both EMA-smoothed timings and the overlay's paired window means.
+    // The first new-configuration window is provisional as samples arrive;
+    // subsequent windows publish only when complete.
     kvD("pf_instantiate_us",    m_pfInstantiateMs * 1000.0);
     kvD("pf_blas_us",           m_pfBlasRebuildMs * 1000.0);
     kvD("pf_tlas_us",           m_pfTlasRebuildMs * 1000.0);
     kvD("pf_static_blas_us",    m_pfStaticBlasMs  * 1000.0);
     kvD("pf_static_clas_us",    m_pfStaticClasMs  * 1000.0);
-    // Strict snap mean (over kPfSnapTargetCount samples).  May be 0 in
-    // short bench runs on slow scenes -- use the EMA values above for
-    // headline numbers; reserve these for high-precision cross-checks.
+    kvD("pf_render_us",         m_pfRenderMs * 1000.0);
+    // Same-window means shown by the overlay; pf_timing_valid gates freshness.
     kvD("pf_instantiate_us_snap", m_overlayStats.pfInstantiateMs * 1000.0);
     kvD("pf_blas_us_snap",        m_overlayStats.pfBlasRebuildMs * 1000.0);
     kvD("pf_tlas_us_snap",        m_overlayStats.pfTlasRebuildMs * 1000.0);
+    kvD("pf_render_us_snap",      m_overlayStats.pfRenderMs * 1000.0);
     kvB("pf_timing_valid",      m_overlayStats.pfTimingValid, /*last=*/true);
     o << "  },\n";
 

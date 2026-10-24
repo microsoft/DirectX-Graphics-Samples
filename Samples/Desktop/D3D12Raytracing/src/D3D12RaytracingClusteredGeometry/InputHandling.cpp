@@ -492,6 +492,7 @@ void D3D12RaytracingClusteredGeometry::OnKeyDown(UINT8 key)
         --m_bounceSlider;
         SampleLog::LogF(L"[input] bounce slider %d -> refl %u  refr %u\n",
                         m_bounceSlider, ReflectionBounces(), RefractionBounces());
+        CaptureOverlayStatsSnapshot();
     }
     else if (key == VK_OEM_PERIOD)           // '.'
     {
@@ -499,17 +500,20 @@ void D3D12RaytracingClusteredGeometry::OnKeyDown(UINT8 key)
         ++m_bounceSlider;
         SampleLog::LogF(L"[input] bounce slider %d -> refl %u  refr %u\n",
                         m_bounceSlider, ReflectionBounces(), RefractionBounces());
+        CaptureOverlayStatsSnapshot();
     }
     else if (key == VK_OEM_2)               // '/'
     {
         m_aaSamplesPerPixel = m_aaSamplesPerPixel == 1u ? 2u
             : m_aaSamplesPerPixel == 2u ? 4u : 1u;
         SampleLog::LogF(L"[input] rays/pixel -> %u\n", m_aaSamplesPerPixel);
+        CaptureOverlayStatsSnapshot();
     }
     else if (key == 'W' || key == 'w')
     {
         m_wireframe = !m_wireframe;
         SampleLog::LogF(L"[input] wireframe %s\n", m_wireframe ? L"ON" : L"OFF");
+        CaptureOverlayStatsSnapshot();
     }
     // ----- '[' / ']' = per-cluster precision slider.  Direction is the same
     //   in both modes: '[' -> LESS precision, ']' -> MORE precision.
