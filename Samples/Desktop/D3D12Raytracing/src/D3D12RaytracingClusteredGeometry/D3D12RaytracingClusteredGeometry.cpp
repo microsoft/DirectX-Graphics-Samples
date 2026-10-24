@@ -204,22 +204,21 @@ void D3D12RaytracingClusteredGeometry::OnInit()
     }
 
     SampleLog::Write(L"OnInit: creating DeviceResources\n");
-    // 5th arg = device-resources options.  0 here means VSYNC ON
-    // (Present(1, 0) inside DeviceResources::Present).  Tearing is visible at
-    // low framerates without vsync -- this scene's clusters can dip to <60
-    // fps under heavy reflection/refraction bounces, so we lock to refresh.
-    // If you want VRR / unlocked framerate to measure perf, swap this to
-    // DeviceResources::c_RequireTearingSupport (Present(0, ALLOW_TEARING)).
+    // Permit tearing when available; vsync is an independent runtime setting.
     m_deviceResources = std::make_unique<DeviceResources>(
         DXGI_FORMAT_B8G8R8A8_UNORM,
         DXGI_FORMAT_UNKNOWN,
         FrameCount,
         D3D_FEATURE_LEVEL_11_0,
-        /*options*/0,
+        DeviceResources::c_AllowTearing,
         m_adapterIDoverride);
+    m_deviceResources->SetVSyncEnabled(m_vsync);
     m_deviceResources->RegisterDeviceNotify(this);
     m_deviceResources->SetWindow(Win32Application::GetHwnd(), m_width, m_height);
     m_deviceResources->InitializeDXGIAdapter();
+    SampleLog::LogF(L"[present] vsync=%s tearing=%s\n",
+        m_vsync ? L"ON" : L"OFF",
+        m_deviceResources->IsTearingSupported() ? L"supported" : L"unavailable");
 
     SampleLog::Write(L"OnInit: checking DXR support\n");
     {
@@ -403,36 +402,6 @@ void D3D12RaytracingClusteredGeometry::QueryDXR2Support()
         (unsigned)shaderModel.HighestShaderModel & 0xfu);
 
     SampleLog::LogF(L"  rays/pixel: %u\n", m_aaSamplesPerPixel);
-    // Keep full averaging windows short enough for software rendering too.
-    // The first window publishes provisional averages as samples arrive.
-    if (m_pfSnapTargetCount == 0)
-    {
-        const wchar_t* desc = m_deviceResources->GetAdapterDescription();
-        const bool isSoftware = (wcsstr(desc, L"WARP") != nullptr) ||
-                                (wcsstr(desc, L"Basic Render") != nullptr);
-        m_pfSnapTargetCount = isSoftware ? 5 : 60;
-        SampleLog::LogF(L"  auto per-frame snap samples: %d  (%ls adapter)\n",
-                        m_pfSnapTargetCount, isSoftware ? L"software" : L"hardware");
-    }
-
-    // Wall-clock FPS rolling-average window size.  Same adapter-aware
-    // sentinel pattern.  60-frame window on HW (~0.5-1 s, smooths vsync
-    // jitter), 3-frame window on WARP (frames are seconds long, a
-    // large window would lag behind state changes by minutes).
-    if (m_frameTimeWindow == 0)
-    {
-        const wchar_t* desc = m_deviceResources->GetAdapterDescription();
-        const bool isSoftware = (wcsstr(desc, L"WARP") != nullptr) ||
-                                (wcsstr(desc, L"Basic Render") != nullptr);
-        m_frameTimeWindow = isSoftware ? 3u : 60u;
-        m_frameTimeRing.assign(m_frameTimeWindow, 0.0);
-        m_frameTimeRingIdx   = 0;
-        m_frameTimeRingCount = 0;
-        m_frameTimeRingSum   = 0.0;
-        SampleLog::LogF(L"  auto FPS rolling window: %u frames  (%ls adapter)\n",
-                        m_frameTimeWindow, isSoftware ? L"software" : L"hardware");
-    }
-
     if (!m_clustersAndPtlasSupported)
     {
         // Hardware doesn't support clusters -- lock the sample into
@@ -3210,7 +3179,7 @@ void D3D12RaytracingClusteredGeometry::BuildAnimatedObjectSetup()
         obj.maxVertsPerCluster = std::max(obj.maxVertsPerCluster, (UINT)src.positions.size());
         obj.maxTrisPerCluster  = std::max(obj.maxTrisPerCluster,  (UINT)(src.indices.size() / 3));
     }
-    // The template's stored vertex format follows the sample's [V] mode.
+    // The template's stored vertex format follows the sample's [P] mode.
     // Source and hint vertices remain FLOAT32_3; INSTANTIATE converts them to
     // the template's VertexInstantiationFormat.  COMPRESSED1 locks one shared
     // exponent and the selected bit count into every template header.  The
@@ -5650,28 +5619,6 @@ void D3D12RaytracingClusteredGeometry::OnUpdate()
         m_animSeconds += m_timer.GetElapsedSeconds();
     if (!m_cameraPaused)
         m_cameraSeconds += m_timer.GetElapsedSeconds();
-    // Wall-clock frame-time measurement for the overlay's FPS / ms-per-frame
-    // line.  Independent of StepTimer's 100 ms cap (see m_frameTimeRing
-    // header comment).  Rolling average over m_frameTimeWindow samples so
-    // the displayed value doesn't jitter frame-to-frame (HW) and doesn't
-    // lag minutes behind state changes (WARP); window size auto-resolved
-    // in OnInit per adapter.  First frame has no prior timestamp so we
-    // just seed m_lastFrameWallTime; rolling buffer fills over the next
-    // N frames.
-    const auto now = std::chrono::steady_clock::now();
-    if (m_lastFrameWallTime.time_since_epoch().count() != 0 && m_frameTimeWindow > 0)
-    {
-        const double dt = std::chrono::duration<double>(now - m_lastFrameWallTime).count();
-        // Maintain rolling sum: subtract the slot we're about to overwrite,
-        // add the new dt.  Until the ring fills, the overwritten slot is
-        // 0 so we just accumulate.
-        m_frameTimeRingSum -= m_frameTimeRing[m_frameTimeRingIdx];
-        m_frameTimeRing[m_frameTimeRingIdx] = dt;
-        m_frameTimeRingSum += dt;
-        m_frameTimeRingIdx = (m_frameTimeRingIdx + 1) % m_frameTimeWindow;
-        if (m_frameTimeRingCount < m_frameTimeWindow) ++m_frameTimeRingCount;
-    }
-    m_lastFrameWallTime = now;
 }
 
 void D3D12RaytracingClusteredGeometry::OnRender()
@@ -5764,12 +5711,18 @@ void D3D12RaytracingClusteredGeometry::OnRender()
             else if (_wcsicmp(act, L"log")               == 0)
             {   SampleLog::LogF(L"[scheduled-snap frame=%u alloc=%ls rebuild=%ls] "
                                 L"inst=%.3fus animBlas=%.3fus tlas=%.3fus "
-                                L"staticBlas=%.3fus staticClas=%.3fus render=%.3fus\n",
+                                L"staticBlas=%.3fus staticClas=%.3fus render=%.3fus "
+                                L"cadence=%.3fus samples=%u valid=%u\n",
                                 m_framesRendered, ClasAllocModeName(), StaticRebuildModeName(),
-                                m_pfInstantiateMs * 1000.0, m_pfBlasRebuildMs * 1000.0,
-                                m_pfTlasRebuildMs   * 1000.0,
-                                m_pfStaticBlasMs    * 1000.0,
-                                m_pfStaticClasMs    * 1000.0, m_pfRenderMs * 1000.0); }
+                                m_overlayStats.pfInstantiateMs * 1000.0,
+                                m_overlayStats.pfBlasRebuildMs * 1000.0,
+                                m_overlayStats.pfTlasRebuildMs * 1000.0,
+                                m_overlayStats.pfStaticBlasMs * 1000.0,
+                                m_overlayStats.pfStaticClasMs * 1000.0,
+                                m_overlayStats.pfRenderMs * 1000.0,
+                                m_overlayStats.pfFrameSeconds * 1e6,
+                                m_overlayStats.pfSamples,
+                                m_overlayStats.pfTimingValid ? 1u : 0u); }
             else if (_wcsicmp(act, L"exit")              == 0)
             {   Win32Application::RequestExit(); return; }
             // Remove fired action so it doesn't refire.
@@ -5790,12 +5743,18 @@ void D3D12RaytracingClusteredGeometry::OnRender()
     {
         SampleLog::LogF(L"[pf-stats frame=%u alloc=%ls rebuild=%ls] "
                         L"inst=%.3fus animBlas=%.3fus tlas=%.3fus "
-                        L"staticBlas=%.3fus staticClas=%.3fus render=%.3fus\n",
+                        L"staticBlas=%.3fus staticClas=%.3fus render=%.3fus "
+                        L"cadence=%.3fus samples=%u valid=%u\n",
                         m_framesRendered, ClasAllocModeName(), StaticRebuildModeName(),
-                        m_pfInstantiateMs * 1000.0, m_pfBlasRebuildMs * 1000.0,
-                        m_pfTlasRebuildMs   * 1000.0,
-                        m_pfStaticBlasMs    * 1000.0,
-                        m_pfStaticClasMs    * 1000.0, m_pfRenderMs * 1000.0);
+                        m_overlayStats.pfInstantiateMs * 1000.0,
+                        m_overlayStats.pfBlasRebuildMs * 1000.0,
+                        m_overlayStats.pfTlasRebuildMs * 1000.0,
+                        m_overlayStats.pfStaticBlasMs * 1000.0,
+                        m_overlayStats.pfStaticClasMs * 1000.0,
+                        m_overlayStats.pfRenderMs * 1000.0,
+                        m_overlayStats.pfFrameSeconds * 1e6,
+                        m_overlayStats.pfSamples,
+                        m_overlayStats.pfTimingValid ? 1u : 0u);
     }
     if (m_exitAfterFrames > 0 && m_framesRendered >= m_exitAfterFrames)
     {
@@ -5843,10 +5802,7 @@ void D3D12RaytracingClusteredGeometry::OnRender()
     // Wait a few frames for swap chain warm-up before time-based capture too.
     // Need at least kPerFrameRingSlots * 2 + 5 frames to also get stable
     // per-frame timestamp EMA reads in the log on shutdown (otherwise the
-    // ring buffer hasn't filled yet).  Pump up to m_pfSnapTargetCount + a
-    // bit so the rolling per-frame snap window has actually completed when
-    // we capture -- so screenshots after a config-change toggle show real
-    // post-toggle averages rather than a partly filled first window.
+    // ring buffer hasn't filled yet). Allow time for a post-toggle window.
     // Old behaviour was a hardcoded
     // frame 15 which exited too early on toggle-tests.
     if (m_screenshotAtSeconds >= 0 && m_framesRendered >= 80 && !m_screenshotTaken)
@@ -5865,6 +5821,7 @@ void D3D12RaytracingClusteredGeometry::DoRender()
     m_deviceResources->Prepare();
     auto cl  = m_deviceResources->GetCommandList();
     auto cl4 = m_dxrCommandList.Get();
+    const UINT writeSlot = m_pfWriteSlot;
     const UINT pfBase = m_pfWriteSlot * kPerFrameTsPerSlot;
 
     // ---- Per-frame AS work + timestamp queries -----------------------------
@@ -5904,7 +5861,17 @@ void D3D12RaytracingClusteredGeometry::DoRender()
                 const double staticBlasMs = deltaMs(6, 7);
                 const double staticClasMs = deltaMs(8, 9);
                 const double renderMs     = deltaMs(10, 11);
-                // EMA, alpha=0.1 for a sub-second smoothing window.
+                const UINT sampleFrame = m_pfFrameNumbers[readSlot];
+                const UINT64 previousFrameEnd = m_pfPreviousFrameEnd;
+                const double frameSeconds = previousFrameEnd != 0 &&
+                    sampleFrame == m_pfPreviousFrameNumber + 1 && ts[12] > previousFrameEnd
+                    ? (double)(ts[12] - previousFrameEnd) / freq : 0.0;
+                if (m_pfSnapSkipFramesLeft == 0)
+                {
+                    m_pfPreviousFrameEnd = ts[12];
+                    m_pfPreviousFrameNumber = sampleFrame;
+                }
+                // Retain EMA values only for explicitly labelled diagnostics.
                 constexpr double a = 0.1;
                 m_pfInstantiateMs = m_pfInstantiateMs * (1.0 - a) + instMs * a;
                 m_pfBlasRebuildMs = m_pfBlasRebuildMs * (1.0 - a) + blasMs * a;
@@ -5913,10 +5880,9 @@ void D3D12RaytracingClusteredGeometry::DoRender()
                 m_pfStaticClasMs  = m_pfStaticClasMs  * (1.0 - a) + staticClasMs * a;
                 m_pfRenderMs      = m_pfRenderMs      * (1.0 - a) + renderMs * a;
 
-                // Headless raw-per-frame log (--log-raw): dump the unfiltered
+                // Headless raw-per-frame log (--log-raw-every): dump unfiltered
                 // timestamp deltas for this frame so we can see transients the
-                // EMA would smooth away.  Same gating as --log-pf-every but
-                // logs the raw values, not the EMA.  Also logs the current
+                // EMA would smooth away. Also logs the current
                 // EMA + the latest snapshot value the overlay would show, so
                 // we can see if the snapshot diverges from the raw timing.
                 if (m_logRawPfEveryFrames > 0 &&
@@ -5924,11 +5890,12 @@ void D3D12RaytracingClusteredGeometry::DoRender()
                 {
                     const double wallSeconds = std::chrono::duration<double>(
                         std::chrono::steady_clock::now().time_since_epoch()).count();
-                    const double displayedFps = m_frameTimeRingSum > 0.0
-                        ? m_frameTimeRingCount / m_frameTimeRingSum : 0.0;
-                    SampleLog::LogF(L"[pf-progress] frame=%u wall=%.6f samples=%d "
+                    const double displayedFps = m_overlayStats.pfTimingValid &&
+                        m_overlayStats.pfFrameSeconds > 0.0
+                        ? 1.0 / m_overlayStats.pfFrameSeconds : 0.0;
+                    SampleLog::LogF(L"[pf-progress] frame=%u wall=%.6f samples=%u "
                                     L"skip=%d displayedFps=%.3f valid=%u averaging=%u\n",
-                        m_framesRendered, wallSeconds, m_pfSnapSamplesCollected,
+                        m_framesRendered, wallSeconds, (UINT)m_pfFrameWindow.size(),
                         m_pfSnapSkipFramesLeft, displayedFps,
                         m_overlayStats.pfTimingValid ? 1u : 0u,
                         m_pfTimingSettlingAfterToggle ? 1u : 0u);
@@ -5944,47 +5911,70 @@ void D3D12RaytracingClusteredGeometry::DoRender()
                                     blasMs * 1000.0, tlasMs * 1000.0,
                                     renderMs * 1000.0, m_pfRenderMs * 1000.0,
                                     m_overlayStats.pfRenderMs * 1000.0);
+                    SampleLog::LogF(L"[pf-paired] read=%u source=%u end_ticks=%llu "
+                                    L"previous_end_ticks=%llu frequency=%llu cadence_us=%.6f "
+                                    L"inst_us=%.6f blas_us=%.6f tlas_us=%.6f "
+                                    L"static_blas_us=%.6f static_clas_us=%.6f render_us=%.6f\n",
+                        m_framesRendered, sampleFrame, ts[12], previousFrameEnd,
+                        m_timestampFrequency, frameSeconds * 1e6,
+                        instMs * 1000.0, blasMs * 1000.0, tlasMs * 1000.0,
+                        staticBlasMs * 1000.0, staticClasMs * 1000.0, renderMs * 1000.0);
                 }
 
-                // Publish provisional means throughout the first new-config
-                // window; later windows publish only once full.
-                // m_pfSnapSkipFramesLeft != 0 means a recent toggle and we
-                // need to flush stale ring-buffer entries first.  See the
-                // header comment on m_pfSnapAccum for the full mechanism.
+                // All metrics share a rolling elapsed-time window. Retain
+                // whole samples, including the frame straddling its start.
                 if (m_pfSnapSkipFramesLeft > 0)
                 {
                     --m_pfSnapSkipFramesLeft;
                 }
-                else
+                else if (frameSeconds > 0.0)
                 {
-                    m_pfSnapAccum.instMs       += instMs;
-                    m_pfSnapAccum.blasMs       += blasMs;
-                    m_pfSnapAccum.tlasMs       += tlasMs;
-                    m_pfSnapAccum.staticBlasMs += staticBlasMs;
-                    m_pfSnapAccum.staticClasMs += staticClasMs;
-                    m_pfSnapAccum.renderMs     += renderMs;
-                    ++m_pfSnapSamplesCollected;
-                    const bool windowComplete = m_pfSnapSamplesCollected >= m_pfSnapTargetCount;
-                    if (m_pfTimingSettlingAfterToggle || windowComplete)
+                    const PfSnapAccum times = { instMs, blasMs, tlasMs,
+                        staticBlasMs, staticClasMs, renderMs, frameSeconds };
+                    m_pfFrameWindow.push_back({ times, sampleFrame });
+                    m_pfSnapAccum += times;
+                    while (m_pfFrameWindow.size() > 1 &&
+                        m_pfSnapAccum.frameSeconds - m_pfFrameWindow.front().times.frameSeconds
+                            >= kPfWindowSeconds)
                     {
-                        const double inv = 1.0 / m_pfSnapSamplesCollected;
+                        m_pfSnapAccum -= m_pfFrameWindow.front().times;
+                        m_pfFrameWindow.pop_front();
+                    }
+                    const auto now = std::chrono::steady_clock::now();
+                    if (!m_overlayStats.pfTimingValid ||
+                        std::chrono::duration<double>(now - m_pfLastPublishTime).count()
+                            >= kPfPublishSeconds)
+                    {
+                        const double inv = 1.0 / m_pfFrameWindow.size();
                         m_overlayStats.pfInstantiateMs = m_pfSnapAccum.instMs       * inv;
                         m_overlayStats.pfBlasRebuildMs = m_pfSnapAccum.blasMs       * inv;
                         m_overlayStats.pfTlasRebuildMs = m_pfSnapAccum.tlasMs       * inv;
                         m_overlayStats.pfStaticBlasMs  = m_pfSnapAccum.staticBlasMs * inv;
                         m_overlayStats.pfStaticClasMs  = m_pfSnapAccum.staticClasMs * inv;
                         m_overlayStats.pfRenderMs      = m_pfSnapAccum.renderMs     * inv;
+                        m_overlayStats.pfFrameSeconds  = m_pfSnapAccum.frameSeconds * inv;
+                        m_overlayStats.pfSamples       = (UINT)m_pfFrameWindow.size();
+                        m_overlayStats.pfFirstFrame    = m_pfFrameWindow.front().frameNumber;
+                        m_overlayStats.pfLastFrame     = m_pfFrameWindow.back().frameNumber;
                         m_overlayStats.pfTimingValid   = true;
-                    }
-                    if (windowComplete)
-                    {
-                        m_pfTimingSettlingAfterToggle  = false;
+                        m_pfLastPublishTime = now;
+                        m_pfTimingSettlingAfterToggle =
+                            m_pfSnapAccum.frameSeconds < kPfWindowSeconds;
                         if (m_logRawPfEveryFrames > 0)
-                            SampleLog::LogF(L"[pf-window complete] frame=%u wall=%.6f\n",
-                                m_framesRendered, std::chrono::duration<double>(
-                                    std::chrono::steady_clock::now().time_since_epoch()).count());
-                        m_pfSnapAccum            = PfSnapAccum{};
-                        m_pfSnapSamplesCollected = 0;
+                            SampleLog::LogF(L"[pf-publish] read=%u first=%u last=%u samples=%u "
+                                            L"cadence_us=%.6f inst_us=%.6f blas_us=%.6f "
+                                            L"tlas_us=%.6f static_blas_us=%.6f "
+                                            L"static_clas_us=%.6f render_us=%.6f wall=%.6f\n",
+                                m_framesRendered, m_overlayStats.pfFirstFrame,
+                                m_overlayStats.pfLastFrame, m_overlayStats.pfSamples,
+                                m_overlayStats.pfFrameSeconds * 1e6,
+                                m_overlayStats.pfInstantiateMs * 1000.0,
+                                m_overlayStats.pfBlasRebuildMs * 1000.0,
+                                m_overlayStats.pfTlasRebuildMs * 1000.0,
+                                m_overlayStats.pfStaticBlasMs * 1000.0,
+                                m_overlayStats.pfStaticClasMs * 1000.0,
+                                m_overlayStats.pfRenderMs * 1000.0,
+                                std::chrono::duration<double>(now.time_since_epoch()).count());
                     }
                 }
 
@@ -5998,6 +5988,7 @@ void D3D12RaytracingClusteredGeometry::DoRender()
         //   base+6..7  static BLAS rebuild  ([R] mode 1 or 2; else no-op)
         //   base+8..9  static CLAS rebuild  ([R] mode 2 + Implicit alloc; else no-op)
         //   base+10..11 render (recorded below, after AS management)
+        //   base+12     completed-frame cadence (after copy/UI)
         // Static CLAS must run BEFORE static BLAS (BLAS reads CLAS); static
         // BLAS must run BEFORE TLAS (TLAS sees BLAS).  Timestamps emitted
         // unconditionally so the resolve range is always valid -- when the
@@ -6114,9 +6105,11 @@ void D3D12RaytracingClusteredGeometry::DoRender()
 
     if (m_animatedObjectEnabled)
     {
+        cl->EndQuery(m_pfQueryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP, pfBase + 12);
         cl->ResolveQueryData(m_pfQueryHeap.Get(), D3D12_QUERY_TYPE_TIMESTAMP,
             pfBase, kPerFrameTsPerSlot, m_pfQueryReadback.Get(),
             pfBase * sizeof(UINT64));
+        m_pfFrameNumbers[writeSlot] = m_framesRendered;
         m_pfWriteSlot = (m_pfWriteSlot + 1) % kPerFrameRingSlots;
         if (m_pfFramesCaptured < kPerFrameRingSlots * 2)
             ++m_pfFramesCaptured;
@@ -6294,6 +6287,12 @@ void D3D12RaytracingClusteredGeometry::OnDestroy()
     m_pfQueryReadback.Reset();
     m_pfWriteSlot = 0;
     m_pfFramesCaptured = 0;
+    std::fill_n(m_pfFrameNumbers, kPerFrameRingSlots, 0u);
+    m_pfPreviousFrameEnd = 0;
+    m_pfPreviousFrameNumber = 0;
+    m_pfFrameWindow.clear();
+    m_pfSnapAccum = {};
+    m_pfLastPublishTime = {};
     m_pfInstantiateMs = m_pfBlasRebuildMs = m_pfTlasRebuildMs = 0.0;
     m_pfStaticBlasMs = m_pfStaticClasMs = 0.0;
     m_pfRenderMs = 0.0;
@@ -6515,7 +6514,7 @@ HRESULT D3D12RaytracingClusteredGeometry::SaveBGRAToPng(const std::wstring& path
 //
 //   Design notes:
 //   * Reads exclusively from m_overlayStats (memory + per-frame timings),
-//     m_*BuildMs (static AS build times), and m_frameTimeRing (FPS).  No
+//     m_*BuildMs (static AS build times), and the paired overlay window. No
 //     separate measurement path -- guarantees the JSON matches what the
 //     overlay would have shown at quit time, eliminating "the numbers in
 //     the report don't match what I saw on screen" debugging.
@@ -6635,12 +6634,9 @@ void D3D12RaytracingClusteredGeometry::WriteBenchmarkSnapshot()
         return buf;
     };
 
-    // FPS / ms-per-frame: same derivation the overlay uses.  When the ring
-    // buffer hasn't filled (very-low-frame runs, or shutdown right after
-    // init), we report NaN-equivalent (0.0) and a frames_measured field so
-    // the caller can sanity-check.
-    const double secPerFrame = (m_frameTimeRingCount > 0)
-        ? (m_frameTimeRingSum / m_frameTimeRingCount) : 0.0;
+    // FPS and all primary GPU costs use the same published sample set.
+    const double secPerFrame = m_overlayStats.pfTimingValid
+        ? m_overlayStats.pfFrameSeconds : 0.0;
     const double fps         = (secPerFrame > 0.0) ? (1.0 / secPerFrame) : 0.0;
     const double msPerFrame  = secPerFrame * 1000.0;
 
@@ -6695,6 +6691,8 @@ void D3D12RaytracingClusteredGeometry::WriteBenchmarkSnapshot()
     kvU  ("compressed_bits_per_component", m_compressedBitsPerComponent);
     kvU  ("aa_samples_per_pixel",          m_aaSamplesPerPixel);
     kvB  ("wireframe",                     m_wireframe);
+    kvB  ("vsync",                         m_vsync);
+    kvB  ("tearing_supported",             m_deviceResources->IsTearingSupported());
     kvD  ("cluster_tint",                  (double)m_clusterTint);
     kvI  ("bounce_slider",                 (long long)m_bounceSlider);
     kvU  ("reflection_bounces",            ReflectionBounces());
@@ -6711,21 +6709,34 @@ void D3D12RaytracingClusteredGeometry::WriteBenchmarkSnapshot()
     o << "  \"frame_perf\": {\n";
     kvD("fps",                  fps);
     kvD("ms_per_frame",         msPerFrame);
-    kvU("frames_in_avg_window", m_frameTimeRingCount);
-    kvU("avg_window_size",      m_frameTimeWindow);
-    // Publish both EMA-smoothed timings and the overlay's paired window means.
-    // The first new-configuration window is provisional as samples arrive;
-    // subsequent windows publish only when complete.
-    kvD("pf_instantiate_us",    m_pfInstantiateMs * 1000.0);
-    kvD("pf_blas_us",           m_pfBlasRebuildMs * 1000.0);
-    kvD("pf_tlas_us",           m_pfTlasRebuildMs * 1000.0);
-    kvD("pf_static_blas_us",    m_pfStaticBlasMs  * 1000.0);
-    kvD("pf_static_clas_us",    m_pfStaticClasMs  * 1000.0);
-    kvD("pf_render_us",         m_pfRenderMs * 1000.0);
-    // Same-window means shown by the overlay; pf_timing_valid gates freshness.
+    kvU("frames_in_avg_window", m_overlayStats.pfSamples);
+    kvU("avg_window_size",      m_overlayStats.pfSamples);
+    kvD("avg_window_target_seconds", kPfWindowSeconds);
+    kvD("measured_window_seconds", secPerFrame * m_overlayStats.pfSamples);
+    kvD("publication_interval_seconds", kPfPublishSeconds);
+    kvB("averaging",            m_pfTimingSettlingAfterToggle);
+    kvU("first_sample_frame",   m_overlayStats.pfFirstFrame);
+    kvU("last_sample_frame",    m_overlayStats.pfLastFrame);
+    // Publish the overlay's paired window means and separate EMA diagnostics.
+    // Provisional and steady-state values use the same publication cadence.
+    kvD("pf_instantiate_us",    m_overlayStats.pfInstantiateMs * 1000.0);
+    kvD("pf_blas_us",           m_overlayStats.pfBlasRebuildMs * 1000.0);
+    kvD("pf_tlas_us",           m_overlayStats.pfTlasRebuildMs * 1000.0);
+    kvD("pf_static_blas_us",    m_overlayStats.pfStaticBlasMs * 1000.0);
+    kvD("pf_static_clas_us",    m_overlayStats.pfStaticClasMs * 1000.0);
+    kvD("pf_render_us",         m_overlayStats.pfRenderMs * 1000.0);
+    kvD("pf_instantiate_us_ema", m_pfInstantiateMs * 1000.0);
+    kvD("pf_blas_us_ema",        m_pfBlasRebuildMs * 1000.0);
+    kvD("pf_tlas_us_ema",        m_pfTlasRebuildMs * 1000.0);
+    kvD("pf_static_blas_us_ema", m_pfStaticBlasMs * 1000.0);
+    kvD("pf_static_clas_us_ema", m_pfStaticClasMs * 1000.0);
+    kvD("pf_render_us_ema",      m_pfRenderMs * 1000.0);
+    // Retain existing snapshot aliases; pf_timing_valid gates freshness.
     kvD("pf_instantiate_us_snap", m_overlayStats.pfInstantiateMs * 1000.0);
     kvD("pf_blas_us_snap",        m_overlayStats.pfBlasRebuildMs * 1000.0);
     kvD("pf_tlas_us_snap",        m_overlayStats.pfTlasRebuildMs * 1000.0);
+    kvD("pf_static_blas_us_snap", m_overlayStats.pfStaticBlasMs * 1000.0);
+    kvD("pf_static_clas_us_snap", m_overlayStats.pfStaticClasMs * 1000.0);
     kvD("pf_render_us_snap",      m_overlayStats.pfRenderMs * 1000.0);
     kvB("pf_timing_valid",      m_overlayStats.pfTimingValid, /*last=*/true);
     o << "  },\n";

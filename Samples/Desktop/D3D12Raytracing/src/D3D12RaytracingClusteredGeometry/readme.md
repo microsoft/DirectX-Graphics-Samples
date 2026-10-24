@@ -108,7 +108,8 @@ On-screen overlay (right column) lists the active value for each toggle.
 | `[T]`    | Geometry path: **clustered** ↔ **traditional** (DXR1 BLAS). Triggers static AS rebuild. |
 | `[A]`    | Cluster mode: cycle CLAS alloc strategy (`implicit-dest` → `get-sizes` → `compact`).    |
 |          | Trad mode: cycle BLAS alloc strategy (`implicit-dest` ↔ `compact`).                     |
-| `[V]`    | Vertex format: `FLOAT32_3` ↔ `COMPRESSED1` (shared-exponent quantized).                 |
+| `[P]`    | Vertex format: `FLOAT32_3` ↔ `COMPRESSED1` (shared-exponent quantized).                 |
+| `[V]`    | Toggle vsync; **off by default** for uncapped performance measurements.                 |
 | `[F]`    | Trad mode: animated BLAS update strategy (`rebuild` ↔ `refit`).                         |
 | `[R]`    | Cluster mode: per-frame static-AS rebuild (`off` → `BLAS only` → `CLAS+BLAS`).          |
 | `[B]`    | Build preference: `none` → `fast-build` → `fast-trace`. Re-sizes and rebuilds AS resources in every rebuild mode. |
@@ -220,6 +221,17 @@ the same frame run in command-line order. Actions:
 
 ### Window behavior
 
+Vsync defaults to **off**. Press `[V]` or use `--vsync on|off` at startup.
+Off presents with sync interval zero and permits tearing when supported; on
+uses interval one without tearing. Unsupported systems still use interval zero
+when off, without requesting unsupported tearing flags. External driver/display
+settings may impose their own limits. The overlay and benchmark JSON report vsync.
+
+The swap chain opts into tearing support independently of the vsync toggle.
+Where tearing is supported, Alt+Enter uses the existing borderless-fullscreen
+path in both vsync states; otherwise the existing DXGI fullscreen behavior
+remains. Tearing flags are never used in exclusive fullscreen.
+
 On HW adapters the window launches maximized; on WARP / Basic Render it stays
 at the default 1280×720 since maximizing a CPU rasterizer to 4K would make
 each frame take seconds. Headless runs (any of the above CLI flags) also stay
@@ -287,12 +299,29 @@ comments focus on API contracts, synchronization, and resource lifetime.
   workload or compressed precision changes. Traditional triangle-to-cluster lookup
   tables are likewise retained while their layout is unchanged. Independent
   per-clone AS storage and the selected build/allocation operations are unchanged.
-- After a configuration change, the per-frame overlay collects 60 new frame samples
-  on hardware (five on software adapters), after discarding three stale readbacks.
-  New-mode timings appear as soon as the first valid sample arrives; the heading
-  shows averaging progress while those values are refined.
-  The FPS average also restarts, excluding the rebuild pause and the previous mode's
-  frames. `--log-raw-every 1` logs sample progress and elapsed-time markers for diagnosis.
+- All frame statistics use one rolling **roughly one-second** window, published
+  together at **250 ms** wall-clock intervals when completed samples are available.
+  Below four FPS this updates on each fresh sample, including sub-one-FPS workloads;
+  long frames are never clamped. Whole frames are retained, so a single slow frame
+  can span more than the target window. High-FPS runs accumulate more samples
+  without making the displayed numbers change every frame.
+  Configuration changes discard pending stale readbacks (up to three) and reset
+  the shared window; startup does not discard fresh samples unnecessarily.
+  New-mode timings appear with the first valid paired sample; the heading shows
+  elapsed-window averaging progress while those values are refined.
+  A final GPU timestamp after copy/UI measures elapsed time between consecutive
+  completed frames, including queue idle time from CPU/presentation throttling,
+  not just GPU busy time. FPS, ms/frame, and every GPU stage mean publish together
+  from **exactly the same frames**, including the partial first window.
+  The first fresh completion seeds cadence,
+  excluding rebuild stalls and old-configuration queue work. GPU stage costs are
+  not the full frame budget: untimed GPU work (including copy/UI) and queue idle
+  time also contribute. Benchmark `frame_perf` primary costs use these paired means, with
+  `first_sample_frame`, `last_sample_frame`, and `frames_in_avg_window` identifying
+  the sample set. `avg_window_size` is now the actual variable frame count;
+  `avg_window_target_seconds` and `measured_window_seconds` describe its duration.
+  Existing `_snap` fields remain aliases; EMA diagnostics have
+  explicit `_ema` suffixes. `--log-raw-every 1` logs each paired sample and publication.
 - Slab faces use one canonical grid and matching edge subdivisions. Shared positions
   remain identical when float precision is reduced, even though face normals differ.
 - The animated sphere's shading normals follow the same radial deformation as its
@@ -311,7 +340,7 @@ comments focus on API contracts, synchronization, and resource lifetime.
   ```
 
 - The static clustered scene and animated templates use the format selected
-  by `[V]` or `--vertex-format`. Animated source vertices remain `FLOAT32_3`;
+  by `[P]` or `--vertex-format`. Animated source vertices remain `FLOAT32_3`;
   template instantiation converts them to the selected stored format. In
   **COMPRESSED1** mode, each template locks the active bits/component and a
   shared exponent sized for the full animation envelope, so `[ ]` visibly and

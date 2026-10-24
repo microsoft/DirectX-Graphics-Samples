@@ -20,6 +20,7 @@
 #include <DirectXMath.h>
 #include <array>
 #include <chrono>
+#include <deque>
 #include <string>
 #include <vector>
 #include <unordered_map>
@@ -500,6 +501,7 @@ private:
     // Primary rays per pixel (1, 2, or 4), passed through miscParams.z.
     UINT                                 m_aaSamplesPerPixel = 1;
     bool                                 m_wireframe = false;
+    bool                                 m_vsync = false;
     bool                                 m_lowVramAnimatedDetail = false;
     bool                                 m_uploadedLowVramAnimatedDetail = false;
 
@@ -753,7 +755,7 @@ private:
         D3D12_GPU_VIRTUAL_ADDRESS              tradBlasGPUVA        = 0;
         // True when we've done at least one rebuild on tradBlasStorage,
         // so PERFORM_UPDATE has a valid source to refit from.  Flipped
-        // on by the rebuild path; cleared by [V] / [T] / mode toggles
+        // on by the rebuild path; cleared by [P] / [T] / mode toggles
         // that drop the BLAS contents (e.g. when going cluster->trad).
         bool                                   tradBlasInitialized  = false;
     };
@@ -986,7 +988,8 @@ private:
     // still recorded, just delta = ~0).  Splitting INSTANTIATE out from
     // BLAS lets the overlay attribute time changes to vertex format and
     // precision (which only affect INSTANTIATE).
-    static const UINT                    kPerFrameTsPerSlot      = 12;
+    // A final timestamp after copy/UI measures completed-frame cadence.
+    static const UINT                    kPerFrameTsPerSlot      = 13;
     static const UINT                    kPerFrameRingSlots      = 3;
     UINT64                               m_timestampFrequency = 0;
     double                               m_clasBuildMs        = 0.0;
@@ -1003,12 +1006,15 @@ private:
     double m_pfRenderMs = 0.0; // scene DispatchRays
     UINT                                 m_pfWriteSlot        = 0;
     UINT                                 m_pfFramesCaptured   = 0;
+    UINT                                 m_pfFrameNumbers[kPerFrameRingSlots] = {};
+    UINT64                               m_pfPreviousFrameEnd = 0;
+    UINT                                 m_pfPreviousFrameNumber = 0;
     UINT64                               m_totalClasBytes     = 0;
     UINT64                               m_totalBlasBytes     = 0;
 
     // ---------- Overlay stats snapshot ----------
     // To minimize per-frame overhead the overlay does NOT read live numbers
-    // each frame -- everything except FPS is snapshotted into this struct on
+    // each frame -- resource statistics are snapshotted into this struct on
     // a config change (RebuildStaticAccelerationStructures + BuildAnimatedObjectSetup)
     // and read from here every frame.  Per-frame timing values are snapped
     // a few frames LATER (once the ring buffer has refilled with post-rebuild
@@ -1080,6 +1086,10 @@ private:
         double pfStaticBlasMs            = 0.0;  // [R] per-frame static BLAS
         double pfStaticClasMs            = 0.0;  // [R] per-frame static CLAS
         double pfRenderMs                = 0.0;
+        double pfFrameSeconds            = 0.0;
+        UINT   pfSamples                 = 0;
+        UINT   pfFirstFrame              = 0;
+        UINT   pfLastFrame               = 0;
         bool   pfTimingValid             = false;
         // Cluster + tri counts (only change when geometry changes; updated at rebuild).
         UINT   totalClusterCount         = 0;
@@ -1131,33 +1141,12 @@ private:
     // wall-clock (animation-pause independent).
     std::chrono::steady_clock::time_point m_overlayStatsDeltaUntil =
         std::chrono::steady_clock::time_point::min();
-    // Per-frame timing snapshot: rolling fixed-window mean of N raw samples,
-    // continuously refreshed (~1 s at 60 FPS).  Numbers in the overlay
-    // update live so users can see current GPU cost evolving; the red/green
-    // delta colouring is gated separately to a 5-second window after each
-    // mode toggle (see m_overlayStatsDeltaUntil + m_overlayStatsPrev) so
-    // colour reflects "what changed because of the toggle", not just the
-    // tiny frame-to-frame noise of the rolling refresh.
-    //
-    // On toggle (CaptureOverlayStatsSnapshot):
-    //   - Save current overlay values to m_overlayStatsPrev (colour baseline)
-    //   - Reset the accumulator and skip kPerFrameRingSlots readbacks so the
-    //     displayed timings contain only the new configuration's data
-    //   - Reset the FPS window too, excluding old-mode frames and rebuild stalls
-    //   - Publish the running mean immediately, marked as averaging until full
-    //
-    // Each frame:
-    //   - If still skipping, decrement and return
-    //   - Else accumulate this frame's raw deltas
-    //   - When m_pfSnapTargetCount samples have been collected, divide and
-    //     write into m_overlayStats, then immediately start the next window
-    //
-    // Resolve the zero sentinel at initialization: five samples for software
-    // adapters, sixty for hardware. Shorter software windows avoid long waits
-    // for fresh overlay measurements.
-    INT m_pfSnapTargetCount = 0; // 0 = auto, resolved in OnInit
+    // One rolling second of whole-frame samples, shared by every GPU cost
+    // and FPS. Publish at most every 250 ms, or on each new sample below 4 FPS.
+    // The first fresh completion seeds cadence after stale readbacks drain.
+    static constexpr double kPfWindowSeconds = 1.0;
+    static constexpr double kPfPublishSeconds = 0.25;
     INT                                  m_pfSnapSkipFramesLeft   = 0;
-    INT                                  m_pfSnapSamplesCollected = 0;
     struct PfSnapAccum {
         double instMs       = 0.0;
         double blasMs       = 0.0;
@@ -1165,47 +1154,42 @@ private:
         double staticBlasMs = 0.0;
         double staticClasMs = 0.0;
         double renderMs     = 0.0;
+        double frameSeconds = 0.0;
+        PfSnapAccum& operator+=(const PfSnapAccum& v)
+        {
+            instMs += v.instMs;
+            blasMs += v.blasMs;
+            tlasMs += v.tlasMs;
+            staticBlasMs += v.staticBlasMs;
+            staticClasMs += v.staticClasMs;
+            renderMs += v.renderMs;
+            frameSeconds += v.frameSeconds;
+            return *this;
+        }
+        PfSnapAccum& operator-=(const PfSnapAccum& v)
+        {
+            instMs -= v.instMs;
+            blasMs -= v.blasMs;
+            tlasMs -= v.tlasMs;
+            staticBlasMs -= v.staticBlasMs;
+            staticClasMs -= v.staticClasMs;
+            renderMs -= v.renderMs;
+            frameSeconds -= v.frameSeconds;
+            return *this;
+        }
+    };
+    struct PfFrameSample {
+        PfSnapAccum times;
+        UINT frameNumber = 0;
     };
     PfSnapAccum                          m_pfSnapAccum;
-    // The first window after init/configuration changes is shown progressively,
-    // with an averaging-progress label. Later windows publish only when full.
+    std::deque<PfFrameSample>             m_pfFrameWindow;
+    std::chrono::steady_clock::time_point m_pfLastPublishTime{};
     bool                                 m_pfTimingSettlingAfterToggle = false;
 
     // ---------- App state ----------
     StepTimer m_timer;
 
-    // Wall-clock per-frame timing for the overlay's "FPS / ms-per-frame"
-    // line.  StepTimer caps GetElapsedSeconds() at 100 ms (m_qpcMaxDelta
-    // = frequency/10) to keep animation steps sane after debugger pauses
-    // -- great for game-logic update, useless for "how slow is WARP
-    // really?".  On a 3 s/frame WARP run the StepTimer-derived value
-    // would lock at 100 ms while the FPS counter (uses the UNCLAMPED
-    // delta into its 1-second sliding window) honestly reports ~0 fps;
-    // the two disagree by ~30x and the user can't tell what's true.
-    //
-    // Replaced with a TRUE rolling-window average (was EMA initially --
-    // EMA at alpha=0.2 still jittered noticeably on a 240 fps HW run
-    // since one fat frame skews the value for ~5 frames).  Rolling
-    // average over m_frameTimeWindow samples gives a clean, predictable
-    // display value:
-    //   - HW: 60 samples = ~0.5-1 s window at 60-120 fps -- smooths
-    //     out vsync jitter and short hitches; matches user's intuitive
-    //     "FPS" reading.
-    //   - WARP: 3 samples -- frames are seconds long, a 60-sample
-    //     window would lag behind state changes by MINUTES.  3 is the
-    //     smallest count that still hides single-frame outliers.
-    // Window size is adapter-resolved in OnInit (sentinel 0 = auto).
-    //
-    // Implementation: circular buffer of frame-time samples (in
-    // seconds) + running sum.  m_frameTimeRingIdx is the slot we'll
-    // overwrite next; m_frameTimeRingCount is how many valid entries
-    // we've written so far (saturates at m_frameTimeWindow).
-    std::chrono::steady_clock::time_point m_lastFrameWallTime{};
-    UINT m_frameTimeWindow = 0; // 0 = auto-resolve in OnInit
-    std::vector<double> m_frameTimeRing; // sized to m_frameTimeWindow
-    UINT                                 m_frameTimeRingIdx   = 0;
-    UINT                                 m_frameTimeRingCount = 0;
-    double                               m_frameTimeRingSum   = 0.0;       // sum of valid entries
     double m_animSeconds = 0.0; // wall-clock anim time (drives AnimateBall.cs); freezable with [M]
     bool      m_animPaused        = false;
     // Camera-pan time + pause state, decoupled from animation time so a bench
@@ -1238,7 +1222,7 @@ private:
     void EncodeCompressedClusters();
     // Tear down CLAS/BLAS/TLAS state and rebuild with the current
     // m_vertexMode + m_clasAllocMode.  When enabled, the animated object's
-    // templates and per-frame CLAS/BLAS resources are recreated too, so [V]
+    // templates and per-frame CLAS/BLAS resources are recreated too, so [P]
     // and [ ] apply one format/precision choice consistently across the scene.
     void RebuildStaticAccelerationStructures(const wchar_t* reason);
     // Regenerate the [N] workload-scaling clones: truncates m_objects to

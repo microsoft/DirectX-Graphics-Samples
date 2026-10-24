@@ -15,7 +15,7 @@
 // Contains:
 //   * ParseCommandLineArgs -- CLI options for screenshots, benchmarks,
 //     geometry/build modes, scheduled actions, and deterministic captures.
-//   * OnKeyDown            -- hotkey routing for Space, [M], [A], [V], [R],
+//   * OnKeyDown            -- hotkey routing for Space, [M], [A], [V], [P], [R],
 //     [T], [F], [N], [B], [W], [L], "," ".", "[" "]" runtime toggles. Each hotkey
 //     either mutates a piece of state and triggers a
 //     RebuildStaticAccelerationStructures, or flips a per-frame flag.
@@ -157,7 +157,7 @@ void D3D12RaytracingClusteredGeometry::ParseCommandLineArgs(_In_reads_(argc) WCH
         }
         else if (_wcsicmp(argv[i], L"--log-pf-every") == 0 && i + 1 < argc)
         {
-            // Every N frames, dump the per-frame timing EMA values (animated
+            // Every N frames, dump the shared-window timing means (animated
             // INSTANTIATE / animated BLAS / TLAS / static BLAS / static CLAS)
             // to the SampleLog so a wrapper script can scrape them.  0 disables.
             int n = _wtoi(argv[i+1]);
@@ -209,9 +209,8 @@ void D3D12RaytracingClusteredGeometry::ParseCommandLineArgs(_In_reads_(argc) WCH
             // FPS varies 1000x between HW (~120 fps) and WARP (~0.1 fps);
             // a frame-count exit would either misfire on slow adapters or
             // take hours.  Typical use: --bench-seconds 5 --bench-out result.json.
-            // The first ~2 s of the window naturally double as warmup
-            // (frame-time rolling avg + per-frame EMA need to settle before
-            // the snapshot reflects steady state).
+            // Allow for timestamp readback latency and the one-second
+            // rolling window when choosing the benchmark duration.
             m_benchSeconds = _wtof(argv[i+1]);
             if (m_benchSeconds < 0.0) m_benchSeconds = 0.0;
             i += 1;
@@ -312,6 +311,15 @@ void D3D12RaytracingClusteredGeometry::ParseCommandLineArgs(_In_reads_(argc) WCH
             m_lowVramAnimatedDetail = low;
             ++i;
         }
+        else if (_wcsicmp(argv[i], L"--vsync") == 0)
+        {
+            ThrowIfFalse(i + 1 < argc, L"--vsync requires on or off.\n");
+            const bool enabled = _wcsicmp(argv[i + 1], L"on") == 0;
+            ThrowIfFalse(enabled || _wcsicmp(argv[i + 1], L"off") == 0,
+                L"--vsync requires on or off.\n");
+            m_vsync = enabled;
+            ++i;
+        }
         else if (_wcsicmp(argv[i], L"--cluster-tint") == 0 && i + 1 < argc)
         {
             // Cluster-rainbow tint blend in [0..1].  0 = pure material
@@ -370,6 +378,13 @@ void D3D12RaytracingClusteredGeometry::OnKeyDown(UINT8 key)
         RebuildStaticAccelerationStructures(L"alloc-mode toggle");
     }
     else if (key == 'V' || key == 'v')
+    {
+        m_vsync = !m_vsync;
+        m_deviceResources->SetVSyncEnabled(m_vsync);
+        SampleLog::LogF(L"[input] vsync %s\n", m_vsync ? L"ON" : L"OFF");
+        CaptureOverlayStatsSnapshot();
+    }
+    else if (key == 'P' || key == 'p')
     {
         // Cycle vertex format: FLOAT32_3 <-> COMPRESSED1.  Both paths are
         // validated on the current experimental WARP.

@@ -524,20 +524,20 @@ void DeviceResources::Present(D3D12_RESOURCE_STATES beforeState)
 
     ExecuteCommandList();
 
-    HRESULT hr;
-    if (m_options & c_AllowTearing)
+    const UINT syncInterval = m_vsyncEnabled ? 1u : 0u;
+    UINT presentFlags = 0;
+    HRESULT hr = S_OK;
+    if (!m_vsyncEnabled && IsTearingSupported())
     {
-        // Recommended to always use tearing if supported when using a sync interval of 0.
-        // Note this will fail if in true 'fullscreen' mode.
-        hr = m_swapChain->Present(0, DXGI_PRESENT_ALLOW_TEARING);
+        // ALLOW_TEARING is valid only with interval zero in windowed mode,
+        // including borderless fullscreen, never exclusive fullscreen.
+        BOOL exclusiveFullscreen = FALSE;
+        hr = m_swapChain->GetFullscreenState(&exclusiveFullscreen, nullptr);
+        if (SUCCEEDED(hr) && !exclusiveFullscreen)
+            presentFlags = DXGI_PRESENT_ALLOW_TEARING;
     }
-    else
-    {
-        // The first argument instructs DXGI to block until VSync, putting the application
-        // to sleep until the next VSync. This ensures we don't waste any cycles rendering
-        // frames that will never be displayed to the screen.
-        hr = m_swapChain->Present(1, 0);
-    }
+    if (SUCCEEDED(hr))
+        hr = m_swapChain->Present(syncInterval, presentFlags);
 
     // If the device was reset we must completely reinitialize the renderer.
     if (hr == DXGI_ERROR_DEVICE_REMOVED || hr == DXGI_ERROR_DEVICE_RESET)

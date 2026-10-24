@@ -193,22 +193,22 @@ void D3D12RaytracingClusteredGeometry::RefreshOverlayStatsCurrent()
 
     // Discard old-mode timings; publish a running mean after the first
     // valid new-mode readback instead of hiding the whole averaging window.
-    m_pfSnapSkipFramesLeft   = (INT)kPerFrameRingSlots;
-    m_pfSnapSamplesCollected = 0;
+    m_pfSnapSkipFramesLeft   = (INT)std::min(m_pfFramesCaptured, kPerFrameRingSlots);
     m_pfSnapAccum            = PfSnapAccum{};
+    m_pfFrameWindow.clear();
+    m_pfLastPublishTime = {};
     s.pfTimingValid = false;
+    s.pfInstantiateMs = s.pfBlasRebuildMs = s.pfTlasRebuildMs = 0.0;
+    s.pfStaticBlasMs = s.pfStaticClasMs = s.pfRenderMs = 0.0;
+    s.pfFrameSeconds = 0.0;
+    s.pfSamples = s.pfFirstFrame = s.pfLastFrame = 0;
     m_pfTimingSettlingAfterToggle = true;
-    // FPS must describe the same configuration as the new timing window,
-    // without carrying over old frames or the synchronous rebuild pause.
-    std::fill(m_frameTimeRing.begin(), m_frameTimeRing.end(), 0.0);
-    m_frameTimeRingIdx = 0;
-    m_frameTimeRingCount = 0;
-    m_frameTimeRingSum = 0.0;
-    m_lastFrameWallTime = now;
+    m_pfPreviousFrameEnd = 0;
+    m_pfPreviousFrameNumber = 0;
     if (m_logRawPfEveryFrames > 0)
-        SampleLog::LogF(L"[pf-window reset] frame=%u wall=%.6f target=%d\n",
+        SampleLog::LogF(L"[pf-window reset] frame=%u wall=%.6f target_seconds=%.2f\n",
             m_framesRendered, std::chrono::duration<double>(now.time_since_epoch()).count(),
-            m_pfSnapTargetCount);
+            kPfWindowSeconds);
     // Refresh the delta-colour fade window: 5 seconds from NOW.  Each toggle
     // installs a fresh window (and a fresh prev above), so the user sees
     // immediate red/green vs the immediately previous toggle, fading back to
@@ -1082,9 +1082,11 @@ void D3D12RaytracingClusteredGeometry::RenderUI()
         wchar_t heading[64];
         if (s.pfTimingValid && m_pfTimingSettlingAfterToggle)
         {
-            swprintf_s(heading, L"PER-FRAME GPU (averaging %d/%d):",
-                       m_pfSnapSamplesCollected, m_pfSnapTargetCount);
+            swprintf_s(heading, L"PER-FRAME GPU (averaging %.1f/%.1fs):",
+                       s.pfFrameSeconds * s.pfSamples, kPfWindowSeconds);
         }
+        else if (s.pfTimingValid)
+            swprintf_s(heading, L"PER-FRAME GPU (%u-frame mean):", s.pfSamples);
         else
             swprintf_s(heading, L"PER-FRAME GPU:");
         draw(heading, pos, kAccent);
@@ -1265,31 +1267,11 @@ void D3D12RaytracingClusteredGeometry::RenderUI()
     //       value the user can watch fluctuate.  Section header in blue +
     //       indented value in white, matching the convention above.
     //
-    //       Both displayed values (FPS and ms/frame) are derived from the
-    //       SAME wall-clock measurement (rolling average of the last N
-    //       frame deltas; N=m_frameTimeWindow, auto-resolved per adapter
-    //       in OnInit -- 60 on HW, 3 on WARP).  Reasons we don't use
-    //       m_timer.GetElapsedSeconds() and m_timer.GetFramesPerSecond()
-    //       any more:
-    //         1. StepTimer caps elapsed at 100 ms (m_qpcMaxDelta) so on
-    //            anything slower than 10 fps the ms reads "100.0" forever
-    //            -- doesn't match the integer fps the same StepTimer
-    //            shows (which uses unclamped delta into its 1-second
-    //            sliding window).  Two values from the same struct
-    //            disagreed by 30x on WARP.
-    //         2. StepTimer's fps is integer, rounding sub-1-fps to 0 or
-    //            1 -- ambiguous in exactly the WARP case we'd care.
-    //       Both fixed by 1) measuring real frame-to-frame wall clock
-    //       (no clamp) and 2) deriving fps as 1.0/seconds with
-    //       sub-10-fps shown to 1-2 decimals so 0.05 / 0.3 / 5.4 fps
-    //       are readable values, not rounded mush.  Time unit auto-
-    //       switches to seconds at >= 1000 ms (i.e. fps <= 1) so WARP's
-    //       many-seconds-per-frame reads naturally.
-    draw(L"FPS:", pos, kAccent);
+    // Completion intervals include queue idle time, unlike GPU busy time.
+    // FPS and stage costs publish from exactly the same frame window.
+    draw(L"FPS (same frame window):", pos, kAccent);
     pos.y += kLineH;
-    const double secPerFrame = (m_frameTimeRingCount > 0)
-                               ? (m_frameTimeRingSum / m_frameTimeRingCount)
-                               : 0.0;
+    const double secPerFrame = s.pfTimingValid ? s.pfFrameSeconds : 0.0;
     const double fps         = (secPerFrame > 0.0) ? (1.0 / secPerFrame) : 0.0;
     const double msPerFrame  = secPerFrame * 1000.0;
     // FPS format: 2 decimals below 1 fps (so 0.05 fps doesn't round to
@@ -1301,7 +1283,7 @@ void D3D12RaytracingClusteredGeometry::RenderUI()
         swprintf_s(fpsBuf, L"%.1f", fps);
     else
         swprintf_s(fpsBuf, L"%u", (unsigned)(fps + 0.5));
-    if (m_frameTimeRingCount == 0)
+    if (!s.pfTimingValid)
         swprintf_s(buf, L"  measuring...");
     else if (msPerFrame >= 1000.0)
         swprintf_s(buf, L"  %ls   (%.2f s/frame)", fpsBuf, secPerFrame);
@@ -1371,7 +1353,7 @@ void D3D12RaytracingClusteredGeometry::RenderUI()
 
         swprintf_s(kbuf, L"   vertex format:    %s",
                    m_vertexMode == VertexMode::Float32_3 ? L"FLOAT32_3" : L"COMPRESSED1");
-        drawKeyLine(L"[V]", kbuf);
+        drawKeyLine(L"[P]", kbuf);
 
         if (m_vertexMode == VertexMode::Float32_3)
             swprintf_s(kbuf, L"   vertex precision: %u bits/component   (32-bit float, PositionTruncateBitCount=%u)",
@@ -1425,6 +1407,9 @@ void D3D12RaytracingClusteredGeometry::RenderUI()
 
     swprintf_s(kbuf, L"   rays/pixel:       %u", m_aaSamplesPerPixel);
     drawKeyLine(L"/", kbuf);
+
+    swprintf_s(kbuf, L"   vsync:            %s", m_vsync ? L"ON" : L"OFF");
+    drawKeyLine(L"[V]", kbuf);
 
     swprintf_s(kbuf, L"   animated detail:  %s  (%u tris/mesh)",
         m_lowVramAnimatedDetail ? L"LOW VRAM" : L"FULL",
