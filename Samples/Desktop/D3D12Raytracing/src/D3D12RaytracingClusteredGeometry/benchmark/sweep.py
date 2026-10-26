@@ -29,6 +29,18 @@ AS_COMPONENTS = {
     "traditional": ("traditional_blas_actual", "animated_trad_blas",
                     "anim_clones_trad_blas_pool", "tlas"),
 }
+FORMAT_METRICS = [
+    ("Resident AS", "bytes", ("memory_bytes", "total_as")),
+    ("Static CLAS payload", "bytes", ("memory_bytes", "static_clas_actual")),
+    ("Static source input", "bytes", ("memory_bytes", "static_cluster_input")),
+    ("Animated template", "bytes", ("memory_bytes", "animated_template")),
+    ("Instantiated CLAS payload", "bytes", ("memory_bytes", "animated_pf_clas_actual")),
+    ("Instantiate", "us", ("frame_perf", "pf_instantiate_us")),
+    ("Timed AS", "us", ("derived", "timed_as_us")),
+    ("DispatchRays", "us", ("frame_perf", "pf_render_us")),
+    ("Frame interval", "ms", ("frame_perf", "ms_per_frame")),
+    ("Frame rate", "FPS", ("frame_perf", "fps")),
+]
 
 
 @dataclass(frozen=True)
@@ -357,6 +369,17 @@ def metric(run: RunResult, path: tuple[str, str]) -> float | None:
     return number(run.data, *path)
 
 
+def format_comparison(runs: list[RunResult], base: RunConfig) -> dict[str, RunResult | None]:
+    formats = {
+        f"FLOAT32_3 (PositionTruncateBitCount={base.position_truncate_bits})":
+            replace(base, vertex_format="float"),
+        f"COMPRESSED1 ({base.compressed_bits} bits/component)":
+            replace(base, vertex_format="compressed"),
+    }
+    return {label: next((run for run in runs if run.config == cfg), None)
+            for label, cfg in formats.items()}
+
+
 def build_charts(runs: list[RunResult], base: RunConfig = RunConfig()) -> list[Chart]:
     charts: list[Chart] = []
 
@@ -367,13 +390,12 @@ def build_charts(runs: list[RunResult], base: RunConfig = RunConfig()) -> list[C
     def axis(title: str, category: str, description: str, x_field: str,
              unit: str, path: tuple[str, str],
              references: dict[str, RunConfig], numeric_x: bool = False) -> None:
-        x_label = ("mantissa bits retained (higher = more precision)"
+        x_label = ("PositionTruncateBitCount"
                    if x_field == "position_truncate_bits" else x_field.replace("_", " "))
         chart = Chart(title, category, description, x_label, unit,
                       numeric_x=numeric_x)
         def x_value(run: RunResult) -> Any:
-            value = getattr(run.config, x_field)
-            return 23 - value if x_field == "position_truncate_bits" else value
+            return getattr(run.config, x_field)
         category_order = {
             "vertex_format": ("float", "compressed"),
             "clas_alloc": ("implicit", "get-sizes", "compact"),
@@ -439,12 +461,6 @@ def build_charts(runs: list[RunResult], base: RunConfig = RunConfig()) -> list[C
             charts.append(chart)
 
     studies = [
-        ("Vertex format", "vertex_format", {"clustered": base},
-         [("Resident AS", "bytes", ("memory_bytes", "total_as")),
-          ("Static source input", "bytes", ("memory_bytes", "static_cluster_input")),
-          ("Instantiate", "us", ("frame_perf", "pf_instantiate_us")),
-          ("DispatchRays", "us", ("frame_perf", "pf_render_us")),
-          ("Frame rate", "FPS", ("frame_perf", "fps"))]),
         ("CLAS allocation", "clas_alloc", {"clustered": base},
          [("Reserved static CLAS", "bytes", ("memory_bytes", "static_clas_alloc")),
           ("Static CLAS payload", "bytes", ("memory_bytes", "static_clas_actual")),
@@ -486,14 +502,34 @@ def build_charts(runs: list[RunResult], base: RunConfig = RunConfig()) -> list[C
           ("DispatchRays", "us", ("frame_perf", "pf_render_us")),
           ("Frame rate", "FPS", ("frame_perf", "fps"))]),
     ]
+    formats = format_comparison(runs, base)
+    for title, unit, path in FORMAT_METRICS:
+        chart = Chart(f"COMPRESSED1 vs FLOAT32_3: {title}", "COMPRESSED1 vs FLOAT32_3",
+                      "Direct comparison at the matched benchmark baseline; only vertex format "
+                      "changes. Labels show FLOAT32_3 PositionTruncateBitCount and COMPRESSED1 "
+                      "bits/component. These controls do not imply equivalent precision or image quality.",
+                      "matched benchmark baseline", unit, chart_type="bar")
+        for label, run in formats.items():
+            chart.series[label] = [("Baseline", metric(run, path) if run else None)]
+        if any(value is not None for points in chart.series.values() for _, value in points):
+            charts.append(chart)
     for category, field_name, references, metrics in studies:
         if len({getattr(r.config, field_name) for r in runs
                 if any(matches(r, ref, {field_name}) for ref in references.values())}) < 2:
             continue
         for title, unit, path in metrics:
-            axis(title, category,
-                 "Only the named setting varies; other settings are pinned to the benchmark baseline. "
-                 "Precision changes can alter geometry, so faster is not proof of equal visual quality.",
+            description = ("Only the named setting varies; other settings are pinned to the benchmark "
+                           "baseline. Precision changes can alter geometry, so faster is not proof "
+                           "of equal visual quality.")
+            if field_name == "position_truncate_bits":
+                title = f"{title} vs PositionTruncateBitCount"
+                description = (
+                    "FLOAT32_3 uses PositionTruncateBitCount, set by --position-truncate. "
+                    "The x value is the number of low position-mantissa bits cleared: 0 disables "
+                    "truncation, and larger values reduce precision (23 minus the count mantissa "
+                    "bits remain). It is not a COMPRESSED1 bits/component setting. "
+                    "Geometry and image quality may change.")
+            axis(title, category, description,
                  field_name, unit, path, references,
                  numeric_x=field_name in {"position_truncate_bits", "compressed_bits", "rays_per_pixel"})
     storage = Chart("Resident allocation components", "Resident storage",
@@ -534,6 +570,8 @@ def report_tables(runs: list[RunResult], manifest: dict) -> list[tuple[str, list
         perf = run.data.get("frame_perf", {}) if run.status == "ok" else {}
         rows.append([run.config.slug(), run.status, run.config.geometry_mode,
                      run.config.trad_anim_mode, run.config.vertex_format,
+                     run.config.position_truncate_bits if run.config.vertex_format == "float" else "-",
+                     run.config.compressed_bits if run.config.vertex_format == "compressed" else "-",
                      run.config.extra_instances, run.config.animated_detail,
                      run.config.rays_per_pixel,
                      format_metric(metric(run, ("frame_perf", "fps"))),
@@ -543,9 +581,22 @@ def report_tables(runs: list[RunResult], manifest: dict) -> list[tuple[str, list
                      perf.get("measured_window_seconds", "-"),
                      f"{perf.get('first_sample_frame', '-')}..{perf.get('last_sample_frame', '-')}",
                      f"{run.wall_seconds:.2f}", run.data.get("_error", "")])
+    base = RunConfig(**manifest.get("base_config", {}))
+    formats = format_comparison(runs, base)
+    labels = list(formats)
+    comparison_rows = []
+    for title, unit, path in FORMAT_METRICS:
+        values = [metric(run, path) if run else None for run in formats.values()]
+        delta = ("not measured" if any(value is None for value in values) else
+                 f"{(values[1] / values[0] - 1) * 100:+.2f}%" if values[0] > 0 else
+                 "n/a (FLOAT32_3 reference is zero)")
+        comparison_rows.append([title, *(format_metric(value, unit) for value in values), delta])
     return [
         ("Run provenance (local/private)", ["Property", "Value"], facts),
+        ("Direct format comparison (matched benchmark baseline)",
+         ["Metric", *labels, "COMPRESSED1 change vs FLOAT32_3"], comparison_rows),
         ("All requested cases", ["JSON id", "Status", "Geometry", "Trad animation", "Vertex",
+                                "PositionTruncateBitCount", "COMPRESSED1 bits/component",
                                 "Extra BLASes", "Detail", "Rays/pixel", "FPS", "Frame interval",
                                 "Resident AS", "Samples", "Window seconds", "Frame range",
                                 "Process wall seconds", "Error / skip reason"], rows),

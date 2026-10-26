@@ -166,11 +166,43 @@ class Measurements(unittest.TestCase):
         self.assertEqual(sum(points[0][1] for points in budget.series.values()), 10000)
         self.assertIsNone(metric(failed, ("frame_perf", "fps")))
 
-    def test_precision_charts_increase_precision_to_the_right(self):
+    def test_float_precision_charts_show_actual_position_truncate_bitcount(self):
         runs = [result(replace(RunConfig(), position_truncate_bits=n)) for n in (0, 12, 20)]
         chart = next(c for c in build_charts(runs)
                      if c.category == "FLOAT32_3 precision")
-        self.assertEqual([x for x, _ in chart.series["clustered"]], [3, 11, 23])
+        self.assertEqual(chart.x_label, "PositionTruncateBitCount")
+        self.assertEqual([x for x, _ in chart.series["clustered"]], [0, 12, 20])
+        self.assertIn("PositionTruncateBitCount", chart.title)
+        self.assertIn("larger values reduce precision", chart.description)
+        self.assertIn("--position-truncate", chart.description)
+
+    def test_direct_format_comparison_labels_both_controls_and_uses_matched_cases(self):
+        base = RunConfig()
+        float_run = result(base)
+        compressed = result(replace(base, vertex_format="compressed"))
+        unrelated = result(replace(base, vertex_format="compressed", extra_instances=100))
+        compressed.data["memory_bytes"]["static_clas_alloc"] = 50
+        compressed.data["memory_bytes"]["total_as"] = 650
+        chart = next(c for c in build_charts([float_run, compressed, unrelated])
+                     if c.title == "COMPRESSED1 vs FLOAT32_3: Resident AS")
+        self.assertEqual(chart.chart_type, "bar")
+        self.assertEqual(chart.series["FLOAT32_3 (PositionTruncateBitCount=12)"], [("Baseline", 700)])
+        self.assertEqual(chart.series["COMPRESSED1 (12 bits/component)"], [("Baseline", 650)])
+        self.assertIn("do not imply equivalent precision", chart.description)
+        tables = sweep.report_tables([float_run, compressed], {"base_config": asdict(base)})
+        _, columns, rows = next(table for table in tables if table[0].startswith("Direct format"))
+        self.assertIn("PositionTruncateBitCount=12", columns[1])
+        self.assertEqual(rows[0][-1], "-7.14%")
+        _, columns, rows = next(table for table in tables if table[0] == "All requested cases")
+        self.assertEqual(rows[0][columns.index("PositionTruncateBitCount")], 12)
+        self.assertEqual(rows[1][columns.index("COMPRESSED1 bits/component")], 12)
+
+    def test_direct_format_comparison_keeps_missing_or_failed_format_as_gap(self):
+        compressed = result(replace(RunConfig(), vertex_format="compressed"))
+        compressed.data["_sweep"]["status"] = "failed"
+        chart = next(c for c in build_charts([result(), compressed])
+                     if c.title == "COMPRESSED1 vs FLOAT32_3: Resident AS")
+        self.assertIsNone(chart.series["COMPRESSED1 (12 bits/component)"][0][1])
 
     def test_all_failed_measurements_do_not_make_empty_charts(self):
         run = result()

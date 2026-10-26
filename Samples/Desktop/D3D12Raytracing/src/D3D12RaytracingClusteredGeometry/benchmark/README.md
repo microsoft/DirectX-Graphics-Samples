@@ -155,6 +155,14 @@ shareable findings separately before including them in a public article.
 
 ## Reading the charts
 
+- FLOAT32_3 precision plots use **PositionTruncateBitCount** (`--position-truncate`)
+  directly on the x-axis. Zero disables truncation; increasing the count clears
+  more low mantissa bits and reduces precision. It is not bits retained and is
+  not the COMPRESSED1 bits/component control.
+- **COMPRESSED1 vs FLOAT32_3** shows side-by-side bars and a direct comparison
+  table for the matched benchmark baseline, with each format's actual precision
+  control in its label. Workload, rays, detail, and other settings stay fixed.
+  The two controls do not imply equivalent quantization error or image quality.
 - Each axis has a single unit; all linear y-axes start at zero.
 - Resident AS allocation components sum to `memory_bytes.total_as`, including
   cluster templates, allocated instantiated CLAS capacity, all animated clone
