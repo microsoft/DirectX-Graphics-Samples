@@ -153,6 +153,11 @@ memory or frame time.
 
 ### Headless / scripted runs
 
+The reusable [benchmark helpers](benchmark/README.md) run settings sweeps,
+produce offline HTML reports, and compare matched workloads across machines.
+Generated reports and measurements contain machine-specific information and
+must remain local/untracked.
+
 For a timed run that writes a JSON snapshot and exits:
 
 ```
