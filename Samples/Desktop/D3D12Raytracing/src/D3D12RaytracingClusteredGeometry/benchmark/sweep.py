@@ -10,8 +10,11 @@ import json
 import math
 import os
 from pathlib import Path
+import re
+import shutil
 import subprocess
 import sys
+import tempfile
 import time
 from dataclasses import asdict, dataclass, replace
 from typing import Any
@@ -259,6 +262,42 @@ def payload_fingerprint(exe: Path) -> str:
 def run_one(exe: Path, cfg: RunConfig, out_dir: Path, bench_seconds: float,
             init_timeout: float, verbose: bool = False, max_bench_seconds: float = 60.0,
             fingerprint: str | None = None, expected_adapter: tuple | None = None) -> RunResult:
+    """Keep native snapshot/log paths within the sample's Windows path limits."""
+    out_dir = out_dir.resolve()
+    arguments = (exe, cfg, out_dir, bench_seconds, init_timeout, verbose,
+                 max_bench_seconds, fingerprint, expected_adapter)
+    longest_name = cfg.slug() + ".attempt-100.sample.log"
+    if os.name != "nt" or len(str(out_dir / longest_name)) < 250:
+        return _run_one(*arguments)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    if any(out_dir.glob(cfg.slug() + ".*")):
+        raise ValueError(f"refusing to overwrite an existing run or attempt: {cfg.slug()}")
+    staging = Path(tempfile.mkdtemp(prefix="cluster-bench-"))
+    if len(str(staging / longest_name)) >= 250:
+        staging.rmdir()
+        raise ValueError("TEMP is too long for native benchmark output; use a shorter TEMP path")
+    try:
+        result = _run_one(exe, cfg, staging, bench_seconds, init_timeout, verbose,
+                          max_bench_seconds, fingerprint, expected_adapter)
+        files = list(staging.iterdir())
+        if any((out_dir / path.name).exists() for path in files):
+            raise FileExistsError("benchmark output appeared while the run was executing")
+        for path in files:
+            shutil.move(str(path), str(out_dir / path.name))
+        result.json_path = out_dir / result.json_path.name
+        staging.rmdir()
+        return result
+    except (OSError, ValueError) as error:
+        # Keep any unmoved evidence rather than deleting a partially saved run.
+        if not any(staging.iterdir()):
+            staging.rmdir()
+            raise
+        raise ValueError(f"{error}; additional run evidence remains in {staging}") from error
+
+
+def _run_one(exe: Path, cfg: RunConfig, out_dir: Path, bench_seconds: float,
+             init_timeout: float, verbose: bool = False, max_bench_seconds: float = 60.0,
+             fingerprint: str | None = None, expected_adapter: tuple | None = None) -> RunResult:
     """Only unsettled measurements retry; successful runs are never repeated."""
     exe, out_dir = exe.resolve(), out_dir.resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -358,6 +397,38 @@ def load_results(directory: Path) -> tuple[list[RunResult], dict]:
     if len(identities) > 1:
         raise ValueError("results mix different adapters or driver versions")
     return results, manifest
+
+
+def finalize_results_directory(directory: Path, runs: list[RunResult], manifest: dict) -> Path:
+    """Use discovered identity without an extra adapter-probe benchmark run."""
+    identified = next((run for run in runs if run.status == "ok"), None)
+    if identified is None:
+        identified = next((run for run in runs if isinstance(run.data.get("adapter"), dict)), None)
+    adapter = identified.data["adapter"] if identified else {}
+
+    def component(value: Any, fallback: str, limit: int) -> str:
+        cleaned = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "-", str(value or fallback))
+        cleaned = re.sub(r"\s+", "-", cleaned)
+        cleaned = re.sub(r"-+", "-", cleaned).strip(" .-_")
+        return cleaned[:limit].rstrip(" .-_") or fallback
+
+    timestamp = dt.datetime.fromisoformat(manifest["created_local"]).strftime("%Y-%m-%d_%H-%M-%S")
+    name = (f"{timestamp}_{component(adapter.get('description'), 'unknown-adapter', 48)}"
+            f"_driver-{component(adapter.get('driver_version'), 'unknown', 24)}")
+    suffix = 1
+    while True:
+        target = directory.with_name(name if suffix == 1 else f"{name}_{suffix}")
+        if target.exists():
+            suffix += 1
+            continue
+        try:
+            directory.rename(target)
+            break
+        except FileExistsError:
+            suffix += 1
+    for run in runs:
+        run.json_path = target / run.json_path.name
+    return target
 
 
 def metric(run: RunResult, path: tuple[str, str]) -> float | None:
@@ -595,6 +666,7 @@ def report_tables(runs: list[RunResult], manifest: dict) -> list[tuple[str, list
     facts += [["Executable", manifest.get("executable", "unknown")],
               ["Executable + runtime SHA-256", manifest.get("payload_sha256", "unknown")],
               ["Generated UTC", manifest.get("created_utc", "unknown")],
+              ["Local start time", manifest.get("created_local", "not recorded")],
               ["Benchmark baseline", json.dumps(manifest.get("base_config", {}), sort_keys=True)]]
     rows = []
     for run in runs:
@@ -799,13 +871,16 @@ def main(argv: list[str] | None = None) -> int:
                 if not HERE.joinpath(asset).is_file():
                     raise ValueError(f"missing offline report asset: {asset}")
             fingerprint = payload_fingerprint(exe)
-            stamp = dt.datetime.now(dt.timezone.utc).strftime("%Y%m%dT%H%M%S.%fZ")
-            directory = args.results_root.resolve() / stamp
+            now = dt.datetime.now(dt.timezone.utc)
+            stamp = now.strftime("%Y%m%dT%H%M%S.%fZ")
+            directory = args.results_root.resolve() / f"_pending-{stamp}"
             directory.mkdir(parents=True, exist_ok=False)
             manifest = dict(tool_schema=2, created_utc=stamp, executable=str(exe),
+                            created_local=now.astimezone().isoformat(timespec="seconds"),
                             payload_sha256=fingerprint, base_config=asdict(base), runs=[])
             runs = []
             execute_cases(exe, matrix, directory, manifest, runs, args)
+            directory = finalize_results_directory(directory, runs, manifest)
         charts = build_charts(runs, base)
         output = args.out.resolve() if args.out else directory / "report.html"
         output.parent.mkdir(parents=True, exist_ok=True)

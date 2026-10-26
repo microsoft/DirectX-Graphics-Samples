@@ -87,7 +87,25 @@ a single sweep is an observation, not a statistical performance guarantee.
 
 ## Reports and private data
 
-Each sweep creates an independent `results\<UTC timestamp>\` directory:
+Each new sweep creates a directory named with **local date/time, adapter name,
+and driver version**, for example:
+
+```text
+results\2026-01-02_03-04-05_Synthetic-adapter_driver-test-driver\
+```
+
+Names are Windows-safe and bounded in length; same-second collisions get a
+numeric suffix. Exact UTC and timezone-qualified local start times remain in
+the manifest. A short `_pending-...` directory is used until the run completes
+and adapter identity is known, then renamed without an extra probe run.
+Existing folders keep their names when re-rendered or extended, and older
+timestamp-named folders still work.
+
+Native measurements/logging use short temporary paths when necessary to avoid
+Windows path limits. Their files are then moved into the result directory;
+recorded command lines retain the original paths actually executed.
+
+Each sweep directory contains:
 
 - `report.html`: offline charts, settings, failures, and local provenance.
 - `manifest.json`: exact case identities and executable/runtime fingerprint.

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, replace
 from html.parser import HTMLParser
+import os
 from pathlib import Path
 import subprocess
 import tempfile
@@ -379,6 +380,72 @@ class Execution(unittest.TestCase):
                           expected_adapter=tuple(expected))
         self.assertEqual(run.status, "failed")
         self.assertIn("adapter/driver changed", run.data["_error"])
+
+    @unittest.skipUnless(os.name == "nt", "native Windows path limit")
+    def test_long_results_path_uses_short_native_paths_and_preserves_artifacts(self):
+        destination = self.root / ("long-" + "x" * 100) / ("nested-" + "y" * 100)
+        paths = []
+        def process(command, **kwargs):
+            paths.append(Path(command[-1]))
+            self.assertLess(len(command[-1]), 250)
+            self.assertLess(len(kwargs["env"]["SAMPLE_LOG"]), 250)
+            return self.process(command, **kwargs)
+        with patch("sweep.subprocess.run", side_effect=process):
+            run = run_one(self.exe, RunConfig(), destination, 2, 1)
+        self.assertEqual(run.status, "ok")
+        self.assertEqual(run.json_path.parent, destination.resolve())
+        self.assertTrue(run.json_path.is_file())
+        self.assertTrue(list(destination.glob("*.attempt-1.json")))
+        self.assertTrue(list(destination.glob("*.stdout.log")))
+        self.assertFalse(paths[0].parent.exists())
+
+
+class ResultsDirectoryNames(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.root = Path(self.temp.name)
+
+    def pending(self, name="pending"):
+        directory = self.root / name
+        directory.mkdir()
+        run = result(directory=directory)
+        manifest = save_results(directory, [run])
+        manifest["created_local"] = "2026-01-02T03:04:05-07:00"
+        write_json(directory / "manifest.json", manifest)
+        return directory, run, manifest
+
+    def test_readable_local_date_adapter_and_driver_and_loadable_data(self):
+        directory, run, manifest = self.pending()
+        final = sweep.finalize_results_directory(directory, [run], manifest)
+        self.assertEqual(final.name, "2026-01-02_03-04-05_Synthetic-adapter_driver-test-driver")
+        self.assertFalse(directory.exists())
+        self.assertTrue(run.json_path.is_file())
+        loaded, _ = load_results(final)
+        self.assertEqual(loaded[0].config, run.config)
+
+    def test_unsafe_characters_long_labels_and_collisions(self):
+        directory, run, manifest = self.pending("first")
+        run.data["adapter"].update(description='GPU: / invalid? * \\\\ "<>| ' + "x" * 100,
+                                   driver_version="1:2/3? " + "y" * 100)
+        final = sweep.finalize_results_directory(directory, [run], manifest)
+        self.assertFalse(any(char in final.name for char in '<>:"/\\\\|?*'))
+        self.assertLessEqual(len(final.name), 101)
+        directory2, run2, manifest2 = self.pending("second")
+        run2.data["adapter"] = dict(run.data["adapter"])
+        final2 = sweep.finalize_results_directory(directory2, [run2], manifest2)
+        self.assertEqual(final2.name, final.name + "_2")
+        self.assertTrue(final.is_dir())
+        self.assertTrue(final2.is_dir())
+
+    def test_missing_adapter_and_failed_rename_preserve_evidence(self):
+        directory, run, manifest = self.pending()
+        with patch.object(Path, "rename", side_effect=PermissionError("synthetic access denial")):
+            with self.assertRaises(PermissionError):
+                sweep.finalize_results_directory(directory, [run], manifest)
+        self.assertTrue(run.json_path.exists())
+        final = sweep.finalize_results_directory(directory, [], manifest)
+        self.assertIn("unknown-adapter_driver-unknown", final.name)
 
 
 class Comparison(unittest.TestCase):
