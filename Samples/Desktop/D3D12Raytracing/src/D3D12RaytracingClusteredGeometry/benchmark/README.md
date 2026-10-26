@@ -8,7 +8,9 @@ the complete notice is also included in each generated report.
 
 ## Requirements
 
-- Python 3.10 or later; no Python packages need to be installed.
+- Python 3.10 or later; no Python packages need to be installed. The CMD wrappers
+  find a compatible `python.exe` on PATH (including an active virtual environment)
+  or fall back to the Windows `py.exe` launcher. You do not invoke Python directly.
 - A current, working `D3D12RaytracingClusteredGeometry.exe` and its deployed
   runtime DLLs and assets. Use an optimized **Release** build for measurements.
   Debug builds are useful for functional smoke tests, not comparable performance.
@@ -18,26 +20,30 @@ the complete notice is also included in each generated report.
 Run the following from this `benchmark` directory. The default executable is
 `..\bin\x64\Release\D3D12RaytracingClusteredGeometry.exe`; use `--exe` for an
 isolated build or another location.
+Wrappers locate their scripts relative to themselves, so they can also be invoked
+by full path from another directory. Relative input/output arguments remain
+relative to your current directory. All arguments and the tool's exit code are
+forwarded; missing/outdated Python produces a clear error without installing it.
 
 ```powershell
 # Show the exact configurations without launching anything.
-python sweep.py --list
+.\sweep.cmd --list
 
 # Shorter matrix: excludes 10K and the precision sweeps.
-python sweep.py --quick
+.\sweep.cmd --quick
 
 # Full matrix, including traditional rebuild and refit at 10K.
-python sweep.py --exe ..\bin\x64\Release\D3D12RaytracingClusteredGeometry.exe
+.\sweep.cmd --exe ..\bin\x64\Release\D3D12RaytracingClusteredGeometry.exe
 
 # Explicit low-VRAM baseline. This is reported, never selected secretly.
-python sweep.py --animated-detail low
+.\sweep.cmd --animated-detail low
 
 # Skip expensive configurations when needed.
-python sweep.py --no-10k
-python sweep.py --no-10k-trad
+.\sweep.cmd --no-10k
+.\sweep.cmd --no-10k-trad
 
 # Longer measurement window; increase the retry ceiling for very slow frames.
-python sweep.py --bench-seconds 10 --max-bench-seconds 120
+.\sweep.cmd --bench-seconds 10 --max-bench-seconds 120
 ```
 
 The matrix covers scene scaling, clustered/traditional rebuild/traditional
@@ -108,12 +114,12 @@ a nonzero exit status, while the report and evidence remain available.
 ### Regenerate a report without running the executable
 
 ```powershell
-python sweep.py --input-dir .\results\<sweep-directory>
+.\sweep.cmd --input-dir .\results\<sweep-directory>
 
 # Or select the most recently modified manifest under --results-root.
-python sweep.py --no-run
+.\sweep.cmd --no-run
 
-python sweep.py --input-dir .\results\<sweep-directory> --out .\results\revised-report.html
+.\sweep.cmd --input-dir .\results\<sweep-directory> --out .\results\revised-report.html
 ```
 
 No executable is needed for report-only mode. It loads exactly the manifest's
@@ -128,7 +134,7 @@ to a private location. Copying only `report.html` is sufficient for viewing,
 but not for rebuilding comparisons.
 
 ```powershell
-python compare.py .\results\<machine-A-sweep> .\results\<machine-B-sweep> `
+.\compare.cmd .\results\<machine-A-sweep> .\results\<machine-B-sweep> `
     --label "Machine A" --label "Machine B" --out .\results\comparison.html
 ```
 
@@ -165,7 +171,7 @@ shareable findings separately before including them in a public article.
 ## Tests
 
 ```powershell
-python -m unittest discover -s . -p "test_*.py" -v
+.\test.cmd -v
 ```
 
 Fixtures are synthetic and contain no real machine identities or measurements.
