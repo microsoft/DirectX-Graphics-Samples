@@ -127,6 +127,21 @@ cases, not guessed filenames or whichever adapter directory sorts last.
 Use `--input-dir` for an unambiguous selection. Original process durations and
 failure status are preserved.
 
+### Add missing configurations without repeating recorded runs
+
+```powershell
+.\sweep.cmd --extend .\results\<sweep-directory>
+```
+
+This adds only configurations missing from the current matrix, then regenerates
+the report. Existing successful, failed, and skipped records are retained,
+not overwritten or rerun. The saved baseline is preserved. The saved executable
+is used unless `--exe` is supplied; its executable/runtime fingerprint must still
+match. Adapter/driver identity must match too. Start a new sweep for a different
+machine, driver, or build rather than mixing it into an existing directory.
+Without `--quick`, an older full sweep gains the additional matched precision
+points; extending a quick sweep also adds its previously omitted full-matrix cases.
+
 ## Compare machines or builds
 
 Run the same command on each machine, then copy each **whole sweep directory**
@@ -159,10 +174,24 @@ shareable findings separately before including them in a public article.
   directly on the x-axis. Zero disables truncation; increasing the count clears
   more low mantissa bits and reduces precision. It is not bits retained and is
   not the COMPRESSED1 bits/component control.
-- **COMPRESSED1 vs FLOAT32_3** shows side-by-side bars and a direct comparison
-  table for the matched benchmark baseline, with each format's actual precision
-  control in its label. Workload, rays, detail, and other settings stay fixed.
-  The two controls do not imply equivalent quantization error or image quality.
+  Tooltips, comparison labels, and the run table also show the **explicit
+  mantissa bits kept: 23 minus PositionTruncateBitCount**. Count 12 keeps 11;
+  normal values have an additional implicit leading bit. Source float components
+  still occupy 32 bits.
+- **COMPRESSED1 vs FLOAT32_3 precision** overlays line graphs across nominal
+  precision bits 2, 4, 6, 8, 10, 12, 14, and 16. For normal FLOAT32_3 values the
+  axis is retained significand bits, including the implicit leading bit:
+  **24 minus PositionTruncateBitCount**. For COMPRESSED1 it is cluster-local
+  offset bits/component. The full matrix includes both formats at every target.
+  Tooltips show the actual controls and retained fraction bits.
+  This is a rough nominal-bit alignment, **not measured equal geometric error**:
+  per-value floating-point precision and cluster-local fixed-point grids have
+  different ranges and scales. Workload, rays, detail, and other settings stay fixed.
+  Older result sets show gaps for missing precision cases; `--extend` fills them.
+  A separate table retains the selected baseline comparison.
+  In particular, truncate count 12 versus COMPRESSED1 12 offset bits/component
+  is not an equal-precision match: one discards FLOAT32_3 mantissa bits, while
+  the other encodes cluster-local fixed-point offsets using an anchor and scale.
 - Each axis has a single unit; all linear y-axes start at zero.
 - Resident AS allocation components sum to `memory_bytes.total_as`, including
   cluster templates, allocated instantiated CLAS capacity, all animated clone

@@ -22,6 +22,7 @@ class Chart:
     stacked: bool = False
     color_groups: dict[str, str] = field(default_factory=dict)
     stacks: dict[str, str] = field(default_factory=dict)
+    x_tooltips: dict[str, str] = field(default_factory=dict)
 
 
 def script_json(value: Any) -> str:
@@ -163,7 +164,11 @@ for (const [index, spec] of reportCharts.entries()) {
       },
       plugins: {
         tooltip: {callbacks: {
-          title: items => items.length ? String(items[0].raw.x) : '',
+          title: items => {
+            if (!items.length) return '';
+            const key = String(items[0].raw.x);
+            return spec.x_tooltips[key] ? spec.x_tooltips[key].split('\\n') : key;
+          },
           label: item => item.dataset.label + ': ' + format(item.raw.y, spec.unit)
         }}
       }
@@ -205,7 +210,7 @@ def render_report(title: str, subtitle: str, charts: list[Chart],
                             "</tr>" for row in rows) + "</tbody></table></div></section>")
     specs = [
         dict(title=c.title, unit=c.unit, x_label=c.x_label, chart_type=c.chart_type,
-             numeric_x=c.numeric_x, stacked=c.stacked,
+             numeric_x=c.numeric_x, stacked=c.stacked, x_tooltips=c.x_tooltips,
              series=[dict(label=label, points=points, color_group=c.color_groups.get(label, label),
                           stack=c.stacks.get(label, "all")) for label, points in c.series.items()])
         for c in charts

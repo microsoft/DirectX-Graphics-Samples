@@ -60,6 +60,7 @@ def comparison_charts(machines: list[MachineReport], partial: bool = False) -> t
                                     chart.x_label, chart.unit, chart_type=chart.chart_type,
                                     numeric_x=chart.numeric_x, stacked=chart.stacked)
             target = merged[key]
+            target.x_tooltips.update(chart.x_tooltips)
             for label, points in chart.series.items():
                 name = f"{machine.label} / {label}"
                 target.series[name] = points

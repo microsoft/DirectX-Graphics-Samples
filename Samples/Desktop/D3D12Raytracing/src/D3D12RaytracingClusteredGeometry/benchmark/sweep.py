@@ -21,6 +21,7 @@ from report import Chart, render_report
 HERE = Path(__file__).resolve().parent
 DEFAULT_EXE = HERE.parent / "bin" / "x64" / "Release" / "D3D12RaytracingClusteredGeometry.exe"
 DEFAULT_RESULTS_ROOT = HERE / "results"
+NOMINAL_PRECISION_BITS = tuple(range(2, 17, 2))
 STAGES = ("pf_instantiate_us", "pf_blas_us", "pf_tlas_us",
           "pf_static_blas_us", "pf_static_clas_us", "pf_render_us")
 AS_COMPONENTS = {
@@ -239,8 +240,8 @@ def build_sweep_matrix(quick: bool, include_10k_trad: bool,
              for mode in ("blas", "clas-blas")]
     if not quick:
         runs += [replace(base, position_truncate_bits=bits) for bits in (0, 4, 8, 12, 16, 20)]
-        runs += [replace(base, vertex_format="compressed", compressed_bits=bits)
-                 for bits in (2, 4, 6, 8, 10, 12, 14, 16)]
+        for bits in NOMINAL_PRECISION_BITS:
+            runs += list(precision_pair_configs(base, bits))
     return list(dict.fromkeys(runs))
 
 
@@ -257,7 +258,7 @@ def payload_fingerprint(exe: Path) -> str:
 
 def run_one(exe: Path, cfg: RunConfig, out_dir: Path, bench_seconds: float,
             init_timeout: float, verbose: bool = False, max_bench_seconds: float = 60.0,
-            fingerprint: str | None = None) -> RunResult:
+            fingerprint: str | None = None, expected_adapter: tuple | None = None) -> RunResult:
     """Only unsettled measurements retry; successful runs are never repeated."""
     exe, out_dir = exe.resolve(), out_dir.resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -296,6 +297,8 @@ def run_one(exe: Path, cfg: RunConfig, out_dir: Path, bench_seconds: float,
             if completed.returncode:
                 raise ValueError(f"sample exited with code {completed.returncode}; see attempt logs")
             data = read_json(sample_json)
+            if expected_adapter is not None and adapter_identity(data) != expected_adapter:
+                raise ValueError("adapter/driver changed; start a new sweep instead of extending")
             validate_snapshot(data, cfg)
             status = "ok"
             break
@@ -371,13 +374,20 @@ def metric(run: RunResult, path: tuple[str, str]) -> float | None:
 
 def format_comparison(runs: list[RunResult], base: RunConfig) -> dict[str, RunResult | None]:
     formats = {
-        f"FLOAT32_3 (PositionTruncateBitCount={base.position_truncate_bits})":
+        f"FLOAT32_3 (trunc={base.position_truncate_bits}; "
+        f"{23 - base.position_truncate_bits} mantissa bits kept)":
             replace(base, vertex_format="float"),
-        f"COMPRESSED1 ({base.compressed_bits} bits/component)":
+        f"COMPRESSED1 ({base.compressed_bits} offset bits/component)":
             replace(base, vertex_format="compressed"),
     }
     return {label: next((run for run in runs if run.config == cfg), None)
             for label, cfg in formats.items()}
+
+
+def precision_pair_configs(base: RunConfig, bits: int) -> tuple[RunConfig, RunConfig]:
+    # FLOAT32 normal values have 23 fraction bits plus the implicit leading 1.
+    return (replace(base, vertex_format="float", position_truncate_bits=24 - bits),
+            replace(base, vertex_format="compressed", compressed_bits=bits))
 
 
 def build_charts(runs: list[RunResult], base: RunConfig = RunConfig()) -> list[Chart]:
@@ -410,6 +420,12 @@ def build_charts(runs: list[RunResult], base: RunConfig = RunConfig()) -> list[C
                           if category_order else x_value(r))
             if selected:
                 chart.series[label] = [(x_value(r), metric(r, path)) for r in selected]
+                if x_field == "position_truncate_bits":
+                    for run in selected:
+                        count = run.config.position_truncate_bits
+                        chart.x_tooltips[str(count)] = (
+                            f"PositionTruncateBitCount={count}\n{23 - count} explicit mantissa "
+                            f"bits kept\n{24 - count} significant bits for normal values")
         if any(value is not None for points in chart.series.values() for _, value in points):
             charts.append(chart)
 
@@ -502,15 +518,28 @@ def build_charts(runs: list[RunResult], base: RunConfig = RunConfig()) -> list[C
           ("DispatchRays", "us", ("frame_perf", "pf_render_us")),
           ("Frame rate", "FPS", ("frame_perf", "fps"))]),
     ]
-    formats = format_comparison(runs, base)
+    by_config = {run.config: run for run in runs}
     for title, unit, path in FORMAT_METRICS:
-        chart = Chart(f"COMPRESSED1 vs FLOAT32_3: {title}", "COMPRESSED1 vs FLOAT32_3",
-                      "Direct comparison at the matched benchmark baseline; only vertex format "
-                      "changes. Labels show FLOAT32_3 PositionTruncateBitCount and COMPRESSED1 "
-                      "bits/component. These controls do not imply equivalent precision or image quality.",
-                      "matched benchmark baseline", unit, chart_type="bar")
-        for label, run in formats.items():
-            chart.series[label] = [("Baseline", metric(run, path) if run else None)]
+        chart = Chart(f"COMPRESSED1 vs FLOAT32_3: {title}", "COMPRESSED1 vs FLOAT32_3 precision",
+                      "Overlaid curves across aligned nominal precision bits. FLOAT32_3 uses "
+                      "24-PositionTruncateBitCount significant bits for normal values "
+                      "(23-N explicit fraction bits plus the implicit leading 1). COMPRESSED1 "
+                      "uses offset bits/component with a cluster-local anchor and scale. "
+                      "This is an approximate bit-count alignment, not an equal-error comparison. "
+                      "Hover a point for the actual controls. Missing runs are gaps; use --extend.",
+                      "Nominal precision bits (not matched error)", unit, numeric_x=True)
+        chart.series = {"FLOAT32_3 (normal significand)": [],
+                        "COMPRESSED1 (cluster offset)": []}
+        for bits in NOMINAL_PRECISION_BITS:
+            configs = precision_pair_configs(base, bits)
+            for label, cfg in zip(chart.series, configs):
+                run = by_config.get(cfg)
+                chart.series[label].append((bits, metric(run, path) if run else None))
+            chart.x_tooltips[str(bits)] = (
+                f"Nominal bits={bits} (not equal geometric error)\n"
+                f"FLOAT32_3 PositionTruncateBitCount={24 - bits}\n"
+                f"{bits - 1} explicit mantissa bits + implicit leading 1 (normal)\n"
+                f"COMPRESSED1 {bits} offset bits/component")
         if any(value is not None for points in chart.series.values() for _, value in points):
             charts.append(chart)
     for category, field_name, references, metrics in studies:
@@ -526,8 +555,10 @@ def build_charts(runs: list[RunResult], base: RunConfig = RunConfig()) -> list[C
                 description = (
                     "FLOAT32_3 uses PositionTruncateBitCount, set by --position-truncate. "
                     "The x value is the number of low position-mantissa bits cleared: 0 disables "
-                    "truncation, and larger values reduce precision (23 minus the count mantissa "
-                    "bits remain). It is not a COMPRESSED1 bits/component setting. "
+                    "truncation, and larger values reduce precision. Of 23 explicit mantissa bits, "
+                    "23 minus the count remain: count 12 keeps 11. Normal values also have an "
+                    "implicit leading bit. Source components still occupy 32 bits. "
+                    "It is not a COMPRESSED1 offset-bits/component setting. "
                     "Geometry and image quality may change.")
             axis(title, category, description,
                  field_name, unit, path, references,
@@ -571,6 +602,7 @@ def report_tables(runs: list[RunResult], manifest: dict) -> list[tuple[str, list
         rows.append([run.config.slug(), run.status, run.config.geometry_mode,
                      run.config.trad_anim_mode, run.config.vertex_format,
                      run.config.position_truncate_bits if run.config.vertex_format == "float" else "-",
+                     23 - run.config.position_truncate_bits if run.config.vertex_format == "float" else "-",
                      run.config.compressed_bits if run.config.vertex_format == "compressed" else "-",
                      run.config.extra_instances, run.config.animated_detail,
                      run.config.rays_per_pixel,
@@ -584,19 +616,41 @@ def report_tables(runs: list[RunResult], manifest: dict) -> list[tuple[str, list
     base = RunConfig(**manifest.get("base_config", {}))
     formats = format_comparison(runs, base)
     labels = list(formats)
-    comparison_rows = []
+    comparison_rows = [
+        ["Configured precision",
+         f"PositionTruncateBitCount={base.position_truncate_bits}; "
+         f"{23 - base.position_truncate_bits} of 23 explicit mantissa bits kept",
+         f"{base.compressed_bits} cluster-local offset bits/component",
+         "Not an equal-error comparison"],
+        ["Normal-value significand",
+         f"{24 - base.position_truncate_bits} bits including the implicit leading bit",
+         "Fixed-point offsets with cluster anchor/scale",
+         "Different precision models"],
+    ]
     for title, unit, path in FORMAT_METRICS:
         values = [metric(run, path) if run else None for run in formats.values()]
         delta = ("not measured" if any(value is None for value in values) else
                  f"{(values[1] / values[0] - 1) * 100:+.2f}%" if values[0] > 0 else
                  "n/a (FLOAT32_3 reference is zero)")
         comparison_rows.append([title, *(format_metric(value, unit) for value in values), delta])
+    by_config = {run.config: run for run in runs}
+    precision_rows = []
+    for bits in NOMINAL_PRECISION_BITS:
+        configs = precision_pair_configs(base, bits)
+        states = [by_config[cfg].status if cfg in by_config else "missing (use --extend)"
+                  for cfg in configs]
+        precision_rows.append([bits, 24 - bits, bits - 1, bits, *states])
     return [
         ("Run provenance (local/private)", ["Property", "Value"], facts),
+        ("Precision alignment and coverage (nominal bits, not equal error)",
+         ["Nominal bits", "FLOAT32_3 PositionTruncateBitCount", "FLOAT32_3 explicit mantissa bits",
+          "COMPRESSED1 offset bits/component", "FLOAT32_3 run", "COMPRESSED1 run"],
+         precision_rows),
         ("Direct format comparison (matched benchmark baseline)",
          ["Metric", *labels, "COMPRESSED1 change vs FLOAT32_3"], comparison_rows),
         ("All requested cases", ["JSON id", "Status", "Geometry", "Trad animation", "Vertex",
-                                "PositionTruncateBitCount", "COMPRESSED1 bits/component",
+                                "PositionTruncateBitCount", "FLOAT32_3 mantissa bits kept",
+                                "COMPRESSED1 offset bits/component",
                                 "Extra BLASes", "Detail", "Rays/pixel", "FPS", "Frame interval",
                                 "Resident AS", "Samples", "Window seconds", "Frame range",
                                 "Process wall seconds", "Error / skip reason"], rows),
@@ -614,6 +668,10 @@ REPORT_NOTES = [
     "Driver/compositor settings may still throttle presentation.",
     "Rebuild and refit are different algorithms, not interchangeable quality guarantees. "
     "Precision and Full/Low comparisons intentionally change geometry.",
+    "Overlaid format curves align nominal normal-FLOAT32 significand bits (24 minus "
+    "PositionTruncateBitCount) with COMPRESSED1 offset bits/component. This is not matched "
+    "quantization error. Missing precision points need additional runs; --extend adds only "
+    "missing configurations to a compatible saved sweep.",
     "Missing, failed, or unsupported measurements are gaps, never zero-cost results. "
     "Each axis has one unit and a zero baseline. These are single-run observations, not statistical claims.",
     "Reports, logs, commands, and raw JSON contain machine-specific information. Keep them private; "
@@ -628,9 +686,57 @@ def positive_float(value: str) -> float:
     return parsed
 
 
+def execute_cases(exe: Path, matrix: list[RunConfig], directory: Path, manifest: dict,
+                  runs: list[RunResult], args: argparse.Namespace) -> None:
+    completed = {run.config for run in runs}
+    pending = [cfg for cfg in matrix if cfg not in completed]
+    print(f"Reusing {len(runs)} recorded cases; {len(pending)} missing configurations.", flush=True)
+    if not pending:
+        return
+    if not exe.is_file():
+        raise ValueError(f"executable not found: {exe}; build Release or pass --exe")
+    fingerprint = manifest["payload_sha256"]
+    if payload_fingerprint(exe) != fingerprint:
+        raise ValueError("executable/runtime differs from saved results; start a new sweep")
+    for asset in ("chart.umd.min.js", "LICENSE.Chart.js.txt"):
+        if not HERE.joinpath(asset).is_file():
+            raise ValueError(f"missing offline report asset: {asset}")
+    successful = [run for run in runs if run.status == "ok"]
+    identity = adapter_identity(successful[0].data) if successful else None
+    known = (successful[0].data["adapter"] if successful else
+             next((run.data["adapter"] for run in runs if "adapter" in run.data), {}))
+    cluster_support = known.get("clusters_supported")
+    prior_wall = manifest.get("wall_seconds", 0.0)
+    started = time.monotonic()
+    for index, cfg in enumerate(pending, 1):
+        print(f"[{index}/{len(pending)}] {cfg.slug()}", flush=True)
+        if cfg.geometry_mode == "clusters" and cluster_support is False:
+            data = {"_error": "cluster support unavailable",
+                    "_sweep": dict(requested_config=asdict(cfg), status="skipped",
+                                   wall_seconds=0.0, payload_sha256=fingerprint)}
+            path = directory / f"{cfg.slug()}.json"
+            write_json(path, data)
+            run = RunResult(cfg, path, data)
+        else:
+            run = run_one(exe, cfg, directory, args.bench_seconds, args.init_timeout,
+                          args.verbose, args.max_bench_seconds, fingerprint, identity)
+            if "adapter" in run.data:
+                cluster_support = run.data["adapter"].get("clusters_supported")
+            if run.status == "ok":
+                identity = adapter_identity(run.data)
+        runs.append(run)
+        manifest["runs"].append(dict(file=run.json_path.name, config=asdict(cfg)))
+        manifest["wall_seconds"] = prior_wall + time.monotonic() - started
+        write_json(directory / "manifest.json", manifest)
+        print(f"  {run.status}: " + (run.data.get("_error") or
+              format_metric(metric(run, ("frame_perf", "fps")), "FPS")), flush=True)
+        if identity is not None and "adapter" in run.data and adapter_identity(run.data) != identity:
+            break
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--exe", type=Path, default=DEFAULT_EXE)
+    parser.add_argument("--exe", type=Path, help="default: current Release; saved executable when extending")
     parser.add_argument("--out", type=Path)
     parser.add_argument("--results-root", type=Path, default=DEFAULT_RESULTS_ROOT)
     parser.add_argument("--quick", action="store_true", help="omit 10K and precision sweeps")
@@ -638,19 +744,24 @@ def main(argv: list[str] | None = None) -> int:
     group = parser.add_mutually_exclusive_group()
     group.add_argument("--no-10k-trad", action="store_true")
     group.add_argument("--include-10k-trad", action="store_true", help="included by default")
-    parser.add_argument("--animated-detail", choices=("full", "low"), default="full")
+    parser.add_argument("--animated-detail", choices=("full", "low"), help="default: full for a new sweep")
     parser.add_argument("--bench-seconds", type=positive_float, default=5.0)
     parser.add_argument("--max-bench-seconds", type=positive_float, default=60.0)
     parser.add_argument("--init-timeout", type=positive_float, default=120.0,
                         help="additional per-process time allowance for initialization/slow frames")
     parser.add_argument("--no-run", action="store_true")
     parser.add_argument("--input-dir", type=Path, help="exact sweep directory to render without running")
+    parser.add_argument("--extend", type=Path, help="reuse recorded cases and run only missing configurations")
     parser.add_argument("--list", action="store_true", help="print configs without requiring an executable")
     parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args(argv)
     if args.max_bench_seconds < args.bench_seconds:
         parser.error("--max-bench-seconds must be at least --bench-seconds")
-    base = RunConfig(animated_detail=args.animated_detail)
+    if args.extend and (args.no_run or args.input_dir):
+        parser.error("--extend cannot be combined with report-only arguments")
+    if args.extend and args.list:
+        parser.error("--list describes a new matrix; do not combine it with --extend")
+    base = RunConfig(animated_detail=args.animated_detail or "full")
     matrix = build_sweep_matrix(args.quick, not args.no_10k_trad, base)
     if args.no_10k:
         matrix = [cfg for cfg in matrix if cfg.extra_instances != 10000]
@@ -668,8 +779,19 @@ def main(argv: list[str] | None = None) -> int:
                 directory = max(manifests, key=lambda p: p.stat().st_mtime_ns).parent
             runs, manifest = load_results(directory)
             base = RunConfig(**manifest["base_config"])
+        elif args.extend:
+            directory = args.extend.resolve()
+            runs, manifest = load_results(directory)
+            base = RunConfig(**manifest["base_config"])
+            if args.animated_detail is not None and args.animated_detail != base.animated_detail:
+                raise ValueError("cannot change an existing sweep's baseline; start a new sweep")
+            matrix = build_sweep_matrix(args.quick, not args.no_10k_trad, base)
+            if args.no_10k:
+                matrix = [cfg for cfg in matrix if cfg.extra_instances != 10000]
+            exe = (args.exe or Path(manifest["executable"])).resolve()
+            execute_cases(exe, matrix, directory, manifest, runs, args)
         else:
-            exe = args.exe.resolve()
+            exe = (args.exe or DEFAULT_EXE).resolve()
             if not exe.is_file():
                 raise ValueError(f"executable not found: {exe}; build Release or pass --exe")
             # Require the offline asset before spending time running benchmarks.
@@ -683,34 +805,7 @@ def main(argv: list[str] | None = None) -> int:
             manifest = dict(tool_schema=2, created_utc=stamp, executable=str(exe),
                             payload_sha256=fingerprint, base_config=asdict(base), runs=[])
             runs = []
-            identity = None
-            cluster_support = None
-            started = time.monotonic()
-            for index, cfg in enumerate(matrix, 1):
-                print(f"[{index}/{len(matrix)}] {cfg.slug()}", flush=True)
-                if cfg.geometry_mode == "clusters" and cluster_support is False:
-                    data = {"_error": "cluster support unavailable",
-                            "_sweep": dict(requested_config=asdict(cfg), status="skipped",
-                                           wall_seconds=0.0, payload_sha256=fingerprint)}
-                    path = directory / f"{cfg.slug()}.json"
-                    write_json(path, data)
-                    run = RunResult(cfg, path, data)
-                else:
-                    run = run_one(exe, cfg, directory, args.bench_seconds, args.init_timeout,
-                                  args.verbose, args.max_bench_seconds, fingerprint)
-                    if "adapter" in run.data:
-                        cluster_support = run.data["adapter"].get("clusters_supported")
-                    if run.status == "ok":
-                        current = adapter_identity(run.data)
-                        if identity is not None and current != identity:
-                            raise ValueError("adapter/driver changed during the sweep; start a new sweep")
-                        identity = current
-                runs.append(run)
-                manifest["runs"].append(dict(file=run.json_path.name, config=asdict(cfg)))
-                manifest["wall_seconds"] = time.monotonic() - started
-                write_json(directory / "manifest.json", manifest)
-                print(f"  {run.status}: " + (run.data.get("_error") or
-                      format_metric(metric(run, ("frame_perf", "fps")), "FPS")), flush=True)
+            execute_cases(exe, matrix, directory, manifest, runs, args)
         charts = build_charts(runs, base)
         output = args.out.resolve() if args.out else directory / "report.html"
         output.parent.mkdir(parents=True, exist_ok=True)

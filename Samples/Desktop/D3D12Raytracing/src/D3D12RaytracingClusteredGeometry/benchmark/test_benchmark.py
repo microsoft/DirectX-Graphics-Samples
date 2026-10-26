@@ -7,6 +7,7 @@ from html.parser import HTMLParser
 from pathlib import Path
 import subprocess
 import tempfile
+from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
@@ -90,6 +91,10 @@ class Measurements(unittest.TestCase):
                 validate_snapshot(snapshot(cfg), cfg)
             if quick:
                 self.assertNotIn(10000, {c.extra_instances for c in matrix})
+            else:
+                for bits in sweep.NOMINAL_PRECISION_BITS:
+                    for cfg in sweep.precision_pair_configs(RunConfig(), bits):
+                        self.assertIn(cfg, matrix)
 
     def test_requested_mode_cannot_silently_fall_back(self):
         data = snapshot()
@@ -175,6 +180,8 @@ class Measurements(unittest.TestCase):
         self.assertIn("PositionTruncateBitCount", chart.title)
         self.assertIn("larger values reduce precision", chart.description)
         self.assertIn("--position-truncate", chart.description)
+        self.assertIn("11 explicit mantissa bits kept", chart.x_tooltips["12"])
+        self.assertIn("23 explicit mantissa bits kept", chart.x_tooltips["0"])
 
     def test_direct_format_comparison_labels_both_controls_and_uses_matched_cases(self):
         base = RunConfig()
@@ -185,24 +192,51 @@ class Measurements(unittest.TestCase):
         compressed.data["memory_bytes"]["total_as"] = 650
         chart = next(c for c in build_charts([float_run, compressed, unrelated])
                      if c.title == "COMPRESSED1 vs FLOAT32_3: Resident AS")
-        self.assertEqual(chart.chart_type, "bar")
-        self.assertEqual(chart.series["FLOAT32_3 (PositionTruncateBitCount=12)"], [("Baseline", 700)])
-        self.assertEqual(chart.series["COMPRESSED1 (12 bits/component)"], [("Baseline", 650)])
-        self.assertIn("do not imply equivalent precision", chart.description)
+        self.assertEqual(chart.chart_type, "line")
+        self.assertTrue(chart.numeric_x)
+        self.assertEqual(dict(chart.series["FLOAT32_3 (normal significand)"])[12], 700)
+        self.assertEqual(dict(chart.series["COMPRESSED1 (cluster offset)"])[12], 650)
+        self.assertIn("not an equal-error comparison", chart.description)
+        self.assertIn("PositionTruncateBitCount=12", chart.x_tooltips["12"])
         tables = sweep.report_tables([float_run, compressed], {"base_config": asdict(base)})
         _, columns, rows = next(table for table in tables if table[0].startswith("Direct format"))
-        self.assertIn("PositionTruncateBitCount=12", columns[1])
-        self.assertEqual(rows[0][-1], "-7.14%")
+        self.assertIn("11 mantissa bits kept", columns[1])
+        self.assertIn("PositionTruncateBitCount=12", rows[0][1])
+        self.assertEqual(rows[0][-1], "Not an equal-error comparison")
+        self.assertEqual(next(row for row in rows if row[0] == "Resident AS")[-1], "-7.14%")
         _, columns, rows = next(table for table in tables if table[0] == "All requested cases")
         self.assertEqual(rows[0][columns.index("PositionTruncateBitCount")], 12)
-        self.assertEqual(rows[1][columns.index("COMPRESSED1 bits/component")], 12)
+        self.assertEqual(rows[0][columns.index("FLOAT32_3 mantissa bits kept")], 11)
+        self.assertEqual(rows[1][columns.index("COMPRESSED1 offset bits/component")], 12)
 
     def test_direct_format_comparison_keeps_missing_or_failed_format_as_gap(self):
         compressed = result(replace(RunConfig(), vertex_format="compressed"))
         compressed.data["_sweep"]["status"] = "failed"
         chart = next(c for c in build_charts([result(), compressed])
                      if c.title == "COMPRESSED1 vs FLOAT32_3: Resident AS")
-        self.assertIsNone(chart.series["COMPRESSED1 (12 bits/component)"][0][1])
+        self.assertIsNone(dict(chart.series["COMPRESSED1 (cluster offset)"])[12])
+
+    def test_precision_overlay_uses_aligned_pairs_and_exposes_missing_runs(self):
+        runs = []
+        for bits in sweep.NOMINAL_PRECISION_BITS:
+            for cfg in sweep.precision_pair_configs(RunConfig(), bits):
+                runs.append(result(cfg))
+        chart = next(c for c in build_charts(runs)
+                     if c.title == "COMPRESSED1 vs FLOAT32_3: DispatchRays")
+        for points in chart.series.values():
+            self.assertEqual([x for x, _ in points], list(sweep.NOMINAL_PRECISION_BITS))
+            self.assertTrue(all(value is not None for _, value in points))
+        self.assertIn("PositionTruncateBitCount=22", chart.x_tooltips["2"])
+        self.assertIn("PositionTruncateBitCount=8", chart.x_tooltips["16"])
+        missing = sweep.precision_pair_configs(RunConfig(), 6)[0]
+        chart = next(c for c in build_charts([r for r in runs if r.config != missing])
+                     if c.title == "COMPRESSED1 vs FLOAT32_3: DispatchRays")
+        self.assertIsNone(dict(chart.series["FLOAT32_3 (normal significand)"])[6])
+
+    def test_float_retained_bit_annotation_at_truncation_limit(self):
+        runs = [result(replace(RunConfig(), position_truncate_bits=count)) for count in (0, 22)]
+        chart = next(c for c in build_charts(runs) if c.category == "FLOAT32_3 precision")
+        self.assertIn("1 explicit mantissa bits kept", chart.x_tooltips["22"])
 
     def test_all_failed_measurements_do_not_make_empty_charts(self):
         run = result()
@@ -299,6 +333,53 @@ class Execution(unittest.TestCase):
             run_one(self.exe, RunConfig(), self.output, 2, 1, fingerprint="not-the-fixture")
         process.assert_not_called()
 
+    def test_extension_only_runs_missing_cases_and_preserves_existing_result(self):
+        first = result(directory=self.root)
+        fingerprint = sweep.payload_fingerprint(self.exe)
+        first.data["_sweep"]["payload_sha256"] = fingerprint
+        manifest = save_results(self.root, [first])
+        manifest["payload_sha256"] = fingerprint
+        write_json(self.root / "manifest.json", manifest)
+        original = first.json_path.read_bytes()
+        extra = replace(RunConfig(), position_truncate_bits=22)
+        def run(exe, cfg, directory, *args):
+            self.assertEqual(cfg, extra)
+            measured = result(cfg, directory)
+            measured.data["_sweep"]["payload_sha256"] = fingerprint
+            write_json(measured.json_path, measured.data)
+            return measured
+        args = SimpleNamespace(bench_seconds=2, init_timeout=1, verbose=False,
+                               max_bench_seconds=10)
+        runs = [first]
+        with patch("sweep.run_one", side_effect=run) as process:
+            sweep.execute_cases(self.exe, [first.config, extra], self.root, manifest, runs, args)
+        self.assertEqual(process.call_count, 1)
+        self.assertEqual(first.json_path.read_bytes(), original)
+        loaded, _ = load_results(self.root)
+        self.assertEqual(len(loaded), 2)
+        with patch("sweep.run_one") as process:
+            sweep.execute_cases(self.exe, [first.config, extra], self.root, manifest, loaded, args)
+        process.assert_not_called()
+
+    def test_extension_rejects_changed_payload_without_running(self):
+        run = result(directory=self.root)
+        manifest = save_results(self.root, [run])
+        args = SimpleNamespace(bench_seconds=2, init_timeout=1, verbose=False,
+                               max_bench_seconds=10)
+        with patch("sweep.run_one") as process, self.assertRaisesRegex(ValueError, "runtime differs"):
+            sweep.execute_cases(self.exe, [replace(RunConfig(), position_truncate_bits=22)],
+                                self.root, manifest, [run], args)
+        process.assert_not_called()
+
+    def test_extension_rejects_another_adapter(self):
+        expected = list(sweep.adapter_identity(snapshot()))
+        expected[0] = "Different synthetic adapter"
+        with patch("sweep.subprocess.run", side_effect=self.process):
+            run = run_one(self.exe, RunConfig(), self.output, 2, 1,
+                          expected_adapter=tuple(expected))
+        self.assertEqual(run.status, "failed")
+        self.assertIn("adapter/driver changed", run.data["_error"])
+
 
 class Comparison(unittest.TestCase):
     def machine(self, label, runs):
@@ -338,6 +419,13 @@ class Comparison(unittest.TestCase):
             self.machine("A", [result()]), self.machine("B", [result()])])
         chart = next(c for c in charts if c.stacked)
         self.assertEqual(set(chart.stacks.values()), {"A", "B"})
+
+    def test_retained_bit_annotations_survive_machine_comparison(self):
+        runs = [result(), result(replace(RunConfig(), position_truncate_bits=20))]
+        charts, _ = compare.comparison_charts([self.machine("A", runs), self.machine("B", runs)])
+        chart = next(c for c in charts if c.category == "FLOAT32_3 precision")
+        self.assertIn("11 explicit mantissa bits kept", chart.x_tooltips["12"])
+        self.assertIn("3 explicit mantissa bits kept", chart.x_tooltips["20"])
 
 
 class Report(unittest.TestCase):
