@@ -2004,10 +2004,10 @@ int main(int argc, char** argv)
 
             BenchResult r;
             bool ran = false;
-            if (usingFallback)
+            auto bench = InitBenchmarkContext();
+            if (bench)
             {
-                auto bench = InitBenchmarkContext();
-                if (bench)
+                if (usingFallback)
                 {
                     g_quietExpectedErrors = true;
                     try
@@ -2022,12 +2022,8 @@ int main(int argc, char** argv)
                 }
                 else
                 {
-                    ran = false;
+                    ran = b.run(*bench, r);
                 }
-            }
-            else
-            {
-                ran = b.run(D3D, r);
             }
 
             if (ran)
@@ -2052,10 +2048,10 @@ int main(int argc, char** argv)
 
             BenchResult e2e = {};
             bool includeFillBench = true;
-            if (usingFallback)
+            bool ranE2E = false;
+            if (auto full = InitBenchmarkContext())
             {
-                bool ranE2E = false;
-                if (auto full = InitBenchmarkContext())
+                if (usingFallback)
                 {
                     g_quietExpectedErrors = true;
                     try
@@ -2069,28 +2065,30 @@ int main(int argc, char** argv)
                     }
                     g_quietExpectedErrors = false;
                 }
-
-                if (!ranE2E)
+                else
                 {
-                    if (auto subset = InitBenchmarkContext())
-                    {
-                        BenchmarkEndToEndMixedFrame(*subset, e2e, false);
-                        includeFillBench = false;
-                        ranE2E = true;
-                    }
-                }
-
-                if (!ranE2E)
-                {
-                    PRINT("  End-to-end mixed frame: skipped (could not initialize benchmark context).\n");
-                    PRINT(pass ? " Done." : " Done, with failures.");
-                    return pass ? 0 : -1;
+                    BenchmarkEndToEndMixedFrame(*full, e2e, true);
+                    ranE2E = true;
                 }
             }
-            else
+
+            if (usingFallback && !ranE2E)
             {
-                BenchmarkEndToEndMixedFrame(D3D, e2e, true);
+                if (auto subset = InitBenchmarkContext())
+                {
+                    BenchmarkEndToEndMixedFrame(*subset, e2e, false);
+                    includeFillBench = false;
+                    ranE2E = true;
+                }
             }
+
+            if (!ranE2E)
+            {
+                PRINT("  End-to-end mixed frame: skipped (could not initialize benchmark context).\n");
+                PRINT(pass ? " Done." : " Done, with failures.");
+                return pass ? 0 : -1;
+            }
+
             PrintBench("End-to-end mixed frame",
                 includeFillBench ? "Legacy: ClearUAV + Copy + ResolveQuery + Draw"
                                  : "Legacy: Copy + ResolveQuery + Draw",
