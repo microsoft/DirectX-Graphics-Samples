@@ -51,6 +51,10 @@ refit, vertex formats, CLAS/traditional allocation, build preferences, position
 precision, primary rays per pixel, animated Full/Low detail, and per-frame
 static rebuilding. `--list` is authoritative; counts are not hardcoded in
 this document.
+All three BVH build preferences are covered for both traditional rebuild and
+refit. Older sweeps can add the two missing refit preferences with `--extend`.
+A study series needs at least two measured settings; an old refit-only
+`fast-trace` point is not presented as a build-preference study.
 
 ## Measurement contract
 
@@ -195,7 +199,11 @@ those separately before attributing differences to GPU architecture.
 
 Scaling and multi-mode studies use separate charts for each geometry strategy,
 with GPU colors consistent across panels. FLOAT32_3 precision curves use solid
-circles; COMPRESSED1 uses dashed triangles of the same GPU color. Legends get
+circles; COMPRESSED1 uses dashed triangles of the same GPU color. Other lines use
+different GPU patterns/markers, with open markers that make coincident points
+easier to distinguish. Hovering at an x value lists all series, not just the
+topmost point. Discrete allocation/build-preference settings use grouped bars
+rather than overlaid curves. Legends get
 enough space without squeezing the plot, and memory ticks use binary units.
 The leading within-GPU ratio plots compare clustered frame rate and resident
 memory with both traditional rebuild and refit at each workload. These ratios
@@ -203,6 +211,24 @@ never combine measurements from different GPUs or assert equal visual quality.
 
 ## Reading the charts
 
+- **AS preparation + build/update time per frame (GPU)** sums only the instrumented
+  per-frame stages: clustered CLAS instantiation or traditional vertex animation
+  compute, animated BLAS builds/refits, TLAS rebuild, and optional static rebuilds.
+  Clustered vertex-deformation compute and other untimed work are excluded. It is
+  not initial setup time or CPU time.
+- **Initial AS setup elapsed time (GPU timestamps)** spans initial static builds,
+  animated setup/first builds, and initial TLAS creation, including intervening
+  queue-idle/synchronization gaps. It is not the sum of only static CLAS/BLAS/TLAS
+  stage durations and is not total application startup time.
+- **Raytracing render time per frame (GPU)** covers `DispatchRays`, not AS work,
+  output copy, overlay, or presentation waits.
+- **Frame time (elapsed per frame)** is completion-to-completion cadence, including
+  queue idle time; it is not measured CPU time or just GPU-busy time.
+- Memory labels distinguish **allocated** buffer capacity, reported AS bytes
+  **used**, and vertex/index **input** buffers. AS-buffer charts show exact values
+  beside the plot, including zero copy pools and small TLAS allocations.
+  Other plots have expandable exact-value tables too. A missing measurement is
+  labeled `Not measured`, never formatted as zero.
 - FLOAT32_3 precision plots use **PositionTruncateBitCount** (`--position-truncate`)
   directly on the x-axis. Zero disables truncation; increasing the count clears
   more low mantissa bits and reduces precision. It is not bits retained and is

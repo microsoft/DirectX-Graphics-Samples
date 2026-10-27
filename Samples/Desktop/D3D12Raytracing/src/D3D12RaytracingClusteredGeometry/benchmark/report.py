@@ -25,6 +25,18 @@ class Chart:
     x_tooltips: dict[str, str] = field(default_factory=dict)
     line_dashes: dict[str, list[int]] = field(default_factory=dict)
     point_styles: dict[str, str] = field(default_factory=dict)
+    point_radii: dict[str, float] = field(default_factory=dict)
+
+
+def format_value(value: float | None, unit: str) -> str:
+    if value is None:
+        return "Not measured"
+    if unit == "bytes":
+        for suffix in ("B", "KiB", "MiB", "GiB"):
+            if value < 1024 or suffix == "GiB":
+                return f"{value:,.2f} {suffix}" if suffix != "B" else f"{value:,.0f} B"
+            value /= 1024
+    return f"{value:,.6g} {unit}"
 
 
 def script_json(value: Any) -> str:
@@ -96,6 +108,7 @@ html[data-theme="dark"] {
   --cp-highlight: rgba(253, 142, 161, 0.12);
 }
 * { box-sizing: border-box; }
+:root { --cp-point-fill: transparent; }
 body {
   margin: 0 auto; padding: 24px; max-width: 1440px;
   background: var(--cp-bg); color: var(--cp-text);
@@ -126,6 +139,8 @@ code { font-family: Consolas, "Courier New", Courier, monospace; }
   padding: 8px 12px; text-decoration: none; font-size: 13px;
 }
 .study-index a:hover { background: var(--cp-highlight); }
+.chart-values { margin-top: 12px; }
+.chart-values summary { cursor: pointer; color: var(--cp-link); font-size: 13px; }
 """
 
 CHART_SCRIPT = """
@@ -156,8 +171,9 @@ for (const [index, spec] of reportCharts.entries()) {
       label: series.label,
       data: labels.map(x => ({x, y: values.has(x) ? values.get(x) : null})),
       borderColor: color, backgroundColor: color, borderWidth: 2,
-      pointRadius: spec.chart_type === 'line' ? 3 : 0,
+      pointRadius: spec.chart_type === 'line' ? series.point_radius : 0,
       pointStyle: series.point_style,
+      pointBackgroundColor: css('--cp-point-fill'), pointBorderWidth: 2,
       tension: 0, spanGaps: false, stack: spec.stacked ? series.stack : undefined,
       borderDash: series.line_dash ?? (series.label.includes('traditional refit') ? [2, 3] :
                   series.label.includes('traditional rebuild') ? [6, 3] : []
@@ -180,6 +196,7 @@ for (const [index, spec] of reportCharts.entries()) {
     }],
     options: {
       responsive: true, maintainAspectRatio: false,
+      interaction: {mode: 'index', intersect: false, axis: 'x'},
       scales: {
         x: {type: spec.numeric_x ? 'linear' : 'category', stacked: spec.stacked,
             title: {display: true, text: spec.x_label}},
@@ -242,7 +259,25 @@ def render_report(title: str, subtitle: str, charts: list[Chart],
         wide = " chart-wide" if len(chart.series) > 3 else ""
         body.append(f"<section class='card{wide}'><h3>{escape(chart.title)}</h3>"
                     f"<p class='desc'>{escape(chart.description)}</p>"
-                    f"<div class='plot'><canvas id='chart-{index}'></canvas></div></section>")
+                    f"<div class='plot'><canvas id='chart-{index}'></canvas></div>")
+        values = {label: dict(points) for label, points in chart.series.items()}
+        x_values = list(dict.fromkeys(x for points in chart.series.values() for x, _ in points))
+        if chart.numeric_x:
+            x_values.sort()
+        zeros = [x for x in x_values if all(series.get(x) == 0 for series in values.values())]
+        if zeros:
+            body.append("<p class='desc'>Zero in every plotted series: " +
+                        escape(", ".join(str(x) for x in zeros)) + ".</p>")
+        opened = " open" if chart.category.startswith("AS memory breakdown") else ""
+        body.append(f"<details class='chart-values'{opened}><summary>Exact values</summary>"
+                    "<div class='scroll'><table><thead><tr>"
+                    f"<th>{escape(chart.x_label)}</th>" +
+                    "".join(f"<th>{escape(label)}</th>" for label in values) +
+                    "</tr></thead><tbody>" +
+                    "".join(f"<tr><th>{escape(x)}</th>" + "".join(
+                        f"<td>{escape(format_value(series.get(x), chart.unit))}</td>"
+                        for series in values.values()) + "</tr>" for x in x_values) +
+                    "</tbody></table></div></details></section>")
     if current_category is not None:
         body.append("</div>")
     for heading, columns, rows in tables:
@@ -253,7 +288,8 @@ def render_report(title: str, subtitle: str, charts: list[Chart],
              series=[dict(label=label, points=points, color_group=c.color_groups.get(label, label),
                           stack=c.stacks.get(label, "all"),
                           line_dash=c.line_dashes.get(label),
-                          point_style=c.point_styles.get(label, "circle"))
+                          point_style=c.point_styles.get(label, "circle"),
+                          point_radius=c.point_radii.get(label, 4))
                      for label, points in c.series.items()])
         for c in charts
     ]

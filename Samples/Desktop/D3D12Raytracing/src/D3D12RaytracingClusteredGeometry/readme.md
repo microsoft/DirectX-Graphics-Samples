@@ -155,8 +155,21 @@ memory or frame time.
 
 The reusable [benchmark helpers](benchmark/README.md) run settings sweeps,
 produce offline HTML reports, and compare matched workloads across machines.
-Generated reports and measurements contain machine-specific information and
-must remain local/untracked.
+From this sample directory, Python 3.10+ is found automatically by the CMD wrappers:
+
+```powershell
+# Short settings sweep; use no --quick flag for the full matrix.
+.\benchmark\sweep.cmd --quick
+
+# Compare two or more saved result folders; no benchmark runs are repeated.
+.\benchmark\compare.cmd "C:\results\GPU-A" "C:\results\GPU-B" "C:\results\GPU-C" --out ".\benchmark\results\comparison.html"
+```
+
+Each comparison input must contain `manifest.json` and its referenced per-run JSON
+files; `report.html` alone is not enough. `--label` customizes GPU names and
+`--partial` includes unmatched configurations as gaps. Reports work offline.
+See the [benchmark README](benchmark/README.md) for regeneration, extending saved
+sweeps, all options, and measurement definitions. Generated results are Git-ignored.
 
 For a timed run that writes a JSON snapshot and exits:
 

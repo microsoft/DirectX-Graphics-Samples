@@ -33,6 +33,112 @@ AS_COMPONENTS = {
     "traditional": ("traditional_blas_actual", "animated_trad_blas",
                     "anim_clones_trad_blas_pool", "tlas"),
 }
+AS_WORK_LABEL = "AS preparation + build/update time per frame (GPU)"
+AS_WORK_SCOPE = (
+    "Sum of measured GPU stages each frame: CLAS instantiation in clustered mode or vertex "
+    "animation compute in traditional mode, animated BLAS builds/refits, TLAS rebuild, and "
+    "optional static CLAS/BLAS rebuilds. Excludes untimed clustered vertex-animation compute "
+    "and other uninstrumented work. This is not initial setup time or CPU time.")
+METRIC_LABELS = {
+    ("memory_bytes", "total_as"): "AS memory (resident allocations)",
+    ("memory_bytes", "static_clas_alloc"): "Static CLAS memory allocated",
+    ("memory_bytes", "static_clas_actual"): "Static CLAS memory used",
+    ("memory_bytes", "static_cluster_input"): "Static vertex/index input buffer size",
+    ("memory_bytes", "animated_template"): "Animated CLAS template memory allocated",
+    ("memory_bytes", "animated_pf_clas_actual"): "Instantiated animated CLAS memory used",
+    ("build_times_ms", "total"): "Initial AS setup elapsed time (GPU timestamps)",
+    ("build_times_ms", "static_clas"): "Initial static CLAS build time (GPU timestamps)",
+    ("build_times_ms", "static_blas"): "Initial static BLAS build time (GPU timestamps)",
+    ("frame_perf", "pf_instantiate_us"): "CLAS instantiation time per frame (GPU)",
+    ("derived", "timed_as_us"): AS_WORK_LABEL,
+    ("frame_perf", "pf_blas_us"): "Animated BLAS build/refit time per frame (GPU)",
+    ("frame_perf", "pf_tlas_us"): "TLAS rebuild time per frame (GPU)",
+    ("frame_perf", "pf_render_us"): "Raytracing render time per frame (GPU)",
+    ("frame_perf", "ms_per_frame"): "Frame time (elapsed per frame)",
+    ("frame_perf", "fps"): "Frame rate",
+    ("scene", "instanced_triangles"): "Scene triangles (all instances)",
+    ("scene", "mesh_input_triangles"): "Input mesh triangles (animated source counted once)",
+    ("scene", "total_clusters"): "Static mesh cluster count",
+}
+METRIC_SCOPES = {
+    ("derived", "timed_as_us"): AS_WORK_SCOPE,
+    ("frame_perf", "pf_instantiate_us"):
+        "GPU time for INSTANTIATE_CLUSTER_TEMPLATES each frame; excludes the vertex-animation "
+        "compute pass that precedes instantiation.",
+    ("frame_perf", "pf_render_us"):
+        "GPU time inside DispatchRays only. Excludes acceleration-structure work, output copy, "
+        "overlay, CPU work, and presentation waits.",
+    ("frame_perf", "ms_per_frame"):
+        "Elapsed time between consecutive completed GPU frames, including queue idle time "
+        "from CPU or presentation throttling. Not a CPU-time or GPU-busy-time measurement.",
+    ("build_times_ms", "total"):
+        "Elapsed GPU-timestamp interval from the first static-AS build timestamp through the "
+        "initial TLAS build. Includes animated setup/first builds and intervening queue idle "
+        "or synchronization gaps; not just the static CLAS+BLAS+TLAS durations, and not total "
+        "application startup time.",
+    ("build_times_ms", "static_clas"):
+        "GPU-timestamp interval around the initial static CLAS build path, including any "
+        "intervening sizing/compaction waits. A startup measurement, not a per-frame cost.",
+    ("build_times_ms", "static_blas"):
+        "GPU-timestamp interval around the initial static BLAS build path, including any "
+        "intervening sizing/compaction waits. A startup measurement, not a per-frame cost.",
+    ("memory_bytes", "total_as"):
+        "Resident acceleration-structure allocation sizes, including templates and every "
+        "independent animated BLAS. Excludes scratch, vertex/index inputs, and other VRAM use.",
+    ("memory_bytes", "static_clas_actual"):
+        "Reported static CLAS payload bytes, not reserved capacity. Does not include template "
+        "or animated CLAS memory.",
+    ("memory_bytes", "animated_pf_clas_actual"):
+        "Reported payload bytes used by instantiated animated CLAS, not its reserved capacity. "
+        "Source vertices are shared by animated copies; their BLASes remain separate.",
+    ("memory_bytes", "animated_template"):
+        "Resident allocation for prebuilt animated CLAS templates, not per-frame build time.",
+    ("memory_bytes", "static_cluster_input"):
+        "Static source positions/indices, including packing and alignment. Build input data, "
+        "not acceleration-structure memory.",
+}
+AS_COMPONENT_LABELS = {
+    "static_clas_alloc": "Static CLAS",
+    "static_blas_total": "Static cluster BLASes",
+    "animated_template": "Animated CLAS templates",
+    "animated_pf_clas_alloc": "Animated CLAS (instantiated)",
+    "animated_blas": "Animated source BLAS",
+    "anim_clones_blas_pool": "Animated copy BLASes",
+    "traditional_blas_actual": "Static triangle BLASes",
+    "animated_trad_blas": "Animated source BLAS",
+    "anim_clones_trad_blas_pool": "Animated copy BLASes",
+    "tlas": "TLAS",
+}
+SETTING_LABELS = {
+    "geometry_mode": "Geometry path", "vertex_format": "Position format",
+    "clas_alloc": "CLAS allocation strategy", "trad_alloc": "Traditional BLAS allocation strategy",
+    "trad_anim_mode": "Traditional animated-BLAS update", "static_rebuild": "Static AS rebuild per frame",
+    "build_flags": "BVH build preference", "extra_instances": "Extra objects (1 BLAS each)",
+    "position_truncate_bits": "PositionTruncateBitCount (bits removed)",
+    "compressed_bits": "COMPRESSED1 offset bits per component",
+    "rays_per_pixel": "Primary rays per pixel", "animated_detail": "Animated mesh detail",
+}
+SETTING_VALUES = {
+    "geometry_mode": {"clusters": "Clustered", "traditional": "Traditional"},
+    "vertex_format": {"float": "FLOAT32_3", "compressed": "COMPRESSED1"},
+    "clas_alloc": {"implicit": "Implicit allocation", "get-sizes": "Pre-size (GetSizes)",
+                   "compact": "Post-build compaction"},
+    "trad_alloc": {"implicit": "Implicit allocation", "compact": "Post-build compaction"},
+    "trad_anim_mode": {"rebuild": "Rebuild", "refit": "Refit"},
+    "static_rebuild": {"none": "Off", "blas": "BLAS only", "clas-blas": "CLAS + BLAS"},
+    "build_flags": {"none": "No preference", "fast-build": "Fast build", "fast-trace": "Fast trace"},
+    "animated_detail": {"full": "Full detail", "low": "Low VRAM detail"},
+}
+
+
+def setting_value(field: str, value: Any) -> Any:
+    return SETTING_VALUES.get(field, {}).get(value, value)
+
+
+def metric_unit(path: tuple[str, str], unit: str) -> str:
+    return unit + "/frame" if unit in ("ms", "us") and path[0] in ("frame_perf", "derived") else unit
+
+
 FORMAT_METRICS = [
     ("Resident AS", "bytes", ("memory_bytes", "total_as")),
     ("Static CLAS payload", "bytes", ("memory_bytes", "static_clas_actual")),
@@ -40,7 +146,7 @@ FORMAT_METRICS = [
     ("Animated template", "bytes", ("memory_bytes", "animated_template")),
     ("Instantiated CLAS payload", "bytes", ("memory_bytes", "animated_pf_clas_actual")),
     ("Instantiate", "us", ("frame_perf", "pf_instantiate_us")),
-    ("Timed AS", "us", ("derived", "timed_as_us")),
+    (AS_WORK_LABEL, "us", ("derived", "timed_as_us")),
     ("DispatchRays", "us", ("frame_perf", "pf_render_us")),
     ("Frame interval", "ms", ("frame_perf", "ms_per_frame")),
     ("Frame rate", "FPS", ("frame_perf", "fps")),
@@ -230,8 +336,10 @@ def build_sweep_matrix(quick: bool, include_10k_trad: bool,
                                     trad_anim_mode=strategy))
     runs += [replace(base, vertex_format="compressed")]
     runs += [replace(base, clas_alloc=value) for value in ("implicit", "get-sizes")]
-    runs += [replace(base, geometry_mode=mode, build_flags=value)
-             for mode in ("clusters", "traditional") for value in ("none", "fast-build")]
+    runs += [replace(base, geometry_mode=mode, trad_anim_mode=strategy, build_flags=value)
+             for mode, strategy in (("clusters", "rebuild"), ("traditional", "rebuild"),
+                                    ("traditional", "refit"))
+             for value in ("none", "fast-build")]
     runs += [replace(base, geometry_mode="traditional", trad_alloc="implicit")]
     runs += [replace(base, rays_per_pixel=value) for value in (1, 2, 4)]
     alternate_detail = "low" if base.animated_detail == "full" else "full"
@@ -470,13 +578,19 @@ def build_charts(runs: list[RunResult], base: RunConfig = RunConfig()) -> list[C
 
     def axis(title: str, category: str, description: str, x_field: str,
              unit: str, path: tuple[str, str],
-             references: dict[str, RunConfig], numeric_x: bool = False) -> None:
-        x_label = ("PositionTruncateBitCount"
-                   if x_field == "position_truncate_bits" else x_field.replace("_", " "))
-        chart = Chart(title, category, description, x_label, unit,
-                      numeric_x=numeric_x)
+             references: dict[str, RunConfig], numeric_x: bool = False,
+             minimum_values: int = 1) -> None:
+        title = METRIC_LABELS.get(path, title)
+        if x_field == "position_truncate_bits":
+            title += " vs PositionTruncateBitCount"
+        scope = METRIC_SCOPES.get(path, "")
+        chart = Chart(title, category, (scope + " " + description).strip(),
+                      SETTING_LABELS[x_field], metric_unit(path, unit),
+                      numeric_x=numeric_x, chart_type="line" if x_field in {
+                          "extra_instances", "position_truncate_bits", "compressed_bits",
+                          "rays_per_pixel"} else "bar")
         def x_value(run: RunResult) -> Any:
-            return getattr(run.config, x_field)
+            return setting_value(x_field, getattr(run.config, x_field))
         category_order = {
             "vertex_format": ("float", "compressed"),
             "clas_alloc": ("implicit", "get-sizes", "compact"),
@@ -487,9 +601,9 @@ def build_charts(runs: list[RunResult], base: RunConfig = RunConfig()) -> list[C
         }.get(x_field)
         for label, reference in references.items():
             selected = [r for r in runs if matches(r, reference, {x_field})]
-            selected.sort(key=lambda r: category_order.index(x_value(r))
-                          if category_order else x_value(r))
-            if selected:
+            selected.sort(key=lambda r: category_order.index(getattr(r.config, x_field))
+                          if category_order else getattr(r.config, x_field))
+            if sum(metric(run, path) is not None for run in selected) >= minimum_values:
                 chart.series[label] = [(x_value(r), metric(r, path)) for r in selected]
                 if x_field == "position_truncate_bits":
                     for run in selected:
@@ -509,13 +623,13 @@ def build_charts(runs: list[RunResult], base: RunConfig = RunConfig()) -> list[C
         ("Resident AS storage", "bytes", ("memory_bytes", "total_as"),
          "Resident BVH allocations, including templates and all independent BLASes; excludes scratch and inputs."),
         ("Static AS setup", "ms", ("build_times_ms", "total"),
-         "GPU-timestamp static setup time, not CPU initialization or total process startup."),
+         "Initial setup, recorded once before the benchmark's per-frame measurements."),
         ("Frame rate", "FPS", ("frame_perf", "fps"),
          "Completed-frame cadence from the same rolling sample window as every GPU stage."),
         ("Frame interval", "ms", ("frame_perf", "ms_per_frame"),
          "Includes GPU work and queue idle time; not just DispatchRays or GPU busy time."),
-        ("Timed AS stages", "us", ("derived", "timed_as_us"),
-         "Sum of the instrumented AS stages. Clustered deformation compute is not timed by the instantiate pair."),
+        (AS_WORK_LABEL, "us", ("derived", "timed_as_us"),
+         "The measured preparation/build/update stages are listed here; the sum is not a full GPU-frame time."),
         ("Animated BLAS build/update", "us", ("frame_perf", "pf_blas_us"),
          "Separate BLAS for every animated copy. Refit preserves topology; rebuild and clustered builds do not."),
         ("TLAS rebuild", "us", ("frame_perf", "pf_tlas_us"),
@@ -533,16 +647,18 @@ def build_charts(runs: list[RunResult], base: RunConfig = RunConfig()) -> list[C
         axis(title, "Scene scaling", description, "extra_instances", unit, path, modes)
 
     for label, reference in modes.items():
-        chart = Chart(f"Frame interval breakdown: {label}", "Frame budget",
-                      "Same-window timed AS + DispatchRays + residual equals the frame interval. "
-                      "The residual is uninstrumented work and queue idle, not a CPU-time measurement.",
-                      "extra BLASes", "us", chart_type="bar", stacked=True)
+        chart = Chart(f"Frame time breakdown: {label}", "Frame time breakdown",
+                      "AS preparation/build/update + raytracing render + other work/waits "
+                      "sum to elapsed time per frame, from the same averaged frames. "
+                      "Other work/waits is calculated by subtraction, not measured CPU time. "
+                      + AS_WORK_SCOPE,
+                      SETTING_LABELS["extra_instances"], "us/frame", chart_type="bar", stacked=True)
         selected = sorted((r for r in runs if matches(r, reference, {"extra_instances"})),
                           key=lambda r: r.config.extra_instances)
         for name, path in (
-                ("Timed AS", ("derived", "timed_as_us")),
-                ("DispatchRays", ("frame_perf", "pf_render_us")),
-                ("Other work / queue idle", ("derived", "unattributed_us"))):
+                ("AS preparation + build/update", ("derived", "timed_as_us")),
+                ("Raytracing render (DispatchRays)", ("frame_perf", "pf_render_us")),
+                ("Other GPU work + waits (remainder)", ("derived", "unattributed_us"))):
             chart.series[name] = [(r.config.extra_instances, metric(r, path)) for r in selected]
         if any(value is not None for points in chart.series.values() for _, value in points):
             charts.append(chart)
@@ -555,7 +671,7 @@ def build_charts(runs: list[RunResult], base: RunConfig = RunConfig()) -> list[C
         ("Build preference", "build_flags", modes,
          [("Resident AS", "bytes", ("memory_bytes", "total_as")),
           ("GPU static BLAS setup", "ms", ("build_times_ms", "static_blas")),
-          ("Timed AS", "us", ("derived", "timed_as_us")),
+          (AS_WORK_LABEL, "us", ("derived", "timed_as_us")),
           ("DispatchRays", "us", ("frame_perf", "pf_render_us")),
           ("Frame rate", "FPS", ("frame_perf", "fps"))]),
         ("Traditional allocation", "trad_alloc", {"traditional": modes["traditional rebuild"]},
@@ -571,7 +687,7 @@ def build_charts(runs: list[RunResult], base: RunConfig = RunConfig()) -> list[C
           ("Instanced triangles", "triangles", ("scene", "instanced_triangles")),
           ("Frame rate", "FPS", ("frame_perf", "fps"))]),
         ("Static rebuild", "static_rebuild", {"clustered": replace(base, clas_alloc="implicit")},
-         [("Timed AS", "us", ("derived", "timed_as_us")),
+         [(AS_WORK_LABEL, "us", ("derived", "timed_as_us")),
           ("Frame interval", "ms", ("frame_perf", "ms_per_frame"))]),
         ("FLOAT32_3 precision", "position_truncate_bits", {"clustered": base},
          [("Static CLAS payload", "bytes", ("memory_bytes", "static_clas_actual")),
@@ -591,16 +707,19 @@ def build_charts(runs: list[RunResult], base: RunConfig = RunConfig()) -> list[C
     ]
     by_config = {run.config: run for run in runs}
     for title, unit, path in FORMAT_METRICS:
-        chart = Chart(f"COMPRESSED1 vs FLOAT32_3: {title}", "COMPRESSED1 vs FLOAT32_3 precision",
+        chart = Chart(f"COMPRESSED1 vs FLOAT32_3: {METRIC_LABELS[path]}",
+                      "COMPRESSED1 vs FLOAT32_3 precision",
+                      METRIC_SCOPES.get(path, "") + " "
                       "Overlaid curves across aligned nominal precision bits. FLOAT32_3 uses "
                       "24-PositionTruncateBitCount significant bits for normal values "
                       "(23-N explicit fraction bits plus the implicit leading 1). COMPRESSED1 "
                       "uses offset bits/component with a cluster-local anchor and scale. "
                       "This is an approximate bit-count alignment, not an equal-error comparison. "
                       "Hover a point for the actual controls. Missing runs are gaps; use --extend.",
-                      "Nominal precision bits (not matched error)", unit, numeric_x=True)
-        chart.series = {"FLOAT32_3 (normal significand)": [],
-                        "COMPRESSED1 (cluster offset)": []}
+                      "Precision bits (approximate alignment, not equal error)",
+                      metric_unit(path, unit), numeric_x=True)
+        chart.series = {"FLOAT32_3 (bits retained, including leading 1)": [],
+                        "COMPRESSED1 (offset bits/component)": []}
         for bits in NOMINAL_PRECISION_BITS:
             configs = precision_pair_configs(base, bits)
             for label, cfg in zip(chart.series, configs):
@@ -611,18 +730,31 @@ def build_charts(runs: list[RunResult], base: RunConfig = RunConfig()) -> list[C
                 f"FLOAT32_3 PositionTruncateBitCount={24 - bits}\n"
                 f"{bits - 1} explicit mantissa bits + implicit leading 1 (normal)\n"
                 f"COMPRESSED1 {bits} offset bits/component")
-        if any(value is not None for points in chart.series.values() for _, value in points):
+        if all(sum(value is not None for _, value in points) >= 2
+               for points in chart.series.values()):
             charts.append(chart)
     for category, field_name, references, metrics in studies:
         if len({getattr(r.config, field_name) for r in runs
                 if any(matches(r, ref, {field_name}) for ref in references.values())}) < 2:
             continue
         for title, unit, path in metrics:
-            description = ("Only the named setting varies; other settings are pinned to the benchmark "
-                           "baseline. Precision changes can alter geometry, so faster is not proof "
-                           "of equal visual quality.")
+            description = {
+                "clas_alloc": "Only the CLAS allocation strategy changes; source geometry, detail, "
+                              "and ray settings stay fixed.",
+                "trad_alloc": "Only traditional BLAS allocation changes; source geometry, detail, "
+                              "and ray settings stay fixed.",
+                "build_flags": "Compare No preference, Fast build, and Fast trace BVH preferences. "
+                               "These change AS construction, not source geometry or ray settings.",
+                "rays_per_pixel": "Number of primary rays per pixel. Shadow/reflection/refraction "
+                                  "rays are additional. Geometry and AS settings stay fixed.",
+                "animated_detail": "Full detail versus the explicit Low VRAM animated mesh. "
+                                   "This intentionally changes triangle counts, not object/BLAS counts.",
+                "static_rebuild": "Choose which static AS stages rebuild every frame. This is "
+                                  "separate from initial AS setup; CLAS rebuilding uses implicit allocation.",
+                "compressed_bits": "COMPRESSED1 offset bits per coordinate component. Lower values "
+                                   "reduce precision and can change geometry and image quality.",
+            }.get(field_name, "")
             if field_name == "position_truncate_bits":
-                title = f"{title} vs PositionTruncateBitCount"
                 description = (
                     "FLOAT32_3 uses PositionTruncateBitCount, set by --position-truncate. "
                     "The x value is the number of low position-mantissa bits cleared: 0 disables "
@@ -633,16 +765,19 @@ def build_charts(runs: list[RunResult], base: RunConfig = RunConfig()) -> list[C
                     "Geometry and image quality may change.")
             axis(title, category, description,
                  field_name, unit, path, references,
-                 numeric_x=field_name in {"position_truncate_bits", "compressed_bits", "rays_per_pixel"})
-    storage = Chart("Resident allocation components", "Resident storage",
+                 numeric_x=field_name in {"position_truncate_bits", "compressed_bits", "rays_per_pixel"},
+                 minimum_values=2)
+    storage = Chart("AS memory by buffer (resident allocations)", "AS memory breakdown",
                     "All bars are allocated resident BVH storage, not payload estimates. "
-                    "Components sum exactly to total_as; scratch and source inputs are excluded.",
-                    "allocation", "bytes", chart_type="bar")
+                    "Components sum to total resident AS memory; scratch and source inputs are excluded. "
+                    f"Baseline: {base.extra_instances:,} extra objects. Zero or very small buffers "
+                    "are listed explicitly in the exact-values table.",
+                    "AS buffer", "bytes", chart_type="bar")
     for label, reference in modes.items():
         matching = [r for r in runs if r.config == reference]
         if matching:
             run = matching[0]
-            storage.series[label] = [(key, metric(run, ("memory_bytes", key)))
+            storage.series[label] = [(AS_COMPONENT_LABELS[key], metric(run, ("memory_bytes", key)))
                                      for key in AS_COMPONENTS[reference.geometry_mode]]
     if any(value is not None for points in storage.series.values() for _, value in points):
         charts.append(storage)
@@ -660,23 +795,38 @@ def format_metric(value: float | None, unit: str = "") -> str:
 def report_tables(runs: list[RunResult], manifest: dict) -> list[tuple[str, list[str], list[list]]]:
     successful = [r for r in runs if r.status == "ok"]
     adapter = successful[0].data["adapter"] if successful else {}
-    facts = [[key, value] for key, value in adapter.items()]
+    adapter_labels = {
+        "description": "GPU adapter", "driver_version": "Driver version",
+        "vendor_id": "PCI vendor ID", "device_id": "PCI device ID",
+        "dedicated_vram_bytes": "Dedicated GPU memory", "clusters_supported": "Clustered geometry supported",
+    }
+    facts = []
+    for key, value in adapter.items():
+        if key == "dedicated_vram_bytes":
+            value = format_metric(value, "bytes")
+        elif key in ("vendor_id", "device_id"):
+            value = f"0x{value:04X}"
+        elif isinstance(value, bool):
+            value = "Yes" if value else "No"
+        facts.append([adapter_labels.get(key, key.replace("_", " ")), value])
     if successful:
-        facts += [["Tearing supported", successful[0].data["config"].get("tearing_supported", "unknown")]]
+        tearing = successful[0].data["config"].get("tearing_supported")
+        facts += [["Tearing supported", "Yes" if tearing else "No" if tearing is False else "Not recorded"]]
     facts += [["Executable", manifest.get("executable", "unknown")],
               ["Executable + runtime SHA-256", manifest.get("payload_sha256", "unknown")],
-              ["Generated UTC", manifest.get("created_utc", "unknown")],
-              ["Local start time", manifest.get("created_local", "not recorded")],
-              ["Benchmark baseline", json.dumps(manifest.get("base_config", {}), sort_keys=True)]]
+              ["Sweep start time (UTC)", manifest.get("created_utc", "unknown")],
+              ["Sweep start time (local)", manifest.get("created_local", "not recorded")]]
     rows = []
     for run in runs:
         perf = run.data.get("frame_perf", {}) if run.status == "ok" else {}
-        rows.append([run.config.slug(), run.status, run.config.geometry_mode,
-                     run.config.trad_anim_mode, run.config.vertex_format,
+        rows.append([run.config.slug(), run.status, setting_value("geometry_mode", run.config.geometry_mode),
+                     setting_value("trad_anim_mode", run.config.trad_anim_mode)
+                     if run.config.geometry_mode == "traditional" else "Not applicable",
+                     setting_value("vertex_format", run.config.vertex_format),
                      run.config.position_truncate_bits if run.config.vertex_format == "float" else "-",
                      23 - run.config.position_truncate_bits if run.config.vertex_format == "float" else "-",
                      run.config.compressed_bits if run.config.vertex_format == "compressed" else "-",
-                     run.config.extra_instances, run.config.animated_detail,
+                     run.config.extra_instances, setting_value("animated_detail", run.config.animated_detail),
                      run.config.rays_per_pixel,
                      format_metric(metric(run, ("frame_perf", "fps"))),
                      format_metric(metric(run, ("frame_perf", "ms_per_frame")), "ms"),
@@ -704,7 +854,8 @@ def report_tables(runs: list[RunResult], manifest: dict) -> list[tuple[str, list
         delta = ("not measured" if any(value is None for value in values) else
                  f"{(values[1] / values[0] - 1) * 100:+.2f}%" if values[0] > 0 else
                  "n/a (FLOAT32_3 reference is zero)")
-        comparison_rows.append([title, *(format_metric(value, unit) for value in values), delta])
+        comparison_rows.append([METRIC_LABELS[path], *(format_metric(value, metric_unit(path, unit))
+                                                       for value in values), delta])
     by_config = {run.config: run for run in runs}
     precision_rows = []
     for bits in NOMINAL_PRECISION_BITS:
@@ -714,22 +865,37 @@ def report_tables(runs: list[RunResult], manifest: dict) -> list[tuple[str, list
         precision_rows.append([bits, 24 - bits, bits - 1, bits, *states])
     return [
         ("Run provenance", ["Property", "Value"], facts),
+        ("Baseline settings", ["Setting", "Value"],
+         [[SETTING_LABELS[key], setting_value(key, value)] for key, value in asdict(base).items()]),
         ("Precision alignment and coverage (nominal bits, not equal error)",
          ["Nominal bits", "FLOAT32_3 PositionTruncateBitCount", "FLOAT32_3 explicit mantissa bits",
           "COMPRESSED1 offset bits/component", "FLOAT32_3 run", "COMPRESSED1 run"],
          precision_rows),
         ("Direct format comparison (matched benchmark baseline)",
          ["Metric", *labels, "COMPRESSED1 change vs FLOAT32_3"], comparison_rows),
-        ("All requested cases", ["JSON id", "Status", "Geometry", "Trad animation", "Vertex",
+        ("All requested cases", ["Configuration ID", "Status", "Geometry path", "Animated BLAS update",
+                                "Position format",
                                 "PositionTruncateBitCount", "FLOAT32_3 mantissa bits kept",
                                 "COMPRESSED1 offset bits/component",
-                                "Extra BLASes", "Detail", "Rays/pixel", "FPS", "Frame interval",
-                                "Resident AS", "Samples", "Window seconds", "Frame range",
-                                "Process wall seconds", "Error / skip reason"], rows),
+                                "Extra objects (1 BLAS each)", "Animated mesh detail",
+                                "Primary rays/pixel", "Frame rate (FPS)", "Frame time (ms/frame)",
+                                "AS memory (resident allocations)", "Frames in average",
+                                "Averaged duration (s)", "Averaged frame IDs",
+                                "Total run time incl. retries (s)", "Error / skip reason"], rows),
     ]
 
 
 REPORT_NOTES = [
+    "AS = acceleration structure; BLAS = bottom-level AS; TLAS = top-level AS; "
+    "CLAS = cluster-level AS. Time charts distinguish one-time initial setup from GPU work per frame.",
+    AS_WORK_SCOPE,
+    METRIC_SCOPES[("build_times_ms", "total")],
+    "Memory allocated means resident buffer capacity. Memory used means the driver's reported "
+    "AS payload size; it can be smaller than allocated capacity. Vertex/index inputs and scratch "
+    "are separate from AS memory. Exact-value tables distinguish a true zero from Not measured.",
+    "Discrete settings use grouped bars. For overlaid curves, hover anywhere at an x position "
+    "to see all series' values, including coincident points. Legend entries toggle visibility. "
+    "A one-setting result is not shown as a multi-setting study.",
     "All frame costs and FPS use the same settled, roughly one-second rolling window. "
     "They are not an average over the entire benchmark process lifetime.",
     "The benchmark baseline explicitly has zero extra copies; the interactive sample defaults to 100. "

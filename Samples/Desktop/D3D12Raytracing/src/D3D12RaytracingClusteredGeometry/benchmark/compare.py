@@ -10,8 +10,9 @@ import re
 import sys
 
 from report import Chart, render_report
-from sweep import (REPORT_NOTES, RunConfig, RunResult, build_charts, format_metric,
-                   load_results, metric, report_tables)
+from sweep import (REPORT_NOTES, AS_WORK_LABEL, METRIC_LABELS, SETTING_LABELS,
+                   RunConfig, RunResult, build_charts, format_metric,
+                   load_results, metric, report_tables, setting_value, metric_unit)
 
 
 @dataclass
@@ -52,8 +53,8 @@ def comparison_charts(machines: list[MachineReport], partial: bool = False) -> t
             raise ValueError(f"{cfg.slug()}: geometry, camera, or timing semantics differ")
     base = RunConfig(**machines[0].manifest["base_config"])
     merged: dict[tuple, Chart] = {}
-    split_categories = {"Scene scaling", "Build preference", "Animated detail", "Resident storage"}
-    for machine in machines:
+    split_categories = {"Scene scaling", "Build preference", "Animated detail", "AS memory breakdown"}
+    for machine_index, machine in enumerate(machines):
         available = [r for r in machine.runs if r.config in selected]
         for chart in build_charts(available, base):
             for label, points in chart.series.items():
@@ -72,12 +73,16 @@ def comparison_charts(machines: list[MachineReport], partial: bool = False) -> t
                 target.series[name] = points
                 target.color_groups[name] = label if chart.stacked else machine.label
                 target.stacks[name] = machine.label
+                target.point_radii[name] = max(3, 7 - (machine_index % 3) * 2)
                 if label.startswith("COMPRESSED1"):
                     target.line_dashes[name] = [6, 3]
                     target.point_styles[name] = "triangle"
                 elif label.startswith("FLOAT32_3"):
                     target.line_dashes[name] = []
                     target.point_styles[name] = "circle"
+                else:
+                    target.line_dashes[name] = ([], [8, 3], [2, 3])[machine_index % 3]
+                    target.point_styles[name] = ("circle", "rectRot", "triangle")[machine_index % 3]
     # Keep faceted categories contiguous when series are added machine by machine.
     categories = list(dict.fromkeys(chart.category for chart in merged.values()))
     charts = sorted(merged.values(), key=lambda chart: categories.index(chart.category))
@@ -89,15 +94,15 @@ def ratio_charts(machines: list[MachineReport], selected: set[RunConfig]) -> lis
     base = RunConfig(**machines[0].manifest["base_config"])
     for strategy in ("rebuild", "refit"):
         for title, path, numerator_cluster in (
-                ("Clustered / traditional frame rate", ("frame_perf", "fps"), True),
-                ("Traditional / clustered resident AS", ("memory_bytes", "total_as"), False)):
-            chart = Chart(f"{title} ({strategy})", "Within-GPU comparison",
+                ("Frame-rate ratio: clustered / traditional", ("frame_perf", "fps"), True),
+                ("AS memory ratio: traditional / clustered", ("memory_bytes", "total_as"), False)):
+            chart = Chart(f"{title} ({strategy})", "Within-GPU ratios",
                           "Ratio of matched settings on the same GPU. Above 1 favors clustered. "
                           "Frame-rate ratios include rendering and all frame work; resident AS "
                           "excludes scratch and inputs. These are single-run observations, "
                           "not image-quality equivalence or confidence intervals.",
-                          "extra BLASes", "x")
-            for machine in machines:
+                          SETTING_LABELS["extra_instances"], "x")
+            for machine_index, machine in enumerate(machines):
                 by_config = {run.config: run for run in machine.runs if run.status == "ok"}
                 points = []
                 for count in (0, 100, 1000, 10000):
@@ -115,6 +120,9 @@ def ratio_charts(machines: list[MachineReport], selected: set[RunConfig]) -> lis
                 if points:
                     chart.series[machine.label] = points
                     chart.color_groups[machine.label] = machine.label
+                    chart.line_dashes[machine.label] = ([], [8, 3], [2, 3])[machine_index % 3]
+                    chart.point_styles[machine.label] = ("circle", "rectRot", "triangle")[machine_index % 3]
+                    chart.point_radii[machine.label] = max(3, 7 - (machine_index % 3) * 2)
             if any(value is not None for points in chart.series.values() for _, value in points):
                 charts.append(chart)
     return charts
@@ -155,7 +163,9 @@ def comparison_warnings(machines: list[MachineReport]) -> list[str]:
         "VISUALS: non-stacked chart colors identify GPUs; frame-budget stack colors identify "
         "stages. Separate charts identify geometry mode. Precision "
         "overlays use solid circles for FLOAT32_3 and dashed triangles for COMPRESSED1. "
-        "Ratios are computed within each GPU, not by mixing measurements from different machines.",
+        "Hover at any x value to read every GPU's value, even when curves overlap; click legend "
+        "entries to hide/show series. Discrete settings use grouped bars. Ratios are computed "
+        "within each GPU, not by mixing measurements from different machines.",
     ]
     return warnings
 
@@ -170,8 +180,8 @@ def summary_table(machines: list[MachineReport]) -> tuple:
                      len(valid), len(machine.runs), min(counts),
                      machine.manifest.get("payload_sha256", "not recorded")])
     return ("Input coverage and build identity",
-            ["Legend label", "Adapter", "Driver", "Valid cases", "Requested cases",
-             "Minimum samples/window", "Executable/runtime SHA-256"], rows)
+            ["GPU label", "Adapter", "Driver version", "Valid configurations",
+             "Requested configurations", "Fewest frames averaged", "Executable/runtime SHA-256"], rows)
 
 
 def largest_workload_tables(machines: list[MachineReport]) -> list[tuple]:
@@ -202,27 +212,29 @@ def largest_workload_tables(machines: list[MachineReport]) -> list[tuple]:
                                       for run in case)])
         memory_rows.append([machine.label, *(format_metric(value, "bytes") for value in memory),
                             f"{memory[1] / memory[0]:.2f}x",
-                            case[0].config.animated_detail,
+                            setting_value("animated_detail", case[0].config.animated_detail),
                             case[0].data["scene"]["instanced_triangles"]])
     return [
         (f"Largest shared workload: {count:,} extra BLASes (single-run frame rate)",
-         ["GPU", "Clustered", "Trad rebuild", "Trad refit",
-          "Cluster / rebuild", "Cluster / refit", "Window samples (cluster / rebuild / refit)"],
+         ["GPU", "Clustered FPS", "Traditional rebuild FPS", "Traditional refit FPS",
+          "FPS ratio: clustered / rebuild", "FPS ratio: clustered / refit",
+          "Frames averaged (clustered / rebuild / refit)"],
          frame_rows),
         (f"Largest shared workload: {count:,} extra BLASes (resident AS, not total VRAM)",
-         ["GPU", "Clustered", "Trad rebuild", "Trad refit", "Rebuild / clustered storage",
-          "Animated detail", "Instanced triangles"], memory_rows),
+         ["GPU", "Clustered AS memory", "Traditional rebuild AS memory", "Traditional refit AS memory",
+          "AS memory ratio: rebuild / clustered", "Animated mesh detail",
+          "Scene triangles (all instances)"], memory_rows),
     ]
 
 
 def headline_table(machines: list[MachineReport], base: RunConfig) -> tuple:
     rows = []
     for title, path, unit, higher_better in (
-            ("Baseline frame rate", ("frame_perf", "fps"), "FPS", True),
-            ("Baseline frame interval", ("frame_perf", "ms_per_frame"), "ms", False),
-            ("Baseline resident AS", ("memory_bytes", "total_as"), "bytes", False),
-            ("Baseline DispatchRays", ("frame_perf", "pf_render_us"), "us", False),
-            ("Baseline timed AS", ("derived", "timed_as_us"), "us", False)):
+            (METRIC_LABELS[("frame_perf", "fps")], ("frame_perf", "fps"), "FPS", True),
+            (METRIC_LABELS[("frame_perf", "ms_per_frame")], ("frame_perf", "ms_per_frame"), "ms", False),
+            (METRIC_LABELS[("memory_bytes", "total_as")], ("memory_bytes", "total_as"), "bytes", False),
+            (METRIC_LABELS[("frame_perf", "pf_render_us")], ("frame_perf", "pf_render_us"), "us", False),
+            (AS_WORK_LABEL, ("derived", "timed_as_us"), "us", False)):
         values = []
         for machine in machines:
             match = next((r for r in machine.runs if r.config == base and r.status == "ok"), None)
@@ -231,13 +243,13 @@ def headline_table(machines: list[MachineReport], base: RunConfig) -> tuple:
         reference = values[0]
         cells = []
         for index, value in enumerate(values):
-            text = format_metric(value, unit)
+            text = format_metric(value, metric_unit(path, unit))
             if index and value is not None and reference is not None and reference > 0:
                 text += f" ({(value / reference - 1) * 100:+.2f}% vs first)"
             cells.append(text)
         rows.append([title + (" (higher is better)" if higher_better else " (lower is better)"),
                      *cells])
-    return ("Baseline measurements; percentage change, not an automatic winner",
+    return ("Baseline comparison (percentage change uses the first GPU as reference)",
             ["Metric", *[m.label for m in machines]], rows)
 
 

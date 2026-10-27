@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, replace
 from html.parser import HTMLParser
+import json
 import os
 from pathlib import Path
 import subprocess
@@ -18,6 +19,12 @@ import sweep
 from sweep import (AS_COMPONENTS, STAGES, RunConfig, RunResult, TimingNotReady,
                    UnsupportedConfig, build_charts, build_sweep_matrix, load_results,
                    metric, run_one, validate_snapshot, write_json)
+
+AS_MEMORY = sweep.METRIC_LABELS[("memory_bytes", "total_as")]
+FORMAT_MEMORY_TITLE = f"COMPRESSED1 vs FLOAT32_3: {AS_MEMORY}"
+FORMAT_RENDER_TITLE = f"COMPRESSED1 vs FLOAT32_3: {sweep.METRIC_LABELS[('frame_perf', 'pf_render_us')]}"
+FLOAT_SERIES = "FLOAT32_3 (bits retained, including leading 1)"
+COMPRESSED_SERIES = "COMPRESSED1 (offset bits/component)"
 
 
 def snapshot(cfg: RunConfig = RunConfig()) -> dict:
@@ -163,12 +170,12 @@ class Measurements(unittest.TestCase):
         failed.data["_error"] = "synthetic failure"
         failed.data["_sweep"]["status"] = "failed"
         charts = build_charts([good, failed])
-        scaling = next(c for c in charts if c.title == "Resident AS storage")
+        scaling = next(c for c in charts if c.title == AS_MEMORY)
         self.assertEqual(scaling.series["clustered"][-1], (100, None))
-        storage = next(c for c in charts if c.title == "Resident allocation components")
+        storage = next(c for c in charts if c.title == "AS memory by buffer (resident allocations)")
         self.assertEqual(sum(v for _, v in storage.series["clustered"]),
                          good.data["memory_bytes"]["total_as"])
-        budget = next(c for c in charts if c.title == "Frame interval breakdown: clustered")
+        budget = next(c for c in charts if c.title == "Frame time breakdown: clustered")
         self.assertEqual(sum(points[0][1] for points in budget.series.values()), 10000)
         self.assertIsNone(metric(failed, ("frame_perf", "fps")))
 
@@ -176,7 +183,7 @@ class Measurements(unittest.TestCase):
         runs = [result(replace(RunConfig(), position_truncate_bits=n)) for n in (0, 12, 20)]
         chart = next(c for c in build_charts(runs)
                      if c.category == "FLOAT32_3 precision")
-        self.assertEqual(chart.x_label, "PositionTruncateBitCount")
+        self.assertEqual(chart.x_label, "PositionTruncateBitCount (bits removed)")
         self.assertEqual([x for x, _ in chart.series["clustered"]], [0, 12, 20])
         self.assertIn("PositionTruncateBitCount", chart.title)
         self.assertIn("larger values reduce precision", chart.description)
@@ -191,12 +198,13 @@ class Measurements(unittest.TestCase):
         unrelated = result(replace(base, vertex_format="compressed", extra_instances=100))
         compressed.data["memory_bytes"]["static_clas_alloc"] = 50
         compressed.data["memory_bytes"]["total_as"] = 650
-        chart = next(c for c in build_charts([float_run, compressed, unrelated])
-                     if c.title == "COMPRESSED1 vs FLOAT32_3: Resident AS")
+        more_precision = [result(cfg) for cfg in sweep.precision_pair_configs(base, 8)]
+        chart = next(c for c in build_charts([float_run, compressed, unrelated, *more_precision])
+                     if c.title == FORMAT_MEMORY_TITLE)
         self.assertEqual(chart.chart_type, "line")
         self.assertTrue(chart.numeric_x)
-        self.assertEqual(dict(chart.series["FLOAT32_3 (normal significand)"])[12], 700)
-        self.assertEqual(dict(chart.series["COMPRESSED1 (cluster offset)"])[12], 650)
+        self.assertEqual(dict(chart.series[FLOAT_SERIES])[12], 700)
+        self.assertEqual(dict(chart.series[COMPRESSED_SERIES])[12], 650)
         self.assertIn("not an equal-error comparison", chart.description)
         self.assertIn("PositionTruncateBitCount=12", chart.x_tooltips["12"])
         tables = sweep.report_tables([float_run, compressed], {"base_config": asdict(base)})
@@ -204,7 +212,7 @@ class Measurements(unittest.TestCase):
         self.assertIn("11 mantissa bits kept", columns[1])
         self.assertIn("PositionTruncateBitCount=12", rows[0][1])
         self.assertEqual(rows[0][-1], "Not an equal-error comparison")
-        self.assertEqual(next(row for row in rows if row[0] == "Resident AS")[-1], "-7.14%")
+        self.assertEqual(next(row for row in rows if row[0] == AS_MEMORY)[-1], "-7.14%")
         _, columns, rows = next(table for table in tables if table[0] == "All requested cases")
         self.assertEqual(rows[0][columns.index("PositionTruncateBitCount")], 12)
         self.assertEqual(rows[0][columns.index("FLOAT32_3 mantissa bits kept")], 11)
@@ -213,9 +221,11 @@ class Measurements(unittest.TestCase):
     def test_direct_format_comparison_keeps_missing_or_failed_format_as_gap(self):
         compressed = result(replace(RunConfig(), vertex_format="compressed"))
         compressed.data["_sweep"]["status"] = "failed"
-        chart = next(c for c in build_charts([result(), compressed])
-                     if c.title == "COMPRESSED1 vs FLOAT32_3: Resident AS")
-        self.assertIsNone(dict(chart.series["COMPRESSED1 (cluster offset)"])[12])
+        more_precision = [result(cfg) for bits in (8, 14)
+                          for cfg in sweep.precision_pair_configs(RunConfig(), bits)]
+        chart = next(c for c in build_charts([result(), compressed, *more_precision])
+                     if c.title == FORMAT_MEMORY_TITLE)
+        self.assertIsNone(dict(chart.series[COMPRESSED_SERIES])[12])
 
     def test_precision_overlay_uses_aligned_pairs_and_exposes_missing_runs(self):
         runs = []
@@ -223,7 +233,7 @@ class Measurements(unittest.TestCase):
             for cfg in sweep.precision_pair_configs(RunConfig(), bits):
                 runs.append(result(cfg))
         chart = next(c for c in build_charts(runs)
-                     if c.title == "COMPRESSED1 vs FLOAT32_3: DispatchRays")
+                     if c.title == FORMAT_RENDER_TITLE)
         for points in chart.series.values():
             self.assertEqual([x for x, _ in points], list(sweep.NOMINAL_PRECISION_BITS))
             self.assertTrue(all(value is not None for _, value in points))
@@ -231,8 +241,8 @@ class Measurements(unittest.TestCase):
         self.assertIn("PositionTruncateBitCount=8", chart.x_tooltips["16"])
         missing = sweep.precision_pair_configs(RunConfig(), 6)[0]
         chart = next(c for c in build_charts([r for r in runs if r.config != missing])
-                     if c.title == "COMPRESSED1 vs FLOAT32_3: DispatchRays")
-        self.assertIsNone(dict(chart.series["FLOAT32_3 (normal significand)"])[6])
+                     if c.title == FORMAT_RENDER_TITLE)
+        self.assertIsNone(dict(chart.series[FLOAT_SERIES])[6])
 
     def test_float_retained_bit_annotation_at_truncation_limit(self):
         runs = [result(replace(RunConfig(), position_truncate_bits=count)) for count in (0, 22)]
@@ -244,6 +254,74 @@ class Measurements(unittest.TestCase):
         run.data["_sweep"]["status"] = "failed"
         run.data["_error"] = "synthetic failure"
         self.assertEqual(build_charts([run]), [])
+
+    def test_flag_matrix_covers_all_preferences_for_every_animation_strategy(self):
+        for quick in (True, False):
+            matrix = build_sweep_matrix(quick, True)
+            for mode, strategy in (("clusters", "rebuild"), ("traditional", "rebuild"),
+                                   ("traditional", "refit")):
+                for flag in ("none", "fast-build", "fast-trace"):
+                    self.assertIn(replace(RunConfig(), geometry_mode=mode,
+                                          trad_anim_mode=strategy, build_flags=flag), matrix)
+
+    def test_old_sweep_does_not_show_single_flag_refit_study(self):
+        matrix = build_sweep_matrix(True, True)
+        old = [cfg for cfg in matrix if not (
+            cfg.geometry_mode == "traditional" and cfg.trad_anim_mode == "refit" and
+            cfg.build_flags != "fast-trace")]
+        studies = [chart for chart in build_charts([result(cfg) for cfg in old])
+                   if chart.category == "Build preference"]
+        self.assertTrue(studies)
+        self.assertTrue(all("traditional refit" not in chart.series for chart in studies))
+        complete = [chart for chart in build_charts([result(cfg) for cfg in matrix])
+                    if chart.category == "Build preference"]
+        for chart in complete:
+            self.assertEqual([x for x, _ in chart.series["traditional refit"]],
+                             ["No preference", "Fast build", "Fast trace"])
+
+    def test_quick_sweep_does_not_present_single_precision_point_as_a_curve(self):
+        charts = build_charts([result(cfg) for cfg in build_sweep_matrix(True, True)])
+        self.assertFalse(any(chart.category == "COMPRESSED1 vs FLOAT32_3 precision" for chart in charts))
+
+    def test_discrete_studies_are_grouped_bars_with_clear_setting_names(self):
+        charts = build_charts([result(cfg) for cfg in build_sweep_matrix(True, True)])
+        chart = next(chart for chart in charts if chart.category == "CLAS allocation")
+        self.assertEqual(chart.chart_type, "bar")
+        self.assertFalse(chart.stacked)
+        self.assertEqual(chart.x_label, "CLAS allocation strategy")
+        self.assertEqual([x for x, _ in chart.series["clustered"]],
+                         ["Implicit allocation", "Pre-size (GetSizes)", "Post-build compaction"])
+        self.assertNotIn("image quality", chart.description)
+
+    def test_time_labels_distinguish_initial_setup_render_and_measured_per_frame_work(self):
+        charts = build_charts([result(cfg) for cfg in build_sweep_matrix(True, True)])
+        work = next(chart for chart in charts if chart.title == sweep.AS_WORK_LABEL)
+        self.assertEqual(work.unit, "us/frame")
+        self.assertIn("Excludes untimed clustered vertex-animation", work.description)
+        self.assertIn("not initial setup time or CPU time", work.description)
+        setup = next(chart for chart in charts
+                     if chart.title == "Initial AS setup elapsed time (GPU timestamps)")
+        self.assertEqual(setup.unit, "ms")
+        self.assertIn("Includes animated setup", setup.description)
+        render = next(chart for chart in charts
+                      if chart.title == "Raytracing render time per frame (GPU)")
+        self.assertEqual(render.unit, "us/frame")
+        self.assertIn("DispatchRays only", render.description)
+        self.assertTrue(all("Timed AS" not in chart.title for chart in charts))
+
+    def test_memory_components_are_human_names_and_reporting_does_not_modify_raw_snapshots(self):
+        runs = [result(cfg) for cfg in build_sweep_matrix(True, True)]
+        before = json.dumps([run.data for run in runs], sort_keys=True)
+        charts = build_charts(runs)
+        memory = next(chart for chart in charts if chart.category == "AS memory breakdown")
+        self.assertTrue(all("_" not in x for points in memory.series.values() for x, _ in points))
+        self.assertIn("0 extra objects", memory.description)
+        tables = sweep.report_tables(runs, {"base_config": asdict(RunConfig())})
+        _, columns, rows = next(table for table in tables if table[0] == "All requested cases")
+        self.assertIn("Frame time (ms/frame)", columns)
+        self.assertIn("Frames in average", columns)
+        self.assertEqual(rows[0][columns.index("Animated BLAS update")], "Not applicable")
+        self.assertEqual(json.dumps([run.data for run in runs], sort_keys=True), before)
 
 
 class Execution(unittest.TestCase):
@@ -459,10 +537,10 @@ class Comparison(unittest.TestCase):
         machines = [self.machine("A", [base, expanded]), self.machine("B", [result()])]
         charts, shared = compare.comparison_charts(machines)
         self.assertEqual(shared, 1)
-        chart = next(c for c in charts if c.title == "Resident AS storage: clustered")
+        chart = next(c for c in charts if c.title == f"{AS_MEMORY}: clustered")
         self.assertEqual(chart.series["A"], [(0, 700)])
         charts, _ = compare.comparison_charts(machines, partial=True)
-        chart = next(c for c in charts if c.title == "Resident AS storage: clustered")
+        chart = next(c for c in charts if c.title == f"{AS_MEMORY}: clustered")
         self.assertEqual([x for x, _ in chart.series["A"]], [0, 100])
         self.assertEqual([x for x, _ in chart.series["B"]], [0])
 
@@ -495,21 +573,22 @@ class Comparison(unittest.TestCase):
         self.assertIn("3 explicit mantissa bits kept", chart.x_tooltips["20"])
 
     def test_three_machine_scaling_is_faceted_and_precision_formats_have_distinct_styles(self):
-        configs = build_sweep_matrix(True, True)
+        configs = build_sweep_matrix(False, True)
         runs = [result(config) for config in configs]
         charts, _ = compare.comparison_charts([self.machine(label, runs) for label in ("A", "B", "C")])
-        scaling = [chart for chart in charts if chart.title.startswith("Resident AS storage: ")]
+        scaling = [chart for chart in charts if chart.title.startswith(f"{AS_MEMORY}: ")
+                   and chart.category.startswith("Scene scaling /")]
         self.assertEqual(len(scaling), 3)
         for chart in scaling:
             self.assertEqual(set(chart.series), {"A", "B", "C"})
         precision = next(chart for chart in charts
-                         if chart.title == "COMPRESSED1 vs FLOAT32_3: DispatchRays")
-        self.assertEqual(precision.line_dashes["A / FLOAT32_3 (normal significand)"], [])
-        self.assertEqual(precision.line_dashes["A / COMPRESSED1 (cluster offset)"], [6, 3])
-        self.assertNotEqual(precision.point_styles["A / FLOAT32_3 (normal significand)"],
-                            precision.point_styles["A / COMPRESSED1 (cluster offset)"])
-        self.assertEqual(precision.color_groups["A / FLOAT32_3 (normal significand)"], "A")
-        self.assertEqual(precision.color_groups["A / COMPRESSED1 (cluster offset)"], "A")
+                         if chart.title == FORMAT_RENDER_TITLE)
+        self.assertEqual(precision.line_dashes[f"A / {FLOAT_SERIES}"], [])
+        self.assertEqual(precision.line_dashes[f"A / {COMPRESSED_SERIES}"], [6, 3])
+        self.assertNotEqual(precision.point_styles[f"A / {FLOAT_SERIES}"],
+                            precision.point_styles[f"A / {COMPRESSED_SERIES}"])
+        self.assertEqual(precision.color_groups[f"A / {FLOAT_SERIES}"], "A")
+        self.assertEqual(precision.color_groups[f"A / {COMPRESSED_SERIES}"], "A")
 
     def test_within_gpu_ratios_are_computed_from_that_gpu_only(self):
         configs = [RunConfig(), replace(RunConfig(), geometry_mode="traditional"),
@@ -519,11 +598,11 @@ class Comparison(unittest.TestCase):
         a[0].data["frame_perf"]["fps"] = 200
         b[0].data["frame_perf"]["fps"] = 50
         charts, _ = compare.comparison_charts([self.machine("A", a), self.machine("B", b)])
-        fps = next(chart for chart in charts if chart.title == "Clustered / traditional frame rate (rebuild)")
+        fps = next(chart for chart in charts if chart.title == "Frame-rate ratio: clustered / traditional (rebuild)")
         self.assertEqual(fps.series["A"], [(0, 2)])
         self.assertEqual(fps.series["B"], [(0, 0.5)])
         memory = next(chart for chart in charts
-                      if chart.title == "Traditional / clustered resident AS (rebuild)")
+                      if chart.title == "AS memory ratio: traditional / clustered (rebuild)")
         self.assertEqual(memory.series["A"], [(0, 400 / 700)])
 
     def test_statistical_cautions_are_prominent_and_data_driven(self):
@@ -564,7 +643,7 @@ class Comparison(unittest.TestCase):
         second.manifest["base_config"]["animated_detail"] = "low"
         charts, _ = compare.comparison_charts([first, second])
         ratio = next(chart for chart in charts
-                     if chart.title == "Clustered / traditional frame rate (rebuild)")
+                     if chart.title == "Frame-rate ratio: clustered / traditional (rebuild)")
         self.assertEqual(ratio.series["A"], [(0, 1)])
         self.assertEqual(ratio.series["B"], [(0, 1)])
         self.assertTrue(any("BASELINE CAUTION" in note
@@ -609,6 +688,21 @@ class Report(unittest.TestCase):
         self.assertIn('"point_style": "triangle"', rendered)
         self.assertIn("href='#study-0'", rendered)
         self.assertIn("id='study-0'", rendered)
+
+    def test_exact_values_distinguish_zero_small_and_missing_allocations(self):
+        chart = Chart("AS memory by buffer", "AS memory breakdown / traditional",
+                      "Description", "AS buffer", "bytes",
+                      {"A": [("Animated copy BLASes", 0), ("TLAS", 1024), ("Unknown", None)],
+                       "B": [("Animated copy BLASes", 0), ("TLAS", 2048), ("Unknown", None)]},
+                      chart_type="bar")
+        rendered = render_report("Test", "Subtitle", [chart], [], [])
+        self.assertIn("Zero in every plotted series: Animated copy BLASes.", rendered)
+        self.assertIn("<td>0 B</td>", rendered)
+        self.assertIn("<td>1.00 KiB</td>", rendered)
+        self.assertIn("<td>Not measured</td>", rendered)
+        self.assertIn("class='chart-values' open", rendered)
+        self.assertIn("mode: 'index', intersect: false", rendered)
+        self.assertIn("pointBackgroundColor: css('--cp-point-fill')", rendered)
 
     def test_reports_use_plain_provenance_labels_without_privacy_callouts(self):
         run = result()
