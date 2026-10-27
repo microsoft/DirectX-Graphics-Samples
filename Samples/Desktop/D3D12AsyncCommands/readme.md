@@ -140,7 +140,7 @@ non-zero. Only the default (no-argument) path falls back to WARP.
 `-fallback` uses `ID3D12AsyncCommandsFallback` before device creation. It permits the runtime to
 lower async commands onto legacy paths when the selected adapter has no native implementation.
 Native driver support still takes precedence, so `-fallback` does not force a native-capable
-adapter onto the fallback path. Developer Mode is not required.
+adapter onto the fallback path.
 
 When the device reports `FALLBACK`, the sample attempts each benchmark and reports any unsupported
 async commands as skipped for the current adapter/runtime combination.
