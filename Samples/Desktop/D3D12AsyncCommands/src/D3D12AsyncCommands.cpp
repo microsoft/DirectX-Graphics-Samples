@@ -10,7 +10,7 @@
 //*********************************************************
 
 // D3D12AsyncCommands sample.
-// Usage: D3D12AsyncCommands [-list] [-adapter <index>] [-warp] [-fallback] [-e2e] [-debuglayer]
+// Usage: D3D12AsyncCommands [-list] [-adapter <index>] [-warp] [-fallback] [-e2e] [-clearalternatives] [-debuglayer]
 
 #include <windows.h>
 #include <iostream>
@@ -32,8 +32,13 @@
 #pragma comment(lib, "dxgi.lib")
 #pragma comment(lib, "d3dcompiler.lib")
 
+// Preview redists can override the loader version while exposing the retail API version.
+#ifndef D3D12_REDIST_VERSION
+#define D3D12_REDIST_VERSION D3D12_SDK_VERSION
+#endif
+
 // Agility SDK 620 is the first retail SDK surface with async commands.
-extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = 620; }
+extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = D3D12_REDIST_VERSION; }
 extern "C" { __declspec(dllexport) extern const char* D3D12SDKPath = u8".\\D3D12\\"; }
 extern "C" { __declspec(dllexport) extern const char* WarpPath = u8".\\WARP\\"; }
 
@@ -50,11 +55,13 @@ static bool g_quietExpectedErrors = false;
     throw _hr; } }
 
 bool g_useWarpDevice = false;
-bool g_forceFallback = false;
+bool g_enableFallback = false;
 bool g_listAdapters = false;
 int  g_adapterIndex = -1;
 bool g_runEndToEnd = false;
+bool g_runClearAlternatives = false;
 bool g_enableDebugLayer = false;
+CComPtr<ID3D12DeviceFactory> g_deviceFactory;
 
 static std::string Narrow(const WCHAR* text)
 {
@@ -142,6 +149,56 @@ static void ListAdapters()
     }
 }
 
+static bool EnableAsyncCommandsFallback()
+{
+    HRESULT hr = D3D12GetInterface(CLSID_D3D12DeviceFactory, IID_PPV_ARGS(&g_deviceFactory));
+    if (FAILED(hr))
+    {
+        std::ostringstream os;
+        os << " Could not create the D3D12 device factory. HRESULT=0x" << std::hex << hr;
+        PRINT(os.str());
+        return false;
+    }
+
+    hr = g_deviceFactory->InitializeFromGlobalState();
+    if (FAILED(hr))
+    {
+        std::ostringstream os;
+        os << " Could not initialize the D3D12 device factory. HRESULT=0x" << std::hex << hr;
+        PRINT(os.str());
+        return false;
+    }
+
+    CComPtr<ID3D12AsyncCommandsFallback> fallback;
+    hr = g_deviceFactory->GetConfigurationInterface(
+        CLSID_D3D12AsyncCommandsFallback, IID_PPV_ARGS(&fallback));
+    if (FAILED(hr))
+    {
+        PRINT(" The runtime does not expose the async-commands fallback layer.");
+        PRINT(" Use Agility SDK 620.1 or later.");
+        return false;
+    }
+
+    hr = fallback->SetFallbackLayerEnabled(TRUE);
+    if (FAILED(hr))
+    {
+        std::ostringstream os;
+        os << " Could not enable the async-commands fallback layer. HRESULT=0x" << std::hex << hr;
+        PRINT(os.str());
+        return false;
+    }
+
+    PRINT(" Async-commands fallback is enabled for adapters without native support.\n");
+    return true;
+}
+
+static HRESULT CreateDevice(IUnknown* adapter, D3D_FEATURE_LEVEL featureLevel, REFIID riid, void** device)
+{
+    if (g_deviceFactory)
+        return g_deviceFactory->CreateDevice(adapter, featureLevel, riid, device);
+    return D3D12CreateDevice(adapter, featureLevel, riid, device);
+}
+
 
 struct D3DContext
 {
@@ -204,12 +261,12 @@ static bool InitDeviceAndContext(D3DContext& D3D, bool useWarp, int adapterIndex
 
     if (D3D.spAdapter)
     {
-        if (FAILED(D3D12CreateDevice(D3D.spAdapter, FL, IID_PPV_ARGS(&spBaseDevice))))
+        if (FAILED(CreateDevice(D3D.spAdapter, FL, IID_PPV_ARGS(&spBaseDevice))))
             return false;
     }
     else
     {
-        if (FAILED(D3D12CreateDevice(nullptr, FL, IID_PPV_ARGS(&spBaseDevice))))
+        if (FAILED(CreateDevice(nullptr, FL, IID_PPV_ARGS(&spBaseDevice))))
             return false;
         LUID luid = spBaseDevice->GetAdapterLuid();
         if (FAILED(factory->EnumAdapterByLuid(luid, IID_PPV_ARGS(&D3D.spAdapter))))
@@ -699,77 +756,146 @@ static void BenchmarkCopy(D3DContext& D3D, BenchResult& out)
     out = RunLoop(D3D, kIterations, legacy, async);
 }
 
-// ---- Texture clear: ClearTextureSubresources vs ClearRenderTargetView ----
-static void BenchmarkTextureClear(D3DContext& D3D, BenchResult& out)
+// ---- Texture clear, copy route: ClearTextureSubresources vs staged CopyTextureRegion ----
+static void BenchmarkTextureClearCopy(D3DContext& D3D, BenchResult& out)
 {
-    const UINT texDim = 512;
-    const DXGI_FORMAT format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    const UINT texDim = 256;
+    const DXGI_FORMAT format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+    const D3D12_BOX region = { 64, 64, 0, 192, 192, 1 };
+    const float clearColor[4] = { 1, 1, 1, 1 };
 
-    std::vector<CComPtr<ID3D12Resource>> textures(kNumResources);
     CD3DX12_HEAP_PROPERTIES defaultProps(D3D12_HEAP_TYPE_DEFAULT);
     CD3DX12_RESOURCE_DESC1 desc = CD3DX12_RESOURCE_DESC1::Tex2D(format, texDim, texDim, 1, 1);
-    desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
-    D3D12_CLEAR_VALUE optClear = {}; optClear.Format = format;
-
+    std::vector<CComPtr<ID3D12Resource>> textures(kNumResources);
     for (UINT i = 0; i < kNumResources; ++i)
         VERIFY_SUCCEEDED(D3D.spDevice->CreateCommittedResource3(&defaultProps, D3D12_HEAP_FLAG_NONE, &desc,
-            D3D12_BARRIER_LAYOUT_COPY_DEST, &optClear, nullptr, 0, nullptr, IID_PPV_ARGS(&textures[i])));
+            D3D12_BARRIER_LAYOUT_COPY_DEST, nullptr, nullptr, 0, nullptr, IID_PPV_ARGS(&textures[i])));
 
-    const UINT rtvSize = D3D.spDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-    CComPtr<ID3D12DescriptorHeap> rtvHeap;
-    D3D12_DESCRIPTOR_HEAP_DESC hd = {};
-    hd.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-    hd.NumDescriptors = kNumResources;
-    VERIFY_SUCCEEDED(D3D.spDevice->CreateDescriptorHeap(&hd, IID_PPV_ARGS(&rtvHeap)));
+    D3D12_RESOURCE_DESC footprintDesc = textures[0]->GetDesc();
+    D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint = {};
+    UINT64 uploadBytes = 0;
+    D3D.spDevice->GetCopyableFootprints(&footprintDesc, 0, 1, 0, &footprint, nullptr, nullptr, &uploadBytes);
+
+    CD3DX12_HEAP_PROPERTIES uploadProps(D3D12_HEAP_TYPE_UPLOAD);
+    CD3DX12_RESOURCE_DESC uploadDesc = CD3DX12_RESOURCE_DESC::Buffer(uploadBytes);
+    CComPtr<ID3D12Resource> upload;
+    VERIFY_SUCCEEDED(D3D.spDevice->CreateCommittedResource(&uploadProps, D3D12_HEAP_FLAG_NONE, &uploadDesc,
+        D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&upload)));
+
+    void* mapped = nullptr;
+    D3D12_RANGE emptyRange = { 0, 0 };
+    VERIFY_SUCCEEDED(upload->Map(0, &emptyRange, &mapped));
+    for (UINT y = 0; y < texDim; ++y)
+    {
+        float* row = reinterpret_cast<float*>(static_cast<BYTE*>(mapped) + footprint.Offset +
+            static_cast<SIZE_T>(y) * footprint.Footprint.RowPitch);
+        for (UINT x = 0; x < texDim; ++x)
+            memcpy(row + static_cast<SIZE_T>(x) * 4, clearColor, sizeof(clearColor));
+    }
+    upload->Unmap(0, nullptr);
+
+    D3D12_TEXTURE_COPY_LOCATION source = {};
+    source.pResource = upload;
+    source.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+    source.PlacedFootprint = footprint;
+    std::vector<D3D12_TEXTURE_COPY_LOCATION> destinations(kNumResources);
     for (UINT i = 0; i < kNumResources; ++i)
     {
-        CD3DX12_CPU_DESCRIPTOR_HANDLE h(rtvHeap->GetCPUDescriptorHandleForHeapStart(), i, rtvSize);
-        D3D.spDevice->CreateRenderTargetView(textures[i], nullptr, h);
+        destinations[i].pResource = textures[i];
+        destinations[i].Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+        destinations[i].SubresourceIndex = 0;
     }
-
-    auto transitionAll = [&](D3DContext& d, D3D12_BARRIER_LAYOUT before, D3D12_BARRIER_LAYOUT after,
-                             D3D12_BARRIER_SYNC syncB, D3D12_BARRIER_SYNC syncA,
-                             D3D12_BARRIER_ACCESS accB, D3D12_BARRIER_ACCESS accA)
-    {
-        std::vector<D3D12_TEXTURE_BARRIER> barriers(kNumResources);
-        for (UINT i = 0; i < kNumResources; ++i)
-        {
-            D3D12_TEXTURE_BARRIER& b = barriers[i];
-            b.SyncBefore = syncB; b.SyncAfter = syncA;
-            b.AccessBefore = accB; b.AccessAfter = accA;
-            b.LayoutBefore = before; b.LayoutAfter = after;
-            b.pResource = textures[i];
-            b.Subresources.IndexOrFirstMipLevel = 0xffffffff;
-        }
-        D3D12_BARRIER_GROUP bg = {};
-        bg.Type = D3D12_BARRIER_TYPE_TEXTURE;
-        bg.NumBarriers = kNumResources;
-        bg.pTextureBarriers = barriers.data();
-        d.spList->Barrier(1, &bg);
-    };
-
-    const float clearColor[4] = { 0.1f, 0.2f, 0.3f, 1.0f };
 
     auto legacy = [&](D3DContext& d)
     {
         for (UINT i = 0; i < kNumResources; ++i)
-        {
-            CD3DX12_CPU_DESCRIPTOR_HANDLE h(rtvHeap->GetCPUDescriptorHandleForHeapStart(), i, rtvSize);
-            d.spList->ClearRenderTargetView(h, clearColor, 0, nullptr);
-        }
+            d.spList->CopyTextureRegion(&destinations[i], region.left, region.top, region.front, &source, &region);
     };
 
-    // ClearTextureSubresources requires COPY_DEST layout.
     std::vector<D3D12_CLEAR_TEXTURE_DESC> clearDescs(kNumResources);
     for (UINT i = 0; i < kNumResources; ++i)
     {
         D3D12_CLEAR_TEXTURE_DESC& c = clearDescs[i];
         c.pTexture = textures[i];
         c.SubresourceIndex = 0;
-        c.ClearValue.Floats[0] = clearColor[0];
-        c.ClearValue.Floats[1] = clearColor[1];
-        c.ClearValue.Floats[2] = clearColor[2];
-        c.ClearValue.Floats[3] = clearColor[3];
+        memcpy(c.ClearValue.Floats, clearColor, sizeof(clearColor));
+        c.Format = format;
+        c.pRegion = &region;
+    }
+    auto async = [&](D3DContext& d)
+    {
+        d.spList->ClearTextureSubresources(kNumResources, clearDescs.data());
+    };
+
+    out = RunLoop(D3D, kIterations, legacy, async);
+}
+
+// ---- Texture clear, RTV route: ClearTextureSubresources vs transitioned ClearRenderTargetView ----
+static void BenchmarkTextureClearRtv(D3DContext& D3D, BenchResult& out)
+{
+    const UINT texDim = 256;
+    const DXGI_FORMAT format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+    const float clearColor[4] = { 1, 1, 1, 1 };
+
+    CD3DX12_HEAP_PROPERTIES defaultProps(D3D12_HEAP_TYPE_DEFAULT);
+    CD3DX12_RESOURCE_DESC1 desc = CD3DX12_RESOURCE_DESC1::Tex2D(format, texDim, texDim, 1, 1);
+    desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+    D3D12_CLEAR_VALUE optimized = {};
+    optimized.Format = format;
+    memcpy(optimized.Color, clearColor, sizeof(clearColor));
+
+    std::vector<CComPtr<ID3D12Resource>> textures(kNumResources);
+    for (UINT i = 0; i < kNumResources; ++i)
+        VERIFY_SUCCEEDED(D3D.spDevice->CreateCommittedResource3(&defaultProps, D3D12_HEAP_FLAG_NONE, &desc,
+            D3D12_BARRIER_LAYOUT_COPY_DEST, &optimized, nullptr, 0, nullptr, IID_PPV_ARGS(&textures[i])));
+
+    const UINT rtvSize = D3D.spDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+    D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
+    heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
+    heapDesc.NumDescriptors = kNumResources;
+    CComPtr<ID3D12DescriptorHeap> rtvHeap;
+    VERIFY_SUCCEEDED(D3D.spDevice->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&rtvHeap)));
+    std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> handles(kNumResources);
+    for (UINT i = 0; i < kNumResources; ++i)
+    {
+        handles[i] = CD3DX12_CPU_DESCRIPTOR_HANDLE(rtvHeap->GetCPUDescriptorHandleForHeapStart(), i, rtvSize);
+        D3D.spDevice->CreateRenderTargetView(textures[i], nullptr, handles[i]);
+    }
+
+    std::vector<CD3DX12_TEXTURE_BARRIER> before(kNumResources), after(kNumResources);
+    D3D12_BARRIER_SUBRESOURCE_RANGE allSubresources = {};
+    allSubresources.IndexOrFirstMipLevel = 0xffffffff;
+    for (UINT i = 0; i < kNumResources; ++i)
+    {
+        before[i] = CD3DX12_TEXTURE_BARRIER(
+            D3D12_BARRIER_SYNC_COPY, D3D12_BARRIER_SYNC_RENDER_TARGET,
+            D3D12_BARRIER_ACCESS_COPY_DEST, D3D12_BARRIER_ACCESS_RENDER_TARGET,
+            D3D12_BARRIER_LAYOUT_COPY_DEST, D3D12_BARRIER_LAYOUT_RENDER_TARGET,
+            textures[i], allSubresources);
+        after[i] = CD3DX12_TEXTURE_BARRIER(
+            D3D12_BARRIER_SYNC_RENDER_TARGET, D3D12_BARRIER_SYNC_COPY,
+            D3D12_BARRIER_ACCESS_RENDER_TARGET, D3D12_BARRIER_ACCESS_COPY_DEST,
+            D3D12_BARRIER_LAYOUT_RENDER_TARGET, D3D12_BARRIER_LAYOUT_COPY_DEST,
+            textures[i], allSubresources);
+    }
+    CD3DX12_BARRIER_GROUP beforeGroup(static_cast<UINT32>(before.size()), before.data());
+    CD3DX12_BARRIER_GROUP afterGroup(static_cast<UINT32>(after.size()), after.data());
+
+    auto legacy = [&](D3DContext& d)
+    {
+        d.spList->Barrier(1, &beforeGroup);
+        for (UINT i = 0; i < kNumResources; ++i)
+            d.spList->ClearRenderTargetView(handles[i], clearColor, 0, nullptr);
+        d.spList->Barrier(1, &afterGroup);
+    };
+
+    std::vector<D3D12_CLEAR_TEXTURE_DESC> clearDescs(kNumResources);
+    for (UINT i = 0; i < kNumResources; ++i)
+    {
+        D3D12_CLEAR_TEXTURE_DESC& c = clearDescs[i];
+        c.pTexture = textures[i];
+        c.SubresourceIndex = 0;
+        memcpy(c.ClearValue.Floats, clearColor, sizeof(clearColor));
         c.Format = format;
         c.pRegion = nullptr;
     }
@@ -778,20 +904,97 @@ static void BenchmarkTextureClear(D3DContext& D3D, BenchResult& out)
         d.spList->ClearTextureSubresources(kNumResources, clearDescs.data());
     };
 
-    auto legacyPrep = [&](D3DContext& d)
+    out = RunLoop(D3D, kIterations, legacy, async);
+}
+
+// ---- Texture clear, UAV alternative: ClearTextureSubresources vs transitioned ClearUnorderedAccessViewFloat ----
+static void BenchmarkTextureClearUav(D3DContext& D3D, BenchResult& out)
+{
+    const UINT texDim = 256;
+    const DXGI_FORMAT format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+    const float clearColor[4] = { 1, 1, 1, 1 };
+
+    CD3DX12_HEAP_PROPERTIES defaultProps(D3D12_HEAP_TYPE_DEFAULT);
+    CD3DX12_RESOURCE_DESC1 desc = CD3DX12_RESOURCE_DESC1::Tex2D(format, texDim, texDim, 1, 1);
+    desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+    std::vector<CComPtr<ID3D12Resource>> textures(kNumResources);
+    for (UINT i = 0; i < kNumResources; ++i)
+        VERIFY_SUCCEEDED(D3D.spDevice->CreateCommittedResource3(&defaultProps, D3D12_HEAP_FLAG_NONE, &desc,
+            D3D12_BARRIER_LAYOUT_COPY_DEST, nullptr, nullptr, 0, nullptr, IID_PPV_ARGS(&textures[i])));
+
+    const UINT descriptorSize =
+        D3D.spDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+    D3D12_DESCRIPTOR_HEAP_DESC gpuHeapDesc = {};
+    gpuHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+    gpuHeapDesc.NumDescriptors = kNumResources;
+    gpuHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+    CComPtr<ID3D12DescriptorHeap> gpuHeap;
+    VERIFY_SUCCEEDED(D3D.spDevice->CreateDescriptorHeap(&gpuHeapDesc, IID_PPV_ARGS(&gpuHeap)));
+
+    D3D12_DESCRIPTOR_HEAP_DESC cpuHeapDesc = gpuHeapDesc;
+    cpuHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+    CComPtr<ID3D12DescriptorHeap> cpuHeap;
+    VERIFY_SUCCEEDED(D3D.spDevice->CreateDescriptorHeap(&cpuHeapDesc, IID_PPV_ARGS(&cpuHeap)));
+
+    D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+    uavDesc.Format = format;
+    uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+    std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> cpuHandles(kNumResources);
+    std::vector<D3D12_GPU_DESCRIPTOR_HANDLE> gpuHandles(kNumResources);
+    for (UINT i = 0; i < kNumResources; ++i)
     {
-        transitionAll(d, D3D12_BARRIER_LAYOUT_COPY_DEST, D3D12_BARRIER_LAYOUT_RENDER_TARGET,
-            D3D12_BARRIER_SYNC_COPY, D3D12_BARRIER_SYNC_RENDER_TARGET,
-            D3D12_BARRIER_ACCESS_COPY_DEST, D3D12_BARRIER_ACCESS_RENDER_TARGET);
-    };
-    auto asyncPrep = [&](D3DContext& d)
+        cpuHandles[i] = CD3DX12_CPU_DESCRIPTOR_HANDLE(cpuHeap->GetCPUDescriptorHandleForHeapStart(), i, descriptorSize);
+        CD3DX12_CPU_DESCRIPTOR_HANDLE gpuCpu(gpuHeap->GetCPUDescriptorHandleForHeapStart(), i, descriptorSize);
+        gpuHandles[i] = CD3DX12_GPU_DESCRIPTOR_HANDLE(gpuHeap->GetGPUDescriptorHandleForHeapStart(), i, descriptorSize);
+        D3D.spDevice->CreateUnorderedAccessView(textures[i], nullptr, &uavDesc, cpuHandles[i]);
+        D3D.spDevice->CreateUnorderedAccessView(textures[i], nullptr, &uavDesc, gpuCpu);
+    }
+
+    std::vector<CD3DX12_TEXTURE_BARRIER> before(kNumResources), after(kNumResources);
+    D3D12_BARRIER_SUBRESOURCE_RANGE allSubresources = {};
+    allSubresources.IndexOrFirstMipLevel = 0xffffffff;
+    for (UINT i = 0; i < kNumResources; ++i)
     {
-        transitionAll(d, D3D12_BARRIER_LAYOUT_RENDER_TARGET, D3D12_BARRIER_LAYOUT_COPY_DEST,
-            D3D12_BARRIER_SYNC_RENDER_TARGET, D3D12_BARRIER_SYNC_COPY,
-            D3D12_BARRIER_ACCESS_RENDER_TARGET, D3D12_BARRIER_ACCESS_COPY_DEST);
+        before[i] = CD3DX12_TEXTURE_BARRIER(
+            D3D12_BARRIER_SYNC_COPY, D3D12_BARRIER_SYNC_CLEAR_UNORDERED_ACCESS_VIEW,
+            D3D12_BARRIER_ACCESS_COPY_DEST, D3D12_BARRIER_ACCESS_UNORDERED_ACCESS,
+            D3D12_BARRIER_LAYOUT_COPY_DEST, D3D12_BARRIER_LAYOUT_UNORDERED_ACCESS,
+            textures[i], allSubresources);
+        after[i] = CD3DX12_TEXTURE_BARRIER(
+            D3D12_BARRIER_SYNC_CLEAR_UNORDERED_ACCESS_VIEW, D3D12_BARRIER_SYNC_COPY,
+            D3D12_BARRIER_ACCESS_UNORDERED_ACCESS, D3D12_BARRIER_ACCESS_COPY_DEST,
+            D3D12_BARRIER_LAYOUT_UNORDERED_ACCESS, D3D12_BARRIER_LAYOUT_COPY_DEST,
+            textures[i], allSubresources);
+    }
+    CD3DX12_BARRIER_GROUP beforeGroup(static_cast<UINT32>(before.size()), before.data());
+    CD3DX12_BARRIER_GROUP afterGroup(static_cast<UINT32>(after.size()), after.data());
+
+    auto legacy = [&](D3DContext& d)
+    {
+        ID3D12DescriptorHeap* heaps[] = { gpuHeap };
+        d.spList->SetDescriptorHeaps(1, heaps);
+        d.spList->Barrier(1, &beforeGroup);
+        for (UINT i = 0; i < kNumResources; ++i)
+            d.spList->ClearUnorderedAccessViewFloat(gpuHandles[i], cpuHandles[i], textures[i], clearColor, 0, nullptr);
+        d.spList->Barrier(1, &afterGroup);
     };
 
-    out = RunLoop(D3D, kIterations, legacy, async, legacyPrep, asyncPrep);
+    std::vector<D3D12_CLEAR_TEXTURE_DESC> clearDescs(kNumResources);
+    for (UINT i = 0; i < kNumResources; ++i)
+    {
+        D3D12_CLEAR_TEXTURE_DESC& c = clearDescs[i];
+        c.pTexture = textures[i];
+        c.SubresourceIndex = 0;
+        memcpy(c.ClearValue.Floats, clearColor, sizeof(clearColor));
+        c.Format = format;
+        c.pRegion = nullptr;
+    }
+    auto async = [&](D3DContext& d)
+    {
+        d.spList->ClearTextureSubresources(kNumResources, clearDescs.data());
+    };
+
+    out = RunLoop(D3D, kIterations, legacy, async);
 }
 
 // ---- Whole-resource copy: CopyResources vs CopyResource ----
@@ -1391,11 +1594,13 @@ int main(int argc, char** argv)
         if (_stricmp(argv[i], "-warp") == 0 || _stricmp(argv[i], "/warp") == 0)
             g_useWarpDevice = true;
         else if (_stricmp(argv[i], "-fallback") == 0 || _stricmp(argv[i], "/fallback") == 0)
-            g_forceFallback = true;
+            g_enableFallback = true;
         else if (_stricmp(argv[i], "-list") == 0 || _stricmp(argv[i], "/list") == 0)
             g_listAdapters = true;
         else if (_stricmp(argv[i], "-e2e") == 0 || _stricmp(argv[i], "/e2e") == 0)
             g_runEndToEnd = true;
+        else if (_stricmp(argv[i], "-clearalternatives") == 0 || _stricmp(argv[i], "/clearalternatives") == 0)
+            g_runClearAlternatives = true;
         else if (_stricmp(argv[i], "-debuglayer") == 0 || _stricmp(argv[i], "/debuglayer") == 0)
             g_enableDebugLayer = true;
         else if ((_stricmp(argv[i], "-adapter") == 0 || _stricmp(argv[i], "/adapter") == 0) && i + 1 < argc)
@@ -1403,7 +1608,7 @@ int main(int argc, char** argv)
         else
         {
             PRINT(std::string(" Unrecognized option: ") + argv[i]);
-            PRINT(" Usage: D3D12AsyncCommands [-list] [-adapter <index>] [-warp] [-fallback] [-e2e] [-debuglayer]");
+            PRINT(" Usage: D3D12AsyncCommands [-list] [-adapter <index>] [-warp] [-fallback] [-e2e] [-clearalternatives] [-debuglayer]");
             return -1;
         }
     }
@@ -1412,24 +1617,17 @@ int main(int argc, char** argv)
     {
         PRINT("==================================================================================");
         PRINT(" D3D12 Async Commands (Batched Asynchronous Command List APIs)");
-        PRINT(" Agility SDK 620");
+        {
+            std::ostringstream os;
+            os << " Agility SDK API " << D3D12_SDK_VERSION << " (redist " << D3D12_REDIST_VERSION << ")";
+            PRINT(os.str());
+        }
         PRINT("==================================================================================\n");
 
         if (g_listAdapters)
         {
             ListAdapters();
             return 0;
-        }
-
-        if (g_forceFallback)
-        {
-            UUID fallbackFeature[] = { D3D12ExperimentalForceAsyncCommandsFallback };
-            if (FAILED(D3D12EnableExperimentalFeatures(1, fallbackFeature, nullptr, nullptr)))
-            {
-                PRINT(" Could not enable D3D12ExperimentalForceAsyncCommandsFallback (is Developer Mode on?).");
-                return -1;
-            }
-            PRINT(" Forcing the runtime async-commands fallback.\n");
         }
 
         bool shouldEnableDebugLayer = g_enableDebugLayer;
@@ -1454,6 +1652,12 @@ int main(int argc, char** argv)
                 if (g_enableDebugLayer)
                     PRINT(" D3D12 debug layer is enabled.\n");
             }
+        }
+
+        if (g_enableFallback)
+        {
+            if (!EnableAsyncCommandsFallback())
+                return -1;
         }
 
         D3DContext D3D;
@@ -1499,12 +1703,16 @@ int main(int argc, char** argv)
         }
         else
         {
-            PRINT("   Async commands : FALLBACK - the runtime lowers them onto the legacy serialized");
-            PRINT("                    path, so the comparisons below measure the same work twice.\n");
+            PRINT("   Async commands : FALLBACK - runtime-emulated on legacy command paths;");
+            PRINT("                    no native async-command overlap is being measured.\n");
         }
 
+        const bool usingFallback = D3D.asyncImpl == D3D12_ASYNC_COMMANDS_IMPL_FALLBACK;
+        if (g_enableFallback && !usingFallback)
+            PRINT("   Fallback opt-in : enabled; native driver support takes precedence.\n");
+
         bool pass = true;
-        if (!g_forceFallback)
+        if (!usingFallback)
             pass = RenderTriangleWithAsyncClear(D3D);
 
         PRINT("[2] Benchmarking async batched commands vs legacy serialized commands");
@@ -1514,6 +1722,8 @@ int main(int argc, char** argv)
                << (kBufferSize >> 10) << " KiB buffers, " << kIterations << " averaged iterations)\n";
             PRINT(os.str());
         }
+        if (!g_runClearAlternatives)
+            PRINT("    RTV/UAV ClearTextureSubresources comparisons are opt-in; use -clearalternatives.\n");
 
         struct Benchmark
         {
@@ -1522,6 +1732,7 @@ int main(int argc, char** argv)
             const char* asyncName;
             const char* note;
             std::function<bool(D3DContext&, BenchResult&)> run;
+            bool optionalClearAlternative = false;
         };
 
         const Benchmark benchmarks[] =
@@ -1538,8 +1749,14 @@ int main(int argc, char** argv)
               [](D3DContext& d, BenchResult& r) { BenchmarkResolve(d, r); return true; } },
             { "Query resolve", "ResolveQueryData x N", "ResolveQueryDataAsync x N", nullptr,
               [](D3DContext& d, BenchResult& r) { BenchmarkResolveQueryData(d, r); return true; } },
-            { "Texture clear", "ClearRenderTargetView x N", "ClearTextureSubresources (batched)", nullptr,
-              [](D3DContext& d, BenchResult& r) { BenchmarkTextureClear(d, r); return true; } },
+            { "Texture clear (copy route)", "CopyTextureRegion x N (staged)", "ClearTextureSubresources (batched)", nullptr,
+              [](D3DContext& d, BenchResult& r) { BenchmarkTextureClearCopy(d, r); return true; } },
+            { "Texture clear (RTV route)", "Barrier + ClearRenderTargetView x N + barrier",
+              "ClearTextureSubresources (batched)", nullptr,
+              [](D3DContext& d, BenchResult& r) { BenchmarkTextureClearRtv(d, r); return true; }, true },
+            { "Texture clear (UAV alternative)", "Barrier + ClearUnorderedAccessViewFloat x N + barrier",
+              "ClearTextureSubresources (batched)", nullptr,
+              [](D3DContext& d, BenchResult& r) { BenchmarkTextureClearUav(d, r); return true; }, true },
             { "Bound RTV clear", "ClearRenderTargetView x N", "ClearBoundRenderTargetViews (8/call)",
               "  ClearBound* are raster-ordered (serialized with Draw* by design), so their benefit is\n"
               "  ergonomics - in/mid-render-pass clears, batching bound targets, lower CPU-record cost -\n"
@@ -1553,12 +1770,15 @@ int main(int argc, char** argv)
 
         for (const Benchmark& b : benchmarks)
         {
+            if (b.optionalClearAlternative && !g_runClearAlternatives)
+                continue;
+
             if (b.note)
                 PRINT(b.note);
 
             BenchResult r;
             bool ran = false;
-            if (g_forceFallback)
+            if (usingFallback)
             {
                 auto bench = InitBenchmarkContext();
                 if (bench)
@@ -1580,7 +1800,7 @@ int main(int argc, char** argv)
 
             if (ran)
                 PrintBench(b.title, b.legacyName, b.asyncName, r);
-            else if (g_forceFallback)
+            else if (usingFallback)
                 PRINT(std::string("  ") + b.title + ": skipped (not supported in fallback on this adapter/runtime).");
             else
                 PRINT(std::string("  ") + b.title + ": skipped (not supported on this adapter).");
@@ -1594,7 +1814,7 @@ int main(int argc, char** argv)
 
             BenchResult e2e = {};
             bool includeFillBench = true;
-            if (g_forceFallback)
+            if (usingFallback)
             {
                 bool ranE2E = false;
                 if (auto full = InitBenchmarkContext())

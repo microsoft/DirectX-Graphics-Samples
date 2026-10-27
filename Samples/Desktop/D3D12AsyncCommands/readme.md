@@ -40,7 +40,7 @@ The new commands, all on the `ID3D12GraphicsCommandList12` interface (obtained b
 | `ResolveSubresourceRegionAsync` | `ResolveSubresourceRegion` |
 | `ResolveQueryDataAsync` | `ResolveQueryData` |
 | `FillBuffers` | `ClearUnorderedAccessViewUint` / `ClearUnorderedAccessViewFloat` (no descriptors required) |
-| `ClearTextureSubresources` | UAV clears / `ClearRenderTargetView` (clears by resource pointer + format; no RTV/UAV; works on block-compressed formats) |
+| `ClearTextureSubresources` | staged `CopyTextureRegion`, `ClearRenderTargetView`, and `ClearUnorderedAccessViewFloat` |
 | `ClearBoundRenderTargetViews` | `ClearRenderTargetView` (clears the currently bound RTVs as an in-render-pass raster op) |
 | `ClearBoundDepthStencilView` | `ClearDepthStencilView` (clears the currently bound DSV in-render-pass) |
 
@@ -60,7 +60,11 @@ The new commands, all on the `ID3D12GraphicsCommandList12` interface (obtained b
    - `CopyTilesAsync` vs. N x `CopyTiles`
    - `ResolveSubresourceRegionAsync` vs. N x `ResolveSubresourceRegion`
    - `ResolveQueryDataAsync` vs. N x `ResolveQueryData`
-   - `ClearTextureSubresources` vs. N x `ClearRenderTargetView`
+   - `ClearTextureSubresources` vs. staged `CopyTextureRegion` for a partial copy-route clear
+   - Optional (`-clearalternatives`): `ClearTextureSubresources` vs. transitioned
+     `ClearRenderTargetView` for a full RTV-route clear
+   - Optional (`-clearalternatives`): `ClearTextureSubresources` vs. transitioned
+     `ClearUnorderedAccessViewFloat` as a UAV alternative
    - `ClearBoundRenderTargetViews` vs. N x `ClearRenderTargetView`
    - `ClearBoundDepthStencilView` vs. N x `ClearDepthStencilView`
 
@@ -80,11 +84,13 @@ depend heavily on the driver and hardware):
   Texture region copy CopyTextureRegion xN            -> CopyTextureRegions           GPU 5.79x
   MSAA resolve        ResolveSubresourceRegion xN     -> ResolveSubresourceRegionAsync GPU 4.70x
   Query resolve       ResolveQueryData xN             -> ResolveQueryDataAsync        GPU 0.88x
-  Texture clear       ClearRenderTargetView xN        -> ClearTextureSubresources     GPU 3.11x
+  Texture clear/copy  CopyTextureRegion xN           -> ClearTextureSubresources     GPU 1.02x
   Bound RTV clear     ClearRenderTargetView xN        -> ClearBoundRenderTargetViews  GPU 0.97x (raster-ordered)
   Bound DSV clear     ClearDepthStencilView xN        -> ClearBoundDepthStencilView   GPU 1.01x (raster-ordered)
   Tiled copy          CopyTiles xN                    -> CopyTilesAsync               GPU 4.22x
 ```
+
+With `-clearalternatives`, the output also includes the transitioned RTV and UAV comparisons.
 
 On this software renderer the overlap-oriented commands show large GPU wins (up to ~5.8x), while
 `CopyResources`, `ResolveQueryData`, and the raster-ordered `ClearBound*` commands show parity — the
@@ -98,18 +104,17 @@ show additional overlap on the independent work.
 
 ## Requirements
 
-* DirectX 12 **Agility SDK 620** (`Microsoft.Direct3D.D3D12`), restored automatically via NuGet.
-  Async Commands is part of the retail surface from this version on — no experimental opt-in and no
-  Developer Mode requirement.
-* A driver that implements async commands. If the hardware driver does not yet support the feature,
-  the sample automatically falls back to the preview **WARP** software renderer
-  (`Microsoft.Direct3D.WARP` `1.65535.20-preview`), which does support it.
+* DirectX 12 **Agility SDK 620.1** (`Microsoft.Direct3D.D3D12`), restored automatically via NuGet.
+  Async Commands became retail in 620.0; 620.1 adds the application opt-in runtime fallback layer.
+* A driver that implements async commands, or `-fallback` to permit the runtime fallback on an
+  adapter without native support. Without that opt-in, the default path falls back to the preview
+  **WARP** software renderer (`Microsoft.Direct3D.WARP` `1.65535.20-preview`).
 
 On startup the sample reports which implementation it obtained:
 
 * `NATIVE` — the driver implements async commands, so independent work can genuinely overlap.
-* `FALLBACK` — the runtime lowers the async commands onto the legacy serialized path. The benchmark
-  still runs, but it is measuring the same work twice, so the comparisons are not meaningful.
+* `FALLBACK` — the runtime emulates async commands on legacy command paths. The benchmark still
+  runs, but it is measuring fallback behavior rather than native async-command overlap.
 
 ## Running the sample
 
@@ -121,8 +126,9 @@ Build `src\D3D12AsyncCommands.slnx` (x64 or ARM64) and run the console app.
 | `-list` | List every adapter with its vendor, device ID and driver version, then exit |
 | `-adapter <index>` | Use a specific adapter from `-list` |
 | `-warp` | Force the WARP software adapter |
-| `-fallback` | Force the runtime async-commands fallback (requires **Developer Mode**) |
+| `-fallback` | Enable the runtime fallback on adapters without native support |
 | `-e2e` | Run an additional end-to-end mixed-frame benchmark (updates + rendering together) |
+| `-clearalternatives` | Also compare `ClearTextureSubresources` with RTV/UAV clear techniques |
 | `-debuglayer` | Enable the D3D12 debug layer explicitly (fails fast if debug layer is unavailable) |
 
 The sample prints adapter description, vendor and device IDs, adapter LUID, user-mode driver
@@ -133,15 +139,20 @@ When an adapter is named explicitly with `-adapter` or `-warp`, the sample **nev
 substitutes WARP; if that adapter does not support async commands it reports the fact and exits
 non-zero. Only the default (no-argument) path falls back to WARP.
 
-`-fallback` opts into `D3D12ExperimentalForceAsyncCommandsFallback`, which makes the runtime lower
-the async commands onto their legacy counterparts. This is useful for seeing the behavior a driver
-without native support would give — expect roughly 1.0x everywhere, since both sides then perform
-the same work.
+`-fallback` uses `ID3D12AsyncCommandsFallback` before device creation. It permits the runtime to
+lower async commands onto legacy paths when the selected adapter has no native implementation.
+Native driver support still takes precedence, so `-fallback` does not force a native-capable
+adapter onto the fallback path. Developer Mode is not required.
 
-In fallback mode, the sample attempts each benchmark and reports any unsupported async commands as
-skipped for the current adapter/runtime combination.
+When the device reports `FALLBACK`, the sample attempts each benchmark and reports any unsupported
+async commands as skipped for the current adapter/runtime combination.
 
-For `-e2e` in forced fallback mode, the sample runs the fallback-compatible subset
+The default texture-clear benchmark uses staged `CopyTextureRegion`, matching the fallback's
+copy route. RTV/UAV replacement comparisons are exploratory and opt-in with `-clearalternatives`;
+applications expecting fallback should retain the corresponding legacy view clear where its
+performance is important.
+
+For `-e2e` on a fallback device, the sample runs the fallback-compatible subset
 (copy/resolve/render) if `FillBuffers` fallback support is unavailable on that system.
 
 Use `-debuglayer` when validating debug-layer cleanliness in test runs (for example on Release
