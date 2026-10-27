@@ -288,7 +288,9 @@ def validate_snapshot(data: dict, config: RunConfig, require_environment: bool =
     if require_environment or recorded_environment:
         for key, expected in BENCHMARK_ENVIRONMENT.items():
             observed = actual.get(key)
-            if type(observed) is not type(expected) or observed != expected:
+            valid_type = (isinstance(observed, (int, float)) and not isinstance(observed, bool)
+                          if isinstance(expected, float) else type(observed) is type(expected))
+            if not valid_type or observed != expected:
                 raise BenchmarkContractError(
                     f"benchmark requires {key}={expected!r}, reported {observed!r}; "
                     "rebuild the current sample and check validation/input/viewport settings")

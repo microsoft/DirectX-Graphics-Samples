@@ -139,6 +139,15 @@ class Measurements(unittest.TestCase):
         with self.assertRaises(sweep.BenchmarkContractError):
             validate_snapshot(legacy, RunConfig(), require_environment=True)
 
+    def test_equivalent_json_zero_representations_are_accepted_but_booleans_are_not(self):
+        for value in (0, 0.0):
+            data = snapshot()
+            data["config"]["camera_seconds"] = value
+            validate_snapshot(data, RunConfig(), require_environment=True)
+        data["config"]["camera_seconds"] = False
+        with self.assertRaises(sweep.BenchmarkContractError):
+            validate_snapshot(data, RunConfig(), require_environment=True)
+
     def test_no_legacy_ema_or_unsettled_timing_fallback(self):
         data = snapshot()
         del data["frame_perf"]["avg_window_target_seconds"]
