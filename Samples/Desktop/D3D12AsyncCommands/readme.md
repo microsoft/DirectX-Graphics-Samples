@@ -142,9 +142,6 @@ lower async commands onto legacy paths when the selected adapter has no native i
 Native driver support still takes precedence, so `-fallback` does not force a native-capable
 adapter onto the fallback path.
 
-When the device reports `FALLBACK`, the sample attempts each benchmark and reports any unsupported
-async commands as skipped for the current adapter/runtime combination.
-
 The default texture-clear benchmark uses staged `CopyTextureRegion`, matching the fallback's
 copy route. RTV/UAV replacement comparisons are exploratory and opt-in with `-clearalternatives`;
 applications expecting fallback should retain the corresponding legacy view clear where its
