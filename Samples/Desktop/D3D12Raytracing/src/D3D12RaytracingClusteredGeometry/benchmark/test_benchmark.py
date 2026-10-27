@@ -48,6 +48,8 @@ def snapshot(cfg: RunConfig = RunConfig()) -> dict:
                      driver_version="test-driver", clusters_supported=True,
                      dedicated_vram_bytes=1024 ** 3),
         config={**cfg.expected_config(), **sweep.BENCHMARK_ENVIRONMENT,
+                "stable_power_state": cfg.stable_power_state,
+                "stable_power_state_requested": cfg.stable_power_state,
                 "bounce_slider": 3, "reflection_bounces": 3,
                 "refraction_bounces": 5, "cluster_tint": 0.5, "tearing_supported": True},
         memory_bytes=memory, build_times_ms=dict(static_clas=1, static_blas=2, tlas=3, total=6),
@@ -84,6 +86,36 @@ class Measurements(unittest.TestCase):
                        dict(position_truncate_bits=23), dict(geometry_mode="unknown")):
             with self.subTest(change=change), self.assertRaises(ValueError):
                 replace(RunConfig(), **change)
+        with self.assertRaises(ValueError):
+            RunConfig(stable_power_state=1)
+
+    def test_stable_power_is_opt_in_and_keeps_normal_run_ids_compatible(self):
+        normal = RunConfig()
+        stable = replace(normal, stable_power_state=True)
+        self.assertNotIn("--stable-power-state", normal.to_cli())
+        self.assertIn("--stable-power-state", stable.to_cli())
+        self.assertEqual(normal.slug(), "clusters-n0-full-44b831ef3db2")
+        self.assertNotEqual(normal.slug(), stable.slug())
+        self.assertTrue(all(cfg.stable_power_state
+                            for cfg in build_sweep_matrix(False, True, stable)))
+
+    def test_stable_power_request_must_be_recorded_and_accepted(self):
+        cfg = RunConfig(stable_power_state=True)
+        data = snapshot(cfg)
+        validate_snapshot(data, cfg, require_environment=True)
+        for requested, accepted in ((True, False), (False, False), (1, True), (True, 1)):
+            data = snapshot(cfg)
+            data["config"]["stable_power_state_requested"] = requested
+            data["config"]["stable_power_state"] = accepted
+            with self.subTest(requested=requested, accepted=accepted), \
+                    self.assertRaises(sweep.BenchmarkContractError):
+                validate_snapshot(data, cfg, require_environment=True)
+        legacy = snapshot()
+        del legacy["config"]["stable_power_state"]
+        del legacy["config"]["stable_power_state_requested"]
+        validate_snapshot(legacy, RunConfig(), require_environment=True)
+        with self.assertRaises(sweep.BenchmarkContractError):
+            validate_snapshot(legacy, cfg, require_environment=True)
 
     def test_all_matrix_configs_are_unique_and_explicit(self):
         for quick in (True, False):
@@ -462,6 +494,60 @@ class Execution(unittest.TestCase):
             run_one(self.exe, RunConfig(), self.output, 2, 1, fingerprint="not-the-fixture")
         process.assert_not_called()
 
+    def test_stable_power_developer_mode_preflight_happens_before_launch(self):
+        cfg = RunConfig(stable_power_state=True)
+        args = SimpleNamespace(bench_seconds=2, init_timeout=1, verbose=False, max_bench_seconds=10)
+        manifest = dict(payload_sha256=sweep.payload_fingerprint(self.exe), runs=[])
+        with patch("sweep.require_developer_mode",
+                   side_effect=ValueError("Developer Mode must be enabled")) as preflight, \
+                patch("sweep.run_one") as process:
+            with self.assertRaisesRegex(ValueError, "Developer Mode"):
+                sweep.execute_cases(self.exe, [cfg], self.output, manifest, [], args)
+        preflight.assert_called_once()
+        process.assert_not_called()
+
+    def test_stable_power_native_failure_aborts_instead_of_falling_back(self):
+        cfg = RunConfig(stable_power_state=True)
+        with patch("sweep.subprocess.run", return_value=subprocess.CompletedProcess([], 1)):
+            run = run_one(self.exe, cfg, self.output, 2, 1)
+        self.assertEqual(run.status, "failed")
+        self.assertTrue(run.data["_sweep"]["stop_sweep"])
+        self.assertEqual(run.config, cfg)
+
+    def test_legacy_normal_sweep_still_loads_with_stable_power_default_off(self):
+        run = result(directory=self.root)
+        manifest = save_results(self.root, [run])
+        del manifest["base_config"]["stable_power_state"]
+        del manifest["runs"][0]["config"]["stable_power_state"]
+        del run.data["_sweep"]["requested_config"]["stable_power_state"]
+        del run.data["config"]["stable_power_state"]
+        del run.data["config"]["stable_power_state_requested"]
+        write_json(run.json_path, run.data)
+        write_json(self.root / "manifest.json", manifest)
+        loaded, _ = load_results(self.root)
+        self.assertFalse(loaded[0].config.stable_power_state)
+
+    def test_sweep_cannot_mix_power_modes_and_extension_cannot_change_mode(self):
+        normal = result(directory=self.root)
+        stable = result(RunConfig(stable_power_state=True), self.root)
+        save_results(self.root, [normal, stable])
+        with self.assertRaisesRegex(ValueError, "mixes stable-power"):
+            load_results(self.root)
+        save_results(self.root, [normal])
+        with patch("sweep.run_one") as process:
+            code = sweep.main(["--extend", str(self.root), "--stable-power-state"])
+        self.assertEqual(code, 2)
+        process.assert_not_called()
+
+    @unittest.skipUnless(os.name == "nt", "Developer Mode uses the Windows registry")
+    def test_developer_mode_off_is_reported_without_changing_registry(self):
+        import winreg
+        with patch("winreg.OpenKey") as key, \
+                patch("winreg.QueryValueEx", return_value=(0, winreg.REG_DWORD)):
+            with self.assertRaisesRegex(ValueError, "Developer Mode"):
+                sweep.require_developer_mode()
+        key.assert_called_once()
+
     def test_extension_only_runs_missing_cases_and_preserves_existing_result(self):
         first = result(directory=self.root)
         fingerprint = sweep.payload_fingerprint(self.exe)
@@ -552,6 +638,12 @@ class ResultsDirectoryNames(unittest.TestCase):
         loaded, _ = load_results(final)
         self.assertEqual(loaded[0].config, run.config)
 
+    def test_stable_power_directory_is_identifiable(self):
+        directory, run, manifest = self.pending()
+        manifest["base_config"]["stable_power_state"] = True
+        final = sweep.finalize_results_directory(directory, [run], manifest)
+        self.assertTrue(final.name.endswith("_stable-power"))
+
     def test_unsafe_characters_long_labels_and_collisions(self):
         directory, run, manifest = self.pending("first")
         run.data["adapter"].update(description='GPU: / invalid? * \\\\ "<>| ' + "x" * 100,
@@ -602,6 +694,14 @@ class Comparison(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "differ"):
             compare.comparison_charts([self.machine("A", [result()]),
                                        self.machine("B", [other])])
+
+    def test_stable_and_normal_modes_are_not_silently_compared(self):
+        normal = self.machine("Normal", [result()])
+        stable = self.machine("Stable", [result(RunConfig(stable_power_state=True))])
+        stable.manifest["base_config"]["stable_power_state"] = True
+        for partial in (False, True):
+            with self.subTest(partial=partial), self.assertRaisesRegex(ValueError, "clock-control"):
+                compare.comparison_charts([normal, stable], partial=partial)
 
     def test_first_machine_remains_reference_when_missing(self):
         machines = [self.machine("A", []), self.machine("B", [result()])]

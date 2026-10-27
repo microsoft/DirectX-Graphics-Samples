@@ -78,6 +78,9 @@ interface IDeviceNotify
         void Present(D3D12_RESOURCE_STATES beforeState = D3D12_RESOURCE_STATE_RENDER_TARGET);
         void SetVSyncEnabled(bool enabled) { m_vsyncEnabled = enabled; }
         bool IsVSyncEnabled() const { return m_vsyncEnabled; }
+        void SetStablePowerStateRequested(bool enabled) { m_stablePowerStateRequested = enabled; }
+        bool IsStablePowerStateEnabled() const { return m_stablePowerStateEnabled; }
+        HRESULT ReleaseStablePowerState() noexcept;
         void ExecuteCommandList();
         void WaitForGpu() noexcept;
 
@@ -228,6 +231,8 @@ interface IDeviceNotify
         // DeviceResources options (see flags above)
         unsigned int                                        m_options;
         bool                                                m_vsyncEnabled = false;
+        bool                                                m_stablePowerStateRequested = false;
+        bool                                                m_stablePowerStateEnabled = false;
 
         // The IDeviceNotify can be held directly as it owns the DeviceResources.
         IDeviceNotify*                                      m_deviceNotify;

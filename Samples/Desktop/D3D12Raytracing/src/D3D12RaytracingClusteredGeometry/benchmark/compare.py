@@ -38,10 +38,16 @@ def workload_signature(run: RunResult) -> tuple:
         tuple(perf[key] for key in ("avg_window_target_seconds", "publication_interval_seconds")),
         tuple(provenance[key] for key in ("camera_paused", "camera_seconds", "animation_paused")),
         tuple(config.get(key) for key in BENCHMARK_ENVIRONMENT),
+        config.get("stable_power_state", False),
     )
 
 
 def comparison_charts(machines: list[MachineReport], partial: bool = False) -> tuple[list[Chart], int]:
+    power_modes = {RunConfig(**machine.manifest["base_config"]).stable_power_state
+                   for machine in machines}
+    if len(power_modes) > 1:
+        raise ValueError("stable-power and normal sweeps use different clock-control modes; "
+                         "compare runs using the same mode")
     identities = [{r.config for r in m.runs if r.status == "ok"} for m in machines]
     shared = set.intersection(*identities)
     selected = set.union(*identities) if partial else shared
@@ -138,7 +144,8 @@ def comparison_warnings(machines: list[MachineReport]) -> list[str]:
                         "runtime versions; verify the builds before making hardware performance claims.")
     if any(m.manifest.get("payload_sha256") is None for m in machines):
         warnings.append("BUILD CAUTION: at least one input lacks an executable/runtime fingerprint.")
-    if any(machine.manifest["base_config"] != machines[0].manifest["base_config"]
+    if any(RunConfig(**machine.manifest["base_config"]) !=
+           RunConfig(**machines[0].manifest["base_config"])
            for machine in machines[1:]):
         warnings.append("BASELINE CAUTION: sweep baselines differ. Charts and ratio summaries are "
                         "pinned to the first input's baseline and use only exact matching cases, "
@@ -164,7 +171,8 @@ def comparison_warnings(machines: list[MachineReport]) -> list[str]:
     warnings += [
         "REPRODUCIBILITY: current samples verify a fixed 1280x720 physical-pixel render size, "
         "blocked user input, and disabled validation. Legacy inputs may lack this proof. "
-        "Power state, clocks, and desktop/presentation conditions still need separate control.",
+        "Stable-power API requests are tagged, but actual clocks, thermal/power behavior, "
+        "and desktop/presentation conditions are not measured.",
         "STATISTICS: each point is one final rolling-window mean, not the entire process average "
         "and not a repeated-trial estimate. No variance or error bars can be recovered from it.",
         "VISUALS: non-stacked chart colors identify GPUs; frame-budget stack colors identify "
@@ -189,11 +197,13 @@ def summary_table(machines: list[MachineReport]) -> tuple:
                       f"{valid[0].data['config']['render_height']}")
                      if "render_width" in valid[0].data["config"] else "Not recorded",
                      "Locked" if valid[0].data["config"].get("benchmark_input_locked") else "Not verified",
+                     setting_value("stable_power_state",
+                                   valid[0].config.stable_power_state),
                      machine.manifest.get("payload_sha256", "not recorded")])
     return ("Input coverage and build identity",
             ["GPU label", "Adapter", "Driver version", "Valid configurations",
              "Requested configurations", "Fewest frames averaged", "Render size (pixels)",
-             "User input", "Executable/runtime SHA-256"], rows)
+             "User input", "Stable power state", "Executable/runtime SHA-256"], rows)
 
 
 def largest_workload_tables(machines: list[MachineReport]) -> list[tuple]:

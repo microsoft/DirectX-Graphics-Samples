@@ -134,6 +134,8 @@ int Win32Application::Run(DXSample* pSample, HINSTANCE hInstance, int nCmdShow)
         pSample->GetDeviceResources()->DisableAsyncDisplay();
         pSample->GetDeviceResources()->RethrowAsyncFailure();
         pSample->OnDestroy();
+        ThrowIfFailed(pSample->GetDeviceResources()->ReleaseStablePowerState(),
+            L"Could not release the benchmark's stable power-state request.\n");
 
         // Return this part of the WM_QUIT message to Windows.
         return static_cast<char>(msg.wParam);
@@ -165,6 +167,8 @@ int Win32Application::Run(DXSample* pSample, HINSTANCE hInstance, int nCmdShow)
         if (auto* deviceResources = pSample->GetDeviceResources())
             deviceResources->DisableAsyncDisplay();
         pSample->OnDestroy();
+        if (auto* deviceResources = pSample->GetDeviceResources())
+            deviceResources->ReleaseStablePowerState();
         return EXIT_FAILURE;
     }
 }

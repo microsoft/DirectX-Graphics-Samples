@@ -273,6 +273,7 @@ private:
     // WM_QUIT. Wall-clock duration avoids very long frame-count runs on
     // software adapters. See WriteBenchmarkSnapshot().
     double                               m_benchSeconds         = 0.0;
+    bool                                 m_stablePowerStateRequested = false;
     std::wstring                         m_benchOutPath;
     std::chrono::steady_clock::time_point m_benchStartWallTime =
         std::chrono::steady_clock::time_point::min();

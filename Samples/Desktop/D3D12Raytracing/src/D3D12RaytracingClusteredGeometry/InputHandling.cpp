@@ -320,6 +320,10 @@ void D3D12RaytracingClusteredGeometry::ParseCommandLineArgs(_In_reads_(argc) WCH
             m_vsync = enabled;
             ++i;
         }
+        else if (_wcsicmp(argv[i], L"--stable-power-state") == 0)
+        {
+            m_stablePowerStateRequested = true;
+        }
         else if (_wcsicmp(argv[i], L"--cluster-tint") == 0 && i + 1 < argc)
         {
             // Cluster-rainbow tint blend in [0..1].  0 = pure material
@@ -333,6 +337,11 @@ void D3D12RaytracingClusteredGeometry::ParseCommandLineArgs(_In_reads_(argc) WCH
             i += 1;
         }
     }
+    ThrowIfFalse(!m_stablePowerStateRequested || IsBenchmarkMode(),
+        L"--stable-power-state is benchmark-only; use --bench-seconds and enable Developer Mode.\n");
+    if (m_stablePowerStateRequested)
+        SampleLog::Write(L"[stable-power] Developer Mode must be enabled; this profiling mode "
+                         L"can lower clocks system-wide and does not guarantee fixed memory clocks.\n");
 }
 
 

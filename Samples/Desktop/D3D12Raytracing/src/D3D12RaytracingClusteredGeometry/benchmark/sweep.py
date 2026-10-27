@@ -123,6 +123,7 @@ SETTING_LABELS = {
     "position_truncate_bits": "PositionTruncateBitCount (bits removed)",
     "compressed_bits": "COMPRESSED1 offset bits per component",
     "rays_per_pixel": "Primary rays per pixel", "animated_detail": "Animated mesh detail",
+    "stable_power_state": "D3D12 stable power-state request",
 }
 SETTING_VALUES = {
     "geometry_mode": {"clusters": "Clustered", "traditional": "Traditional"},
@@ -134,6 +135,7 @@ SETTING_VALUES = {
     "static_rebuild": {"none": "Off", "blas": "BLAS only", "clas-blas": "CLAS + BLAS"},
     "build_flags": {"none": "No preference", "fast-build": "Fast build", "fast-trace": "Fast trace"},
     "animated_detail": {"full": "Full detail", "low": "Low VRAM detail"},
+    "stable_power_state": {False: "Off (not requested)", True: "On (API request accepted)"},
 }
 
 
@@ -173,8 +175,11 @@ class RunConfig:
     compressed_bits: int = 12
     rays_per_pixel: int = 1
     animated_detail: str = "full"
+    stable_power_state: bool = False
 
     def __post_init__(self) -> None:
+        if type(self.stable_power_state) is not bool:
+            raise ValueError("stable_power_state must be a boolean")
         choices = dict(geometry_mode=("clusters", "traditional"),
                        vertex_format=("float", "compressed"),
                        clas_alloc=("compact", "implicit", "get-sizes"),
@@ -193,7 +198,10 @@ class RunConfig:
                 raise ValueError(f"invalid {key}: {value!r}")
 
     def slug(self) -> str:
-        identity = json.dumps(asdict(self), sort_keys=True, separators=(",", ":"))
+        fields = asdict(self)
+        if not self.stable_power_state:
+            fields.pop("stable_power_state")
+        identity = json.dumps(fields, sort_keys=True, separators=(",", ":"))
         digest = hashlib.sha256(identity.encode()).hexdigest()[:12]
         return f"{self.geometry_mode}-n{self.extra_instances}-{self.animated_detail}-{digest}"
 
@@ -208,11 +216,15 @@ class RunConfig:
             "--rays-per-pixel": self.rays_per_pixel, "--animated-detail": self.animated_detail,
             "--vsync": "off", "--camera-seconds": 0,
         }
-        return [part for key, value in options.items() for part in (key, str(value))] + [
+        args = [part for key, value in options.items() for part in (key, str(value))] + [
             "--camera-paused"]
+        if self.stable_power_state:
+            args.append("--stable-power-state")
+        return args
 
     def expected_config(self) -> dict[str, Any]:
         fields = asdict(self)
+        fields.pop("stable_power_state")
         fields["compressed_bits_per_component"] = fields.pop("compressed_bits")
         fields["aa_samples_per_pixel"] = fields.pop("rays_per_pixel")
         return {**fields, "vsync": False, "wireframe": False}
@@ -297,6 +309,14 @@ def validate_snapshot(data: dict, config: RunConfig, require_environment: bool =
     for key, expected in config.expected_config().items():
         if actual.get(key) != expected:
             raise ValueError(f"requested {key}={expected!r}, sample reported {actual.get(key)!r}")
+    # Older snapshots predate this off-by-default feature and represent normal runs.
+    requested = actual.get("stable_power_state_requested", False)
+    accepted = actual.get("stable_power_state", False)
+    if type(requested) is not bool or type(accepted) is not bool or \
+            requested != config.stable_power_state or accepted != config.stable_power_state:
+        raise BenchmarkContractError(
+            "stable power-state request was not applied as requested; Developer Mode must be on "
+            "and the current sample must be rebuilt. No fallback to normal mode is permitted.")
     total = number(data, "memory_bytes", "total_as")
     components = sum(number(data, "memory_bytes", key) for key in AS_COMPONENTS[config.geometry_mode])
     if total != components:
@@ -493,6 +513,8 @@ def _run_one(exe: Path, cfg: RunConfig, out_dir: Path, bench_seconds: float,
         except (OSError, ValueError, subprocess.TimeoutExpired) as error:
             data["_error"] = str(error)
             attempt_info["error"] = str(error)
+            if cfg.stable_power_state:
+                metadata["stop_sweep"] = True
             break
     wall_seconds = time.monotonic() - start
     metadata.update(status=status, wall_seconds=wall_seconds)
@@ -528,6 +550,9 @@ def load_results(directory: Path) -> tuple[list[RunResult], dict]:
         results.append(RunResult(cfg, path, data, data["_sweep"]["wall_seconds"]))
     if len({run.config for run in results}) != len(results):
         raise ValueError("duplicate run configurations")
+    base = RunConfig(**manifest["base_config"])
+    if any(run.config.stable_power_state != base.stable_power_state for run in results):
+        raise ValueError("sweep mixes stable-power and normal modes; keep profiles separate")
     identities = {adapter_identity(r.data) for r in results if r.status == "ok"}
     if len(identities) > 1:
         raise ValueError("results mix different adapters or driver versions")
@@ -550,6 +575,8 @@ def finalize_results_directory(directory: Path, runs: list[RunResult], manifest:
     timestamp = dt.datetime.fromisoformat(manifest["created_local"]).strftime("%Y-%m-%d_%H-%M-%S")
     name = (f"{timestamp}_{component(adapter.get('description'), 'unknown-adapter', 48)}"
             f"_driver-{component(adapter.get('driver_version'), 'unknown', 24)}")
+    if manifest.get("base_config", {}).get("stable_power_state"):
+        name += "_stable-power"
     suffix = 1
     while True:
         target = directory.with_name(name if suffix == 1 else f"{name}_{suffix}")
@@ -847,6 +874,9 @@ def report_tables(runs: list[RunResult], manifest: dict) -> list[tuple[str, list
                       ["D3D debug layer", "On" if actual["debug_layer_active"] else "Off"]]
         else:
             facts += [["Render/input isolation", "Not recorded by this older sample"]]
+        facts += [["Stable power-state request",
+                   "Accepted by SetStablePowerState (not clock telemetry)"
+                   if actual.get("stable_power_state") else "Not requested"]]
     facts += [["Executable", manifest.get("executable", "unknown")],
               ["Executable + runtime SHA-256", manifest.get("payload_sha256", "unknown")],
               ["Sweep start time (UTC)", manifest.get("created_utc", "unknown")],
@@ -921,6 +951,9 @@ def report_tables(runs: list[RunResult], manifest: dict) -> list[tuple[str, list
 
 
 REPORT_NOTES = [
+    "Stable power-state mode is off by default. When requested it requires Windows Developer Mode "
+    "and a successful SetStablePowerState call. This profiling mode may lower clocks and affect "
+    "other applications; it is not proof of fixed memory clocks or recorded clock stability.",
     "Current benchmark runs use a non-activating background window at a verified 1280x720 "
     "physical-pixel render size. User keyboard/mouse input cannot change settings. "
     "New runs require this contract and disabled D3D validation; older saved data may lack it.",
@@ -960,6 +993,21 @@ def positive_float(value: str) -> float:
     return parsed
 
 
+def require_developer_mode() -> None:
+    if os.name != "nt":
+        raise ValueError("--stable-power-state requires Windows Developer Mode")
+    import winreg
+    try:
+        with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE,
+                            r"SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock",
+                            0, winreg.KEY_READ | winreg.KEY_WOW64_64KEY) as key:
+            value, kind = winreg.QueryValueEx(key, "AllowDevelopmentWithoutDevLicense")
+    except OSError as error:
+        raise ValueError("Cannot verify Windows Developer Mode for --stable-power-state") from error
+    if kind != winreg.REG_DWORD or value != 1:
+        raise ValueError("--stable-power-state requires Windows Developer Mode to be enabled")
+
+
 def execute_cases(exe: Path, matrix: list[RunConfig], directory: Path, manifest: dict,
                   runs: list[RunResult], args: argparse.Namespace) -> None:
     completed = {run.config for run in runs}
@@ -967,6 +1015,11 @@ def execute_cases(exe: Path, matrix: list[RunConfig], directory: Path, manifest:
     print(f"Reusing {len(runs)} recorded cases; {len(pending)} missing configurations.", flush=True)
     if not pending:
         return
+    if any(cfg.stable_power_state for cfg in pending):
+        print("Stable power-state profiling: Windows Developer Mode must be ON. "
+              "This may lower clocks system-wide; memory clocks are not guaranteed fixed.",
+              flush=True)
+        require_developer_mode()
     if not exe.is_file():
         raise ValueError(f"executable not found: {exe}; build Release or pass --exe")
     fingerprint = manifest["payload_sha256"]
@@ -1021,6 +1074,8 @@ def main(argv: list[str] | None = None) -> int:
     group.add_argument("--no-10k-trad", action="store_true")
     group.add_argument("--include-10k-trad", action="store_true", help="included by default")
     parser.add_argument("--animated-detail", choices=("full", "low"), help="default: full for a new sweep")
+    parser.add_argument("--stable-power-state", action="store_true", default=None,
+                        help="opt in to D3D12 stable power state; Developer Mode must be on")
     parser.add_argument("--bench-seconds", type=positive_float, default=5.0)
     parser.add_argument("--max-bench-seconds", type=positive_float, default=60.0)
     parser.add_argument("--init-timeout", type=positive_float, default=120.0,
@@ -1037,7 +1092,8 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("--extend cannot be combined with report-only arguments")
     if args.extend and args.list:
         parser.error("--list describes a new matrix; do not combine it with --extend")
-    base = RunConfig(animated_detail=args.animated_detail or "full")
+    base = RunConfig(animated_detail=args.animated_detail or "full",
+                     stable_power_state=bool(args.stable_power_state))
     matrix = build_sweep_matrix(args.quick, not args.no_10k_trad, base)
     if args.no_10k:
         matrix = [cfg for cfg in matrix if cfg.extra_instances != 10000]
@@ -1062,6 +1118,8 @@ def main(argv: list[str] | None = None) -> int:
             base = RunConfig(**manifest["base_config"])
             if args.animated_detail is not None and args.animated_detail != base.animated_detail:
                 raise ValueError("cannot change an existing sweep's baseline; start a new sweep")
+            if args.stable_power_state is not None and args.stable_power_state != base.stable_power_state:
+                raise ValueError("cannot change an existing sweep's stable power mode; start a new sweep")
             matrix = build_sweep_matrix(args.quick, not args.no_10k_trad, base)
             if args.no_10k:
                 matrix = [cfg for cfg in matrix if cfg.extra_instances != 10000]

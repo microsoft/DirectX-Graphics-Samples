@@ -73,7 +73,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding Condition="'$(Configuration)'=='Release'">true</EnableCOMDATFolding>
       <OptimizeReferences Condition="'$(Configuration)'=='Release'">true</OptimizeReferences>
-      <AdditionalDependencies>d3d12.lib;dxgi.lib;dxguid.lib;windowscodecs.lib;ole32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>d3d12.lib;dxgi.lib;dxguid.lib;windowscodecs.lib;ole32.lib;advapi32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <!-- Delay-load d3d12 so we can run on machines without it for graceful error
            reporting (matches sibling samples). -->
       <DelayLoadDLLs>d3d12.dll</DelayLoadDLLs>

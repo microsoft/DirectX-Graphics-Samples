@@ -35,6 +35,9 @@ forwarded; missing/outdated Python produces a clear error without installing it.
 # Full matrix, including traditional rebuild and refit at 10K.
 .\sweep.cmd --exe ..\bin\x64\Release\D3D12RaytracingClusteredGeometry.exe
 
+# Optional D3D12 stable-power profiling mode. Windows Developer Mode MUST be on.
+.\sweep.cmd --stable-power-state
+
 # Explicit low-VRAM baseline. This is reported, never selected secretly.
 .\sweep.cmd --animated-detail low
 
@@ -57,6 +60,30 @@ A study series needs at least two measured settings; an old refit-only
 `fast-trace` point is not presented as a build-preference study.
 
 ## Measurement contract
+
+### Optional stable power state
+
+`--stable-power-state` is **off by default** and applies only to benchmark runs.
+**Windows Developer Mode must be enabled.** The runner reminds you and checks it
+before launching cases; the sample checks again before calling
+`ID3D12Device::SetStablePowerState(TRUE)`. It applies the request before initial AS
+setup, releases it explicitly on normal/handled-error exit and before device
+recovery, and reapplies it to a replacement device.
+
+An API failure aborts instead of silently falling back to normal power state.
+The snapshot records both `stable_power_state_requested` and `stable_power_state`
+(request accepted), not measured clock frequencies. This profiling mode can lower
+GPU clocks and affect other applications on the machine. It does **not** guarantee
+fixed memory clocks. It adds no vendor tuning, telemetry, or persistent GPU settings.
+See [Microsoft's API guidance](https://learn.microsoft.com/en-us/windows/win32/api/d3d12/nf-d3d12-id3d12device-setstablepowerstate).
+
+Stable-power folders get a `_stable-power` suffix, and report provenance/baseline
+settings show the mode. Comparisons reject stable-power versus normal sweeps as
+unmatched conditions. `--extend` preserves the saved mode; it cannot switch an
+existing normal sweep to stable power. Old normal-mode results remain readable.
+Rebuild the sample before using the option.
+
+### Fixed workload and measurement conditions
 
 Every invocation pins its settings rather than relying on changing sample
 defaults. Vsync is requested **off**, the camera is paused at its initial
@@ -209,8 +236,9 @@ shareable findings separately before including them in a public article.
 Comparison reports put input coverage and build identities near the top.
 Different executable/runtime fingerprints, failed/skipped cases, and published
 windows with fewer than ten frames produce explicit cautions. A settled
-one-second window is not a repeated-trial confidence estimate. These manifests
-do not record viewport size, clocks, power state, or desktop conditions; verify
+one-second window is not a repeated-trial confidence estimate. Current snapshots
+verify viewport/input conditions and record the stable-power API request, but do
+not measure actual clocks, power, temperatures, or desktop contention. Verify
 those separately before attributing differences to GPU architecture.
 
 Scaling and multi-mode studies use separate charts for each geometry strategy,

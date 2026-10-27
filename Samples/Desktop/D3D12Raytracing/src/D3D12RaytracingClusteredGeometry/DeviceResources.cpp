@@ -71,6 +71,17 @@ DeviceResources::~DeviceResources()
 
     // Ensure that the GPU is no longer referencing resources that are about to be destroyed.
     WaitForGpu();
+    ReleaseStablePowerState();
+}
+
+HRESULT DeviceResources::ReleaseStablePowerState() noexcept
+{
+    if (!m_stablePowerStateEnabled) return S_OK;
+    const HRESULT hr = m_d3dDevice->SetStablePowerState(FALSE);
+    SampleLog::LogF(L"[stable-power] release hr=0x%08X\n", static_cast<unsigned>(hr));
+    if (SUCCEEDED(hr))
+        m_stablePowerStateEnabled = false;
+    return hr;
 }
 
 // Configures DXGI Factory and retrieve an adapter.
@@ -138,6 +149,25 @@ void DeviceResources::CreateDeviceResources()
     // Create the DX12 API device object.
     ThrowIfFailed(
         D3D12CreateDevice(m_adapter.Get(), m_d3dMinFeatureLevel, IID_PPV_ARGS(&m_d3dDevice)));
+
+    if (m_stablePowerStateRequested)
+    {
+        DWORD developerMode = 0;
+        DWORD size = sizeof(developerMode);
+        const LSTATUS status = RegGetValueW(HKEY_LOCAL_MACHINE,
+            L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\AppModelUnlock",
+            L"AllowDevelopmentWithoutDevLicense", RRF_RT_REG_DWORD | RRF_SUBKEY_WOW6464KEY,
+            nullptr, &developerMode, &size);
+        ThrowIfFailed(HRESULT_FROM_WIN32(status),
+            L"--stable-power-state requires Windows Developer Mode; could not verify it.\n");
+        ThrowIfFalse(developerMode == 1,
+            L"--stable-power-state requires Windows Developer Mode to be enabled.\n");
+        const HRESULT hr = m_d3dDevice->SetStablePowerState(TRUE);
+        SampleLog::LogF(L"[stable-power] enable hr=0x%08X; Developer Mode is required\n",
+            static_cast<unsigned>(hr));
+        ThrowIfFailed(hr, L"SetStablePowerState(TRUE) failed; the benchmark will not fall back.\n");
+        m_stablePowerStateEnabled = true;
+    }
 
 #ifndef NDEBUG
     // Configure debug device (if active).
@@ -451,6 +481,8 @@ bool DeviceResources::WindowSizeChanged(int width, int height, bool minimized)
 // Recreate all device resources and set them back to the current state.
 void DeviceResources::HandleDeviceLost()
 {
+    ThrowIfFailed(ReleaseStablePowerState(),
+        L"Could not release stable power state before device recovery.\n");
     if (m_deviceNotify)
     {
         m_deviceNotify->OnDeviceLost();

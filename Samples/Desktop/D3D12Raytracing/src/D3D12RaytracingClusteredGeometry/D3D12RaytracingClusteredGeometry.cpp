@@ -213,6 +213,7 @@ void D3D12RaytracingClusteredGeometry::OnInit()
         DeviceResources::c_AllowTearing,
         m_adapterIDoverride);
     m_deviceResources->SetVSyncEnabled(m_vsync);
+    m_deviceResources->SetStablePowerStateRequested(m_stablePowerStateRequested);
     m_deviceResources->RegisterDeviceNotify(this);
     m_deviceResources->SetWindow(Win32Application::GetHwnd(), m_width, m_height);
     m_deviceResources->InitializeDXGIAdapter();
@@ -6716,6 +6717,8 @@ void D3D12RaytracingClusteredGeometry::WriteBenchmarkSnapshot()
     kvB  ("animation_paused", m_animPaused);
     ComPtr<ID3D12InfoQueue> benchmarkInfoQueue;
     kvB  ("debug_layer_active", SUCCEEDED(m_dxrDevice.As(&benchmarkInfoQueue)));
+    kvB  ("stable_power_state_requested", m_stablePowerStateRequested);
+    kvB  ("stable_power_state", m_deviceResources->IsStablePowerStateEnabled());
     kvD  ("cluster_tint",                  (double)m_clusterTint);
     kvI  ("bounce_slider",                 (long long)m_bounceSlider);
     kvU  ("reflection_bounces",            ReflectionBounces());

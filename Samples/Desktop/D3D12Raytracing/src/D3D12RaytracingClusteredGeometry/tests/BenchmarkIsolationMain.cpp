@@ -12,6 +12,11 @@ public:
 
     void OnRender() override
     {
+        if (m_frame == 8 && GetEnvironmentVariableW(L"BENCHMARK_TEST_RECOVERY", nullptr, 0) != 0)
+        {
+            GetDeviceResources()->HandleDeviceLost();
+            SampleLog::Write(L"[isolation-test] device recovery completed\n");
+        }
         if (!m_probed)
         {
             ThrowIfFalse(IsBenchmarkMode(), L"Isolation test requires --bench-seconds.\n");
@@ -42,10 +47,12 @@ public:
             m_probed = true;
         }
         D3D12RaytracingClusteredGeometry::OnRender();
+        ++m_frame;
     }
 
 private:
     bool m_probed = false;
+    UINT m_frame = 0;
 };
 
 int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int show)

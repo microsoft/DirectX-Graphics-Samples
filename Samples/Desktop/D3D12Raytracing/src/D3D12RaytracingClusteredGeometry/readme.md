@@ -158,6 +158,9 @@ From this sample directory, Python 3.10+ is found automatically by the CMD wrapp
 # Short settings sweep; use no --quick flag for the full matrix.
 .\benchmark\sweep.cmd --quick
 
+# Optional stable-power profiling; Windows Developer Mode MUST be enabled.
+.\benchmark\sweep.cmd --stable-power-state
+
 # Compare two or more saved result folders; no benchmark runs are repeated.
 .\benchmark\compare.cmd "C:\results\GPU-A" "C:\results\GPU-B" "C:\results\GPU-C" --out ".\benchmark\results\comparison.html"
 ```
@@ -171,6 +174,11 @@ Benchmark runs are non-interactive, stay behind other applications without takin
 focus, and enforce a 1280x720 physical-pixel client/render size. Actual dimensions,
 input isolation, camera/animation state, and D3D validation state are recorded.
 Rebuild the current sample before collecting verified benchmark runs.
+`--stable-power-state` is benchmark-only and off by default. It requests D3D12's
+stable power state for the run, records whether the API accepted it, and releases
+the request on teardown. Developer Mode is required; failures are not silently
+ignored. It can lower clocks system-wide and does not guarantee fixed memory clocks.
+The same flag is accepted directly by the EXE when `--bench-seconds` is specified.
 
 For a timed run that writes a JSON snapshot and exits:
 
