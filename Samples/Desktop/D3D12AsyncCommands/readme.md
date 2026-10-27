@@ -57,9 +57,9 @@ The new commands, all on the `ID3D12GraphicsCommandList12` interface (obtained b
    - `CopyBufferRegions` vs. N x `CopyBufferRegion`
    - `CopyResources` vs. N x `CopyResource`
    - `CopyTextureRegions` vs. N x `CopyTextureRegion`
-   - `CopyTilesAsync` vs. N x `CopyTiles`
+   - `CopyTilesAsync` vs. `CopyTiles` using 16 calls of 16 tiles each
    - `ResolveSubresourceRegionAsync` vs. N x `ResolveSubresourceRegion`
-   - `ResolveQueryDataAsync` vs. N x `ResolveQueryData`
+   - `ResolveQueryDataAsync` vs. `ResolveQueryData` using 256 calls of 256 queries each
    - `ClearTextureSubresources` vs. staged `CopyTextureRegion` for a partial copy-route clear
    - Optional (`-clearalternatives`): `ClearTextureSubresources` vs. transitioned
      `ClearRenderTargetView` for a full RTV-route clear
@@ -83,11 +83,11 @@ depend heavily on the driver and hardware):
   Whole-resource copy CopyResource xN                 -> CopyResources                GPU 0.99x
   Texture region copy CopyTextureRegion xN            -> CopyTextureRegions           GPU 5.79x
   MSAA resolve        ResolveSubresourceRegion xN     -> ResolveSubresourceRegionAsync GPU 4.70x
-  Query resolve       ResolveQueryData xN             -> ResolveQueryDataAsync        GPU 0.88x
+  Query resolve       ResolveQueryData 256x256        -> ResolveQueryDataAsync        GPU 0.88x
   Texture clear/copy  CopyTextureRegion xN           -> ClearTextureSubresources     GPU 1.02x
   Bound RTV clear     ClearRenderTargetView xN        -> ClearBoundRenderTargetViews  GPU 0.97x (raster-ordered)
   Bound DSV clear     ClearDepthStencilView xN        -> ClearBoundDepthStencilView   GPU 1.01x (raster-ordered)
-  Tiled copy          CopyTiles xN                    -> CopyTilesAsync               GPU 4.22x
+  Tiled copy          CopyTiles 16x16                 -> CopyTilesAsync               GPU 4.22x
 ```
 
 With `-clearalternatives`, the output also includes the transitioned RTV and UAV comparisons.

@@ -1219,20 +1219,24 @@ static void BenchmarkResolve(D3DContext& D3D, BenchResult& out)
 // ---- Query resolve: ResolveQueryDataAsync vs ResolveQueryData ----
 static void BenchmarkResolveQueryData(D3DContext& D3D, BenchResult& out)
 {
-    const UINT N = kNumResources;
+    const UINT queryCount = 65536;
+    const UINT queriesPerCall = 256;
+    const UINT callCount = queryCount / queriesPerCall;
+    static_assert(queryCount % queriesPerCall == 0);
+
     CComPtr<ID3D12QueryHeap> qh;
-    D3D12_QUERY_HEAP_DESC qd = {}; qd.Type = D3D12_QUERY_HEAP_TYPE_TIMESTAMP; qd.Count = N;
+    D3D12_QUERY_HEAP_DESC qd = {}; qd.Type = D3D12_QUERY_HEAP_TYPE_TIMESTAMP; qd.Count = queryCount;
     VERIFY_SUCCEEDED(D3D.spDevice->CreateQueryHeap(&qd, IID_PPV_ARGS(&qh)));
 
     CD3DX12_HEAP_PROPERTIES dp(D3D12_HEAP_TYPE_DEFAULT);
-    CD3DX12_RESOURCE_DESC bd = CD3DX12_RESOURCE_DESC::Buffer((UINT64)N * sizeof(UINT64));
+    CD3DX12_RESOURCE_DESC bd = CD3DX12_RESOURCE_DESC::Buffer(static_cast<UINT64>(queryCount) * sizeof(UINT64));
     CComPtr<ID3D12Resource> dst;
     VERIFY_SUCCEEDED(D3D.spDevice->CreateCommittedResource(&dp, D3D12_HEAP_FLAG_NONE, &bd,
         D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&dst)));
 
     RunUntimed(D3D, [&](D3DContext& d)
     {
-        for (UINT i = 0; i < N; ++i)
+        for (UINT i = 0; i < queryCount; ++i)
         {
             d.spList->EndQuery(qh, D3D12_QUERY_TYPE_TIMESTAMP, i);
         }
@@ -1240,16 +1244,20 @@ static void BenchmarkResolveQueryData(D3DContext& D3D, BenchResult& out)
 
     auto legacy = [&](D3DContext& d)
     {
-        for (UINT i = 0; i < N; ++i)
+        for (UINT call = 0; call < callCount; ++call)
         {
-            d.spList->ResolveQueryData(qh, D3D12_QUERY_TYPE_TIMESTAMP, i, 1, dst, (UINT64)i * sizeof(UINT64));
+            const UINT startQuery = call * queriesPerCall;
+            d.spList->ResolveQueryData(qh, D3D12_QUERY_TYPE_TIMESTAMP, startQuery, queriesPerCall,
+                dst, static_cast<UINT64>(startQuery) * sizeof(UINT64));
         }
     };
     auto async = [&](D3DContext& d)
     {
-        for (UINT i = 0; i < N; ++i)
+        for (UINT call = 0; call < callCount; ++call)
         {
-            d.spList->ResolveQueryDataAsync(qh, D3D12_QUERY_TYPE_TIMESTAMP, i, 1, dst, (UINT64)i * sizeof(UINT64));
+            const UINT startQuery = call * queriesPerCall;
+            d.spList->ResolveQueryDataAsync(qh, D3D12_QUERY_TYPE_TIMESTAMP, startQuery, queriesPerCall,
+                dst, static_cast<UINT64>(startQuery) * sizeof(UINT64));
         }
     };
     out = RunLoop(D3D, kIterations, legacy, async);
@@ -1394,6 +1402,9 @@ static bool BenchmarkCopyTiles(D3DContext& D3D, BenchResult& out)
 
     const UINT tileBytes = 65536; // 64 KiB per tile (D3D12_TILED_RESOURCE_TILE_SIZE_IN_BYTES)
     const UINT numTiles = 256;
+    const UINT tilesPerCall = 16;
+    const UINT callCount = numTiles / tilesPerCall;
+    static_assert(numTiles % tilesPerCall == 0);
 
     CD3DX12_RESOURCE_DESC rdesc = CD3DX12_RESOURCE_DESC::Buffer((UINT64)numTiles * tileBytes);
     CComPtr<ID3D12Resource> tiled;
@@ -1411,7 +1422,7 @@ static bool BenchmarkCopyTiles(D3DContext& D3D, BenchResult& out)
     D3D.spQueue->UpdateTileMappings(tiled, 1, &startCoord, &regionSize, heap, 1, &rangeFlags, &heapStart, &rangeCount, D3D12_TILE_MAPPING_FLAG_NONE);
 
     CD3DX12_HEAP_PROPERTIES dp(D3D12_HEAP_TYPE_DEFAULT);
-    CD3DX12_RESOURCE_DESC srcDesc = CD3DX12_RESOURCE_DESC::Buffer(tileBytes);
+    CD3DX12_RESOURCE_DESC srcDesc = CD3DX12_RESOURCE_DESC::Buffer(static_cast<UINT64>(tilesPerCall) * tileBytes);
     CComPtr<ID3D12Resource> srcBuf;
     VERIFY_SUCCEEDED(D3D.spDevice->CreateCommittedResource(&dp, D3D12_HEAP_FLAG_NONE, &srcDesc,
         D3D12_RESOURCE_STATE_COPY_SOURCE, nullptr, IID_PPV_ARGS(&srcBuf)));
@@ -1419,20 +1430,20 @@ static bool BenchmarkCopyTiles(D3DContext& D3D, BenchResult& out)
     auto legacy = [&](D3DContext& d)
     {
         constexpr D3D12_TILE_COPY_FLAGS tileCopyFlags = D3D12_TILE_COPY_FLAG_LINEAR_BUFFER_TO_SWIZZLED_TILED_RESOURCE;
-        for (UINT i = 0; i < numTiles; ++i)
+        for (UINT call = 0; call < callCount; ++call)
         {
-            D3D12_TILED_RESOURCE_COORDINATE c = { i, 0, 0, 0 };
-            D3D12_TILE_REGION_SIZE sz = {}; sz.NumTiles = 1; sz.UseBox = FALSE;
+            D3D12_TILED_RESOURCE_COORDINATE c = { call * tilesPerCall, 0, 0, 0 };
+            D3D12_TILE_REGION_SIZE sz = {}; sz.NumTiles = tilesPerCall; sz.UseBox = FALSE;
             d.spList->CopyTiles(tiled, &c, &sz, srcBuf, 0, tileCopyFlags);
         }
     };
     auto async = [&](D3DContext& d)
     {
         constexpr D3D12_TILE_COPY_FLAGS tileCopyFlags = D3D12_TILE_COPY_FLAG_LINEAR_BUFFER_TO_SWIZZLED_TILED_RESOURCE;
-        for (UINT i = 0; i < numTiles; ++i)
+        for (UINT call = 0; call < callCount; ++call)
         {
-            D3D12_TILED_RESOURCE_COORDINATE c = { i, 0, 0, 0 };
-            D3D12_TILE_REGION_SIZE sz = {}; sz.NumTiles = 1; sz.UseBox = FALSE;
+            D3D12_TILED_RESOURCE_COORDINATE c = { call * tilesPerCall, 0, 0, 0 };
+            D3D12_TILE_REGION_SIZE sz = {}; sz.NumTiles = tilesPerCall; sz.UseBox = FALSE;
             d.spList->CopyTilesAsync(tiled, &c, &sz, srcBuf, 0, tileCopyFlags);
         }
     };
@@ -1447,6 +1458,9 @@ static void BenchmarkEndToEndMixedFrame(D3DContext& D3D, BenchResult& out, bool 
     const UINT kE2EIterations = 12;
     const UINT kE2EDrawCalls = 256;
     const UINT64 kE2EBufferBytes = 512u * 1024u;
+    const UINT kE2EQueriesPerCall = 16;
+    const UINT kE2EQueryCallCount = kE2EResources / kE2EQueriesPerCall;
+    static_assert(kE2EResources % kE2EQueriesPerCall == 0);
 
     CD3DX12_HEAP_PROPERTIES defaultProps(D3D12_HEAP_TYPE_DEFAULT);
     CD3DX12_RESOURCE_DESC uavDesc = CD3DX12_RESOURCE_DESC::Buffer(kE2EBufferBytes, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
@@ -1671,9 +1685,11 @@ static void BenchmarkEndToEndMixedFrame(D3DContext& D3D, BenchResult& out, bool 
         {
             d.spList->EndQuery(resolveQh, D3D12_QUERY_TYPE_TIMESTAMP, i);
         }
-        for (UINT i = 0; i < kE2EResources; ++i)
+        for (UINT call = 0; call < kE2EQueryCallCount; ++call)
         {
-            d.spList->ResolveQueryData(resolveQh, D3D12_QUERY_TYPE_TIMESTAMP, i, 1, resolveDst, static_cast<UINT64>(i) * sizeof(UINT64));
+            const UINT startQuery = call * kE2EQueriesPerCall;
+            d.spList->ResolveQueryData(resolveQh, D3D12_QUERY_TYPE_TIMESTAMP, startQuery, kE2EQueriesPerCall,
+                resolveDst, static_cast<UINT64>(startQuery) * sizeof(UINT64));
         }
 
         recordRender(d);
@@ -1694,9 +1710,11 @@ static void BenchmarkEndToEndMixedFrame(D3DContext& D3D, BenchResult& out, bool 
         {
             d.spList->EndQuery(resolveQh, D3D12_QUERY_TYPE_TIMESTAMP, i);
         }
-        for (UINT i = 0; i < kE2EResources; ++i)
+        for (UINT call = 0; call < kE2EQueryCallCount; ++call)
         {
-            d.spList->ResolveQueryDataAsync(resolveQh, D3D12_QUERY_TYPE_TIMESTAMP, i, 1, resolveDst, static_cast<UINT64>(i) * sizeof(UINT64));
+            const UINT startQuery = call * kE2EQueriesPerCall;
+            d.spList->ResolveQueryDataAsync(resolveQh, D3D12_QUERY_TYPE_TIMESTAMP, startQuery, kE2EQueriesPerCall,
+                resolveDst, static_cast<UINT64>(startQuery) * sizeof(UINT64));
         }
 
         recordRender(d);
@@ -1942,7 +1960,8 @@ int main(int argc, char** argv)
                   BenchmarkResolve(d, r);
                   return true;
               } },
-            { "Query resolve", "ResolveQueryData x N", "ResolveQueryDataAsync x N", nullptr,
+            { "Query resolve (256 calls x 256 queries)", "ResolveQueryData (256 queries/call)",
+              "ResolveQueryDataAsync (256 queries/call)", nullptr,
               [](D3DContext& d, BenchResult& r)
               {
                   BenchmarkResolveQueryData(d, r);
@@ -1983,7 +2002,8 @@ int main(int argc, char** argv)
                   BenchmarkClearBoundDSV(d, r);
                   return true;
               } },
-            { "Tiled copy", "CopyTiles x N", "CopyTilesAsync x N", nullptr,
+            { "Tiled copy (16 calls x 16 tiles)", "CopyTiles (16 tiles/call)",
+              "CopyTilesAsync (16 tiles/call)", nullptr,
               [](D3DContext& d, BenchResult& r)
               {
                   return BenchmarkCopyTiles(d, r);
