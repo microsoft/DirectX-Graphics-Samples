@@ -33,7 +33,7 @@ The new commands, all on the `ID3D12GraphicsCommandList12` interface (obtained b
 
 | Async command | Legacy baseline used for comparison in this sample |
 |---|---|
-| `CopyBufferRegions` | `CopyBufferRegion` (batched, independent copies overlap) |
+| `CopyBufferRegions` | `CopyBufferRegion` (single batched call; independent copies may overlap) |
 | `CopyTextureRegions` | `CopyTextureRegion` |
 | `CopyResources` | `CopyResource` |
 | `CopyTilesAsync` | `CopyTiles` |
@@ -105,7 +105,6 @@ show additional overlap on the independent work.
 ## Requirements
 
 * DirectX 12 **Agility SDK 620.1** (`Microsoft.Direct3D.D3D12`), restored automatically via NuGet.
-  Async Commands became retail in 620.0; 620.1 adds the application opt-in runtime fallback layer.
 * A driver that implements async commands, or `-fallback` to permit the runtime fallback on an
   adapter without native support. Without that opt-in, the default path falls back to the preview
   **WARP** software renderer (`Microsoft.Direct3D.WARP` `1.65535.20-preview`).
