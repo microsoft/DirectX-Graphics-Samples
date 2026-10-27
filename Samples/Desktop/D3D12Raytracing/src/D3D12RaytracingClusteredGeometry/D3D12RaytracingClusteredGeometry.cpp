@@ -5624,6 +5624,16 @@ void D3D12RaytracingClusteredGeometry::OnUpdate()
 void D3D12RaytracingClusteredGeometry::OnRender()
 {
     if (!m_deviceResources->IsWindowVisible()) return;
+    if (IsBenchmarkMode())
+    {
+        RECT client = {};
+        ThrowIfFalse(GetClientRect(Win32Application::GetHwnd(), &client) != FALSE,
+            L"Could not read the benchmark client dimensions.\n");
+        const auto output = m_raytracingOutput->GetDesc();
+        ThrowIfFalse(output.Width == 1280 && output.Height == 720 &&
+            client.right - client.left == 1280 && client.bottom - client.top == 720,
+            L"Benchmark render/client size changed; expected 1280x720 physical pixels.\n");
+    }
 
     // For --screenshot-at <seconds>, advance the camera clock straight to
     // the requested timestamp on the first rendered frame (so the orbit camera
@@ -6133,6 +6143,7 @@ void D3D12RaytracingClusteredGeometry::DoRender()
 // =====================================================================================
 void D3D12RaytracingClusteredGeometry::OnSizeChanged(UINT width, UINT height, bool minimized)
 {
+    if (IsBenchmarkMode()) return;
     if (!m_deviceResources->WindowSizeChanged(width, height, minimized)) return;
     UpdateForSizeChange(width, height);
 
@@ -6693,6 +6704,18 @@ void D3D12RaytracingClusteredGeometry::WriteBenchmarkSnapshot()
     kvB  ("wireframe",                     m_wireframe);
     kvB  ("vsync",                         m_vsync);
     kvB  ("tearing_supported",             m_deviceResources->IsTearingSupported());
+    const auto renderDesc = m_raytracingOutput->GetDesc();
+    kvU  ("render_width", renderDesc.Width);
+    kvU  ("render_height", renderDesc.Height);
+    kvB  ("benchmark_input_locked", IsBenchmarkMode() &&
+        !IsWindowEnabled(Win32Application::GetHwnd()) &&
+        (GetWindowLongPtr(Win32Application::GetHwnd(), GWL_EXSTYLE) & WS_EX_NOACTIVATE) != 0);
+    kvStr("benchmark_window_mode", IsBenchmarkMode() ? "background-noactivate" : "interactive");
+    kvB  ("camera_paused", m_cameraPaused);
+    kvD  ("camera_seconds", m_cameraSeconds);
+    kvB  ("animation_paused", m_animPaused);
+    ComPtr<ID3D12InfoQueue> benchmarkInfoQueue;
+    kvB  ("debug_layer_active", SUCCEEDED(m_dxrDevice.As(&benchmarkInfoQueue)));
     kvD  ("cluster_tint",                  (double)m_clusterTint);
     kvI  ("bounce_slider",                 (long long)m_bounceSlider);
     kvU  ("reflection_bounces",            ReflectionBounces());

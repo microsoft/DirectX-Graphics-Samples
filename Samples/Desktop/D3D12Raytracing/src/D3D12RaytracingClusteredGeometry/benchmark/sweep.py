@@ -25,6 +25,12 @@ HERE = Path(__file__).resolve().parent
 DEFAULT_EXE = HERE.parent / "bin" / "x64" / "Release" / "D3D12RaytracingClusteredGeometry.exe"
 DEFAULT_RESULTS_ROOT = HERE / "results"
 NOMINAL_PRECISION_BITS = tuple(range(2, 17, 2))
+BENCHMARK_ENVIRONMENT = {
+    "render_width": 1280, "render_height": 720,
+    "benchmark_input_locked": True, "benchmark_window_mode": "background-noactivate",
+    "camera_paused": True, "camera_seconds": 0.0, "animation_paused": False,
+    "debug_layer_active": False,
+}
 STAGES = ("pf_instantiate_us", "pf_blas_us", "pf_tlas_us",
           "pf_static_blas_us", "pf_static_clas_us", "pf_render_us")
 AS_COMPONENTS = {
@@ -232,6 +238,10 @@ class UnsupportedConfig(ValueError):
     pass
 
 
+class BenchmarkContractError(ValueError):
+    pass
+
+
 def number(data: dict, group: str, name: str) -> float:
     section = data.get(group)
     if not isinstance(section, dict):
@@ -265,7 +275,7 @@ def adapter_identity(data: dict) -> tuple:
                  ("description", "vendor_id", "device_id", "driver_version", "clusters_supported"))
 
 
-def validate_snapshot(data: dict, config: RunConfig) -> None:
+def validate_snapshot(data: dict, config: RunConfig, require_environment: bool = False) -> None:
     if data.get("schema_version") != 1:
         raise ValueError("unsupported sample JSON schema")
     adapter = data.get("adapter", {})
@@ -274,6 +284,14 @@ def validate_snapshot(data: dict, config: RunConfig) -> None:
     if config.geometry_mode == "clusters" and adapter.get("clusters_supported") is False:
         raise UnsupportedConfig("cluster support unavailable; the sample fell back to traditional")
     actual = data.get("config", {})
+    recorded_environment = any(key in actual for key in BENCHMARK_ENVIRONMENT)
+    if require_environment or recorded_environment:
+        for key, expected in BENCHMARK_ENVIRONMENT.items():
+            observed = actual.get(key)
+            if type(observed) is not type(expected) or observed != expected:
+                raise BenchmarkContractError(
+                    f"benchmark requires {key}={expected!r}, reported {observed!r}; "
+                    "rebuild the current sample and check validation/input/viewport settings")
     for key, expected in config.expected_config().items():
         if actual.get(key) != expected:
             raise ValueError(f"requested {key}={expected!r}, sample reported {actual.get(key)!r}")
@@ -446,7 +464,7 @@ def _run_one(exe: Path, cfg: RunConfig, out_dir: Path, bench_seconds: float,
             data = read_json(sample_json)
             if expected_adapter is not None and adapter_identity(data) != expected_adapter:
                 raise ValueError("adapter/driver changed; start a new sweep instead of extending")
-            validate_snapshot(data, cfg)
+            validate_snapshot(data, cfg, require_environment=True)
             status = "ok"
             break
         except TimingNotReady as error:
@@ -465,6 +483,11 @@ def _run_one(exe: Path, cfg: RunConfig, out_dir: Path, bench_seconds: float,
             status = "skipped"
             data["_error"] = str(error)
             break
+        except BenchmarkContractError as error:
+            data["_error"] = str(error)
+            attempt_info["error"] = str(error)
+            metadata["stop_sweep"] = True
+            break
         except (OSError, ValueError, subprocess.TimeoutExpired) as error:
             data["_error"] = str(error)
             attempt_info["error"] = str(error)
@@ -478,6 +501,8 @@ def _run_one(exe: Path, cfg: RunConfig, out_dir: Path, bench_seconds: float,
 
 def load_results(directory: Path) -> tuple[list[RunResult], dict]:
     manifest = read_json(directory / "manifest.json")
+    if manifest.get("invalidated"):
+        raise ValueError(f"sweep invalidated: {manifest['invalidated']}")
     if manifest.get("tool_schema") != 2:
         raise ValueError("unsupported or missing sweep manifest; legacy EMA results are not comparable")
     results = []
@@ -812,6 +837,14 @@ def report_tables(runs: list[RunResult], manifest: dict) -> list[tuple[str, list
     if successful:
         tearing = successful[0].data["config"].get("tearing_supported")
         facts += [["Tearing supported", "Yes" if tearing else "No" if tearing is False else "Not recorded"]]
+        actual = successful[0].data["config"]
+        if "render_width" in actual:
+            facts += [["Render size (physical pixels)", f"{actual['render_width']}x{actual['render_height']}"],
+                      ["Benchmark window", actual["benchmark_window_mode"]],
+                      ["User input", "Blocked" if actual["benchmark_input_locked"] else "Not blocked"],
+                      ["D3D debug layer", "On" if actual["debug_layer_active"] else "Off"]]
+        else:
+            facts += [["Render/input isolation", "Not recorded by this older sample"]]
     facts += [["Executable", manifest.get("executable", "unknown")],
               ["Executable + runtime SHA-256", manifest.get("payload_sha256", "unknown")],
               ["Sweep start time (UTC)", manifest.get("created_utc", "unknown")],
@@ -886,6 +919,9 @@ def report_tables(runs: list[RunResult], manifest: dict) -> list[tuple[str, list
 
 
 REPORT_NOTES = [
+    "Current benchmark runs use a non-activating background window at a verified 1280x720 "
+    "physical-pixel render size. User keyboard/mouse input cannot change settings. "
+    "New runs require this contract and disabled D3D validation; older saved data may lack it.",
     "AS = acceleration structure; BLAS = bottom-level AS; TLAS = top-level AS; "
     "CLAS = cluster-level AS. Time charts distinguish one-time initial setup from GPU work per frame.",
     AS_WORK_SCOPE,
@@ -966,6 +1002,8 @@ def execute_cases(exe: Path, matrix: list[RunConfig], directory: Path, manifest:
         write_json(directory / "manifest.json", manifest)
         print(f"  {run.status}: " + (run.data.get("_error") or
               format_metric(metric(run, ("frame_perf", "fps")), "FPS")), flush=True)
+        if run.data["_sweep"].get("stop_sweep"):
+            break
         if identity is not None and "adapter" in run.data and adapter_identity(run.data) != identity:
             break
 
@@ -1009,7 +1047,8 @@ def main(argv: list[str] | None = None) -> int:
         if args.no_run or args.input_dir:
             directory = args.input_dir
             if directory is None:
-                manifests = list(args.results_root.glob("*/manifest.json"))
+                manifests = [path for path in args.results_root.glob("*/manifest.json")
+                             if not read_json(path).get("invalidated")]
                 if not manifests:
                     raise ValueError("no prior sweep manifests; supply --input-dir")
                 directory = max(manifests, key=lambda p: p.stat().st_mtime_ns).parent

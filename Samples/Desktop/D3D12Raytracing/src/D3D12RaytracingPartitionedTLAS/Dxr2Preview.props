@@ -4,7 +4,7 @@
   <Import Project="Dxr2Preview.local.props" Condition="Exists('Dxr2Preview.local.props')" />
   <PropertyGroup>
     <RestoreRepositoryPath Condition="'$(RestoreRepositoryPath)' == ''">$([MSBuild]::NormalizePath('$(MSBuildThisFileDirectory)..\..\..\..\..\Packages'))</RestoreRepositoryPath>
-    <Dxr2AgilityDirectory>$(RestoreRepositoryPath)\Microsoft.Direct3D.D3D12.1.722.0-160058127-preview\build\native\</Dxr2AgilityDirectory>
+    <Dxr2AgilityDirectory>$(RestoreRepositoryPath)\Microsoft.Direct3D.D3D12.1.722.0-preview\build\native\</Dxr2AgilityDirectory>
     <Dxr2DxcDirectory>$(RestoreRepositoryPath)\Microsoft.Direct3D.DXC.1.10.2605.37-preview\build\native\</Dxr2DxcDirectory>
     <DxcDirectory>$(Dxr2DxcDirectory)bin\$(Platform)\</DxcDirectory>
     <Dxr2ArtifactsRoot Condition="'$(Dxr2ArtifactsRoot)' == ''">$(MSBuildThisFileDirectory)</Dxr2ArtifactsRoot>
@@ -35,7 +35,7 @@
   </ItemDefinitionGroup>
   <Target Name="ValidateDxr2Preview" BeforeTargets="PrepareForBuild">
     <Error Condition="!Exists('$(Dxr2AgilityDirectory)Microsoft.Direct3D.D3D12.props') or !Exists('$(Dxr2AgilityDirectory)Microsoft.Direct3D.D3D12.targets')"
-           Text="Restore the Microsoft.Direct3D.D3D12 NuGet package before building (tools\build.ps1). See README.md for preview package sources." />
+           Text="Restore the Microsoft.Direct3D.D3D12 1.722.0-preview NuGet package before building (tools\build.ps1). See README.md for package sources." />
     <Error Condition="!Exists('$(Dxr2DxcDirectory)Microsoft.Direct3D.DXC.props') or !Exists('$(Dxr2DxcDirectory)Microsoft.Direct3D.DXC.targets')"
            Text="Restore the Microsoft.Direct3D.DXC NuGet package before building (tools\build.ps1)." />
     <Error Condition="'@(SampleShader)' != '' and !Exists('$(RestoreRepositoryPath)\WinPixEventRuntime.1.0.240308001\build\WinPixEventRuntime.targets')"

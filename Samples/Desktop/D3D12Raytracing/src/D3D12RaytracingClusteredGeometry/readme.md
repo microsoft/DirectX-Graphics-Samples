@@ -20,7 +20,7 @@ SM 6.10 shaders.
 The sample restores these native NuGet dependencies into the repository's
 `Packages` directory:
 
-- `Microsoft.Direct3D.D3D12` **1.722.0-160058127-preview** (DXR2 preview).
+- `Microsoft.Direct3D.D3D12` **1.722.0-preview** (published Agility SDK 1.722.0).
 - `Microsoft.Direct3D.DXC` **1.10.2605.37-preview** (SM 6.10 compiler).
 
 DirectXTK12 (text overlay) is built from source through the repository's shared
@@ -34,13 +34,10 @@ capabilities with `CheckFeatureSupport1`, avoiding deprecated helper-library
 queries. The original constructor remains compatible, and the toolkit patch
 does not depend on preview Agility SDK headers or runtime interfaces.
 
-Until the Agility package is published, add the folder containing its `.nupkg`
-as a **local package source** in Visual Studio's NuGet Package Manager settings,
-alongside nuget.org. Alternatively, configure it in your user-level
-`NuGet.Config`. The feed location is machine-specific and is not encoded in the
-project; `packages.config` and the `.vcxproj` encode only package versions.
-When the public Agility version is available, update its version in those two
-files and restore normally from nuget.org.
+Both pinned packages restore from nuget.org; no unpublished Agility package or
+local package source is required. If direct access to nuget.org is blocked, use
+an approved mirror configured in your user/machine NuGet settings. No
+machine-specific feed locations are checked in.
 
 Open `D3D12RaytracingClusteredGeometry.sln` and restore/build **Debug|x64** or
 **Release|x64**. From a VS 2022 Developer PowerShell:
@@ -170,6 +167,10 @@ files; `report.html` alone is not enough. `--label` customizes GPU names and
 `--partial` includes unmatched configurations as gaps. Reports work offline.
 See the [benchmark README](benchmark/README.md) for regeneration, extending saved
 sweeps, all options, and measurement definitions. Generated results are Git-ignored.
+Benchmark runs are non-interactive, stay behind other applications without taking
+focus, and enforce a 1280x720 physical-pixel client/render size. Actual dimensions,
+input isolation, camera/animation state, and D3D validation state are recorded.
+Rebuild the current sample before collecting verified benchmark runs.
 
 For a timed run that writes a JSON snapshot and exits:
 
@@ -253,10 +254,13 @@ Where tearing is supported, Alt+Enter uses the existing borderless-fullscreen
 path in both vsync states; otherwise the existing DXGI fullscreen behavior
 remains. Tearing flags are never used in exclusive fullscreen.
 
-On HW adapters the window launches maximized; on WARP / Basic Render it stays
+Interactive HW launches maximize; on WARP / Basic Render the window stays
 at the default 1280×720 since maximizing a CPU rasterizer to 4K would make
-each frame take seconds. Headless runs (any of the above CLI flags) also stay
-at 1280×720 so screenshot resolution and the benchmark workload are deterministic.
+each frame take seconds. Screenshot/scripted launches skip maximization.
+Benchmark runs additionally use a non-activating, input-disabled background
+window and enforce 1280x720 physical-pixel client/render dimensions every frame,
+independent of desktop dimensions or DPI. Normal interactive resizing and
+fullscreen shortcuts are unchanged.
 
 ## Source organization
 

@@ -47,7 +47,8 @@ def snapshot(cfg: RunConfig = RunConfig()) -> dict:
         adapter=dict(description="Synthetic adapter", vendor_id=1, device_id=2,
                      driver_version="test-driver", clusters_supported=True,
                      dedicated_vram_bytes=1024 ** 3),
-        config={**cfg.expected_config(), "bounce_slider": 3, "reflection_bounces": 3,
+        config={**cfg.expected_config(), **sweep.BENCHMARK_ENVIRONMENT,
+                "bounce_slider": 3, "reflection_bounces": 3,
                 "refraction_bounces": 5, "cluster_tint": 0.5, "tearing_supported": True},
         memory_bytes=memory, build_times_ms=dict(static_clas=1, static_blas=2, tlas=3, total=6),
         frame_perf=perf, scene=dict(total_clusters=10 + cfg.extra_instances,
@@ -121,6 +122,22 @@ class Measurements(unittest.TestCase):
                 data["config"][key] = value
                 with self.assertRaisesRegex(ValueError, "requested"):
                     validate_snapshot(data, RunConfig())
+
+    def test_new_runs_require_fixed_resolution_input_lock_and_actual_animation_state(self):
+        for key, value in (("render_width", 1920), ("render_height", 1080),
+                           ("benchmark_input_locked", False), ("benchmark_window_mode", "interactive"),
+                           ("camera_paused", False), ("camera_seconds", 1.0),
+                           ("animation_paused", True), ("debug_layer_active", True)):
+            data = snapshot()
+            data["config"][key] = value
+            with self.subTest(key=key), self.assertRaises(sweep.BenchmarkContractError):
+                validate_snapshot(data, RunConfig(), require_environment=True)
+        legacy = snapshot()
+        for key in sweep.BENCHMARK_ENVIRONMENT:
+            del legacy["config"][key]
+        validate_snapshot(legacy, RunConfig())
+        with self.assertRaises(sweep.BenchmarkContractError):
+            validate_snapshot(legacy, RunConfig(), require_environment=True)
 
     def test_no_legacy_ema_or_unsettled_timing_fallback(self):
         data = snapshot()
@@ -393,6 +410,30 @@ class Execution(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertTrue((self.root / "report.html").is_file())
 
+    def test_invalidated_sweep_cannot_be_loaded_for_comparison_or_extension(self):
+        manifest = save_results(self.root, [result(directory=self.root)])
+        manifest["invalidated"] = "Input changed settings during measurement"
+        write_json(self.root / "manifest.json", manifest)
+        with self.assertRaisesRegex(ValueError, "sweep invalidated"):
+            load_results(self.root)
+
+    def test_old_executable_contract_failure_stops_the_sweep_after_one_case(self):
+        def process(command, **kwargs):
+            data = snapshot()
+            for key in sweep.BENCHMARK_ENVIRONMENT:
+                del data["config"][key]
+            write_json(Path(command[-1]), data)
+            return subprocess.CompletedProcess(command, 0)
+        args = SimpleNamespace(bench_seconds=2, init_timeout=1, verbose=False, max_bench_seconds=10)
+        manifest = dict(payload_sha256=sweep.payload_fingerprint(self.exe), runs=[])
+        runs = []
+        with patch("sweep.subprocess.run", side_effect=process) as native:
+            sweep.execute_cases(self.exe, [RunConfig(), replace(RunConfig(), extra_instances=100)],
+                                self.output, manifest, runs, args)
+        self.assertEqual(native.call_count, 1)
+        self.assertEqual(runs[0].status, "failed")
+        self.assertTrue(runs[0].data["_sweep"]["stop_sweep"])
+
     def test_mixed_payload_results_and_stale_attempts_fail(self):
         run = result(directory=self.root)
         manifest = save_results(self.root, [run])
@@ -612,13 +653,23 @@ class Comparison(unittest.TestCase):
         notes = compare.comparison_warnings([a, b])
         self.assertTrue(any("BUILD CAUTION" in note and "differ" in note for note in notes))
         self.assertTrue(any("SAMPLE CAUTION: B" in note and "minimum 2" in note for note in notes))
-        self.assertTrue(any("viewport" in note for note in notes))
+        self.assertTrue(any("1280x720" in note for note in notes))
         self.assertTrue(any("No variance" in note for note in notes))
         a.manifest["payload_sha256"] = b.manifest["payload_sha256"]
         b.runs[0].data["frame_perf"]["frames_in_avg_window"] = 100
         notes = compare.comparison_warnings([a, b])
         self.assertFalse(any("BUILD CAUTION" in note for note in notes))
         self.assertFalse(any("SAMPLE CAUTION" in note for note in notes))
+
+    def test_legacy_and_fixed_window_results_are_not_silently_combined(self):
+        legacy = result()
+        for key in sweep.BENCHMARK_ENVIRONMENT:
+            del legacy.data["config"][key]
+        a = self.machine("A", [legacy])
+        b = self.machine("B", [result()])
+        self.assertTrue(any("LEGACY INPUT" in note for note in compare.comparison_warnings([a])))
+        with self.assertRaisesRegex(ValueError, "render/input conditions"):
+            compare.comparison_charts([a, b])
 
     def test_largest_workload_summary_uses_common_supported_scale(self):
         configs = build_sweep_matrix(True, True)

@@ -10,7 +10,7 @@ import re
 import sys
 
 from report import Chart, render_report
-from sweep import (REPORT_NOTES, AS_WORK_LABEL, METRIC_LABELS, SETTING_LABELS,
+from sweep import (REPORT_NOTES, AS_WORK_LABEL, METRIC_LABELS, SETTING_LABELS, BENCHMARK_ENVIRONMENT,
                    RunConfig, RunResult, build_charts, format_metric,
                    load_results, metric, report_tables, setting_value, metric_unit)
 
@@ -37,6 +37,7 @@ def workload_signature(run: RunResult) -> tuple:
                                       "cluster_tint", "vsync", "wireframe")),
         tuple(perf[key] for key in ("avg_window_target_seconds", "publication_interval_seconds")),
         tuple(provenance[key] for key in ("camera_paused", "camera_seconds", "animation_paused")),
+        tuple(config.get(key) for key in BENCHMARK_ENVIRONMENT),
     )
 
 
@@ -50,7 +51,7 @@ def comparison_charts(machines: list[MachineReport], partial: bool = False) -> t
         signatures = {workload_signature(r) for m in machines for r in m.runs
                       if r.config == cfg and r.status == "ok"}
         if len(signatures) != 1:
-            raise ValueError(f"{cfg.slug()}: geometry, camera, or timing semantics differ")
+            raise ValueError(f"{cfg.slug()}: geometry, camera, timing, or render/input conditions differ")
     base = RunConfig(**machines[0].manifest["base_config"])
     merged: dict[tuple, Chart] = {}
     split_categories = {"Scene scaling", "Build preference", "Animated detail", "AS memory breakdown"}
@@ -150,14 +151,20 @@ def comparison_warnings(machines: list[MachineReport]) -> list[str]:
             warnings.append(f"SAMPLE CAUTION: {machine.label} has {len(sparse)} cases with fewer "
                             f"than 10 frames in the published window (minimum {fewest}). "
                             "A settled time window is not a statistical-confidence guarantee.")
+        if any(not all(key in run.data["config"] for key in BENCHMARK_ENVIRONMENT)
+               for run in valid):
+            warnings.append(f"LEGACY INPUT: {machine.label} does not record verified render size, "
+                            "input isolation, or validation state. Treat it as unverified for "
+                            "controlled comparison; collect a fresh sweep with the current sample.")
         failed = sum(r.status == "failed" for r in machine.runs)
         skipped = sum(r.status == "skipped" for r in machine.runs)
         if failed or skipped:
             warnings.append(f"COVERAGE: {machine.label}: {failed} failed and {skipped} skipped cases. "
                             "Excluded cases must not be interpreted as zero cost.")
     warnings += [
-        "REPRODUCIBILITY: viewport size, power state, clocks, and desktop/presentation conditions "
-        "are not captured in these manifests. Verify them separately for controlled comparisons.",
+        "REPRODUCIBILITY: current samples verify a fixed 1280x720 physical-pixel render size, "
+        "blocked user input, and disabled validation. Legacy inputs may lack this proof. "
+        "Power state, clocks, and desktop/presentation conditions still need separate control.",
         "STATISTICS: each point is one final rolling-window mean, not the entire process average "
         "and not a repeated-trial estimate. No variance or error bars can be recovered from it.",
         "VISUALS: non-stacked chart colors identify GPUs; frame-budget stack colors identify "
@@ -178,10 +185,15 @@ def summary_table(machines: list[MachineReport]) -> tuple:
         counts = [run.data["frame_perf"]["frames_in_avg_window"] for run in valid]
         rows.append([machine.label, adapter["description"], adapter.get("driver_version", "unknown"),
                      len(valid), len(machine.runs), min(counts),
+                     (f"{valid[0].data['config']['render_width']}x"
+                      f"{valid[0].data['config']['render_height']}")
+                     if "render_width" in valid[0].data["config"] else "Not recorded",
+                     "Locked" if valid[0].data["config"].get("benchmark_input_locked") else "Not verified",
                      machine.manifest.get("payload_sha256", "not recorded")])
     return ("Input coverage and build identity",
             ["GPU label", "Adapter", "Driver version", "Valid configurations",
-             "Requested configurations", "Fewest frames averaged", "Executable/runtime SHA-256"], rows)
+             "Requested configurations", "Fewest frames averaged", "Render size (pixels)",
+             "User input", "Executable/runtime SHA-256"], rows)
 
 
 def largest_workload_tables(machines: list[MachineReport]) -> list[tuple]:

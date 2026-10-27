@@ -58,6 +58,7 @@ public:
     // (maximizing on WARP would push the per-frame cost into multi-
     // second territory and the window would feel frozen).
     virtual bool ShouldMaximizeWindowOnLaunch() const { return false; }
+    virtual bool IsBenchmarkMode() const { return false; }
 
     void UpdateForSizeChange(UINT clientWidth, UINT clientHeight);
     void SetWindowBounds(int left, int top, int right, int bottom);

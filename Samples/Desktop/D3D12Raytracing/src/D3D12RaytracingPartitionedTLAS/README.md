@@ -26,7 +26,7 @@ Start with [the PTLAS walkthrough](PTLAS_WALKTHROUGH.md) for annotated code, a r
 The sample uses the same Agility SDK and DXC NuGet versions as the Clustered
 Geometry sample, plus WinPixEventRuntime, pinned in [packages.config](packages.config):
 
-- `Microsoft.Direct3D.D3D12` **1.722.0-160058127-preview**.
+- `Microsoft.Direct3D.D3D12` **1.722.0-preview** (published Agility SDK 1.722.0).
 - `Microsoft.Direct3D.DXC` **1.10.2605.37-preview**.
 - `WinPixEventRuntime` **1.0.240308001**.
 
@@ -38,17 +38,11 @@ DirectXMath is supplied by the Windows SDK.
 
 ### SDK package availability
 
-Until the pinned Agility package is published, add the folder containing its
-`.nupkg` as a local package source in Visual Studio's NuGet settings or a
-user-level `NuGet.Config`, as described by the
-[Clustered Geometry sample](../D3D12RaytracingClusteredGeometry/readme.md).
+The pinned Agility SDK, DXC, and WinPixEventRuntime packages restore normally
+from nuget.org; no unpublished Agility package or local package source is required.
 Inherited feeds are preserved; if direct access to nuget.org is blocked, use an
 approved internal feed in your user or machine settings. No machine-specific
 feed locations are checked in.
-
-When the public Agility package is available, update its version in
-`packages.config` and `Dxr2Preview.props` together with the Clustered Geometry
-sample, then restore normally from nuget.org.
 
 ## Build and run
 

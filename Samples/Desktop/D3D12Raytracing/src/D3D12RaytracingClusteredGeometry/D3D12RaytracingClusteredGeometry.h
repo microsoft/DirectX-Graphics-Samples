@@ -154,6 +154,7 @@ public:
     // on hardware adapters in interactive (non-headless) mode.  See the
     // .cpp implementation for the exact gating.
     virtual bool ShouldMaximizeWindowOnLaunch() const override;
+    virtual bool IsBenchmarkMode() const override { return m_benchSeconds > 0.0; }
     virtual void OnUpdate() override;
     virtual void OnRender() override;
     virtual void OnSizeChanged(UINT width, UINT height, bool minimized) override;

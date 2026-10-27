@@ -63,6 +63,20 @@ defaults. Vsync is requested **off**, the camera is paused at its initial
 position, and animation continues. The benchmark baseline has **zero extra
 copies**, independent of the interactive default of 100.
 
+Benchmark mode uses a disabled, non-activating background window and an explicit
+render loop, so it neither takes focus nor relies on window exposure to progress.
+Keyboard/mouse input and fullscreen/resize commands cannot change its settings.
+The client and ray-dispatch dimensions are fixed to **1280x720 physical pixels**
+with per-monitor DPI awareness, and checked every frame. Normal interactive
+launches retain their resizable window and hotkeys.
+
+Snapshots record the actual render dimensions, input lock, background-window mode,
+camera/animation state, and D3D validation state. New sweeps require this contract
+and disabled validation, failing immediately if the executable is too old or the
+conditions differ. **Rebuild the sample**, not just the scripts, before collecting
+new measurements after this change. Older saved data can still be viewed, but is
+flagged as unverified and is not mixed with verified-background runs.
+
 Both geometry modes receive the same selected mesh and extra-object count.
 Every animated copy must have an independent BLAS; capped or shared-BLAS
 substitutions are rejected. Static curved copies use the sample's
@@ -104,6 +118,8 @@ the manifest. A short `_pending-...` directory is used until the run completes
 and adapter identity is known, then renamed without an extra probe run.
 Existing folders keep their names when re-rendered or extended, and older
 timestamp-named folders still work.
+Sweeps explicitly marked `invalidated` in their manifest cannot be compared,
+extended, or selected by `--no-run`; their original evidence is retained.
 
 Native measurements/logging use short temporary paths when necessary to avoid
 Windows path limits. Their files are then moved into the result directory;
@@ -274,3 +290,11 @@ Fixtures are synthetic and contain no real machine identities or measurements.
 They cover settings verification, missing/invalid timing, slow/fast cadence,
 resident-memory accounting, retries and process failures, report-only loading,
 comparison fairness, safe HTML/JSON embedding, and offline report behavior.
+
+The optional native window-isolation test uses
+`tests\BenchmarkIsolationMain.cpp` via
+`/p:ForceImportAfterCppTargets=<absolute-path>\tests\BenchmarkIsolation.targets`.
+Build it to a separate output directory, then run with normal benchmark arguments.
+It sends keyboard/fullscreen/resize messages only to its own window, checks that
+the foreground is never acquired and the client stays 1280x720, and writes a
+snapshot the Python validator can check for unchanged settings.

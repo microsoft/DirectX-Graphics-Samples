@@ -1,0 +1,12 @@
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Target Name="UseBenchmarkIsolationTestMain" BeforeTargets="ClCompile">
+    <ItemGroup>
+      <ClCompile Remove="Main.cpp" />
+      <ClCompile Remove="$(MSBuildThisFileDirectory)BenchmarkIsolationMain.cpp" />
+      <ClCompile Include="$(MSBuildThisFileDirectory)BenchmarkIsolationMain.cpp">
+        <PrecompiledHeader>NotUsing</PrecompiledHeader>
+        <AdditionalIncludeDirectories>$(MSBuildProjectDirectory);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      </ClCompile>
+    </ItemGroup>
+  </Target>
+</Project>

@@ -31,6 +31,13 @@ int Win32Application::Run(DXSample* pSample, HINSTANCE hInstance, int nCmdShow)
         LPWSTR* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
         pSample->ParseCommandLineArgs(argv, argc);
         LocalFree(argv);
+        const bool benchmark = pSample->IsBenchmarkMode();
+        if (benchmark)
+        {
+            ThrowIfFalse(SetThreadDpiAwarenessContext(
+                DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2) != nullptr,
+                L"Could not set physical-pixel DPI awareness for the benchmark.\n");
+        }
 
         // Initialize the window class.
         WNDCLASSEX windowClass = { 0 };
@@ -44,21 +51,26 @@ int Win32Application::Run(DXSample* pSample, HINSTANCE hInstance, int nCmdShow)
 
         RECT windowRect = {0, 0, static_cast<LONG>(pSample->GetWidth()),
                            static_cast<LONG>(pSample->GetHeight())};
-        AdjustWindowRect(&windowRect, WS_OVERLAPPEDWINDOW, FALSE);
+        const DWORD windowStyle = benchmark ? (WS_POPUP | WS_DISABLED) : m_windowStyle;
+        const DWORD extendedStyle = benchmark ? (WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW) : 0;
+        ThrowIfFalse(AdjustWindowRectEx(&windowRect, windowStyle, FALSE, extendedStyle) != FALSE,
+            L"Could not calculate the sample window size.\n");
 
         // Create the window and store a handle to it.
-        m_hwnd = CreateWindow(
+        m_hwnd = CreateWindowEx(
+            extendedStyle,
             windowClass.lpszClassName,
             pSample->GetTitle(),
-            m_windowStyle,
-            CW_USEDEFAULT,
-            CW_USEDEFAULT,
+            windowStyle,
+            benchmark ? 0 : CW_USEDEFAULT,
+            benchmark ? 0 : CW_USEDEFAULT,
             windowRect.right - windowRect.left,
             windowRect.bottom - windowRect.top,
             nullptr,        // We have no parent window.
             nullptr,        // We aren't using menus.
             hInstance,
             pSample);
+        ThrowIfFalse(m_hwnd != nullptr, L"Could not create the sample window.\n");
         if (m_windowFailure)
             std::rethrow_exception(m_windowFailure);
 
@@ -68,9 +80,18 @@ int Win32Application::Run(DXSample* pSample, HINSTANCE hInstance, int nCmdShow)
         auto desc = pSample->GetDeviceResources()->GetAdapterDescription();
         bool isSoftwareAdapter = (wcsstr(desc, L"WARP") != nullptr) ||
                                  (wcsstr(desc, L"Basic Render") != nullptr);
-        ShowWindow(m_hwnd, pSample->ShouldMaximizeWindowOnLaunch()
-                               ? SW_MAXIMIZE
-                               : SW_NORMAL);
+        if (benchmark)
+        {
+            // Stay behind the user's applications and never acquire keyboard focus.
+            ThrowIfFalse(SetWindowPos(m_hwnd, HWND_BOTTOM, 0, 0,
+                pSample->GetWidth(), pSample->GetHeight(),
+                SWP_NOACTIVATE | SWP_SHOWWINDOW) != FALSE,
+                L"Could not show the non-activating benchmark window.\n");
+        }
+        else
+        {
+            ShowWindow(m_hwnd, pSample->ShouldMaximizeWindowOnLaunch() ? SW_MAXIMIZE : SW_NORMAL);
+        }
         if (m_windowFailure)
             std::rethrow_exception(m_windowFailure);
 
@@ -101,6 +122,12 @@ int Win32Application::Run(DXSample* pSample, HINSTANCE hInstance, int nCmdShow)
             {
                 TranslateMessage(&msg);
                 DispatchMessage(&msg);
+            }
+            else if (benchmark && !isSoftwareAdapter)
+            {
+                // Benchmark progress must not depend on window exposure/WM_PAINT.
+                pSample->OnUpdate();
+                pSample->OnRender();
             }
         }
 
@@ -264,6 +291,43 @@ LRESULT CALLBACK Win32Application::WindowProc(HWND hWnd, UINT message, WPARAM wP
 LRESULT Win32Application::HandleWindowMessage(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     DXSample* pSample = reinterpret_cast<DXSample*>(GetWindowLongPtr(hWnd, GWLP_USERDATA));
+
+    if (pSample && pSample->IsBenchmarkMode())
+    {
+        switch (message)
+        {
+        case WM_MOUSEACTIVATE:
+            return MA_NOACTIVATE;
+        case WM_KEYDOWN:
+        case WM_KEYUP:
+        case WM_SYSKEYDOWN:
+        case WM_SYSKEYUP:
+        case WM_CHAR:
+        case WM_SYSCHAR:
+        case WM_MOUSEMOVE:
+        case WM_LBUTTONDOWN:
+        case WM_LBUTTONUP:
+        case WM_SIZE:
+            return 0;
+        case WM_SYSCOMMAND:
+            if ((wParam & 0xFFF0) != SC_CLOSE)
+                return 0;
+            break;
+        case WM_WINDOWPOSCHANGING:
+        {
+            auto* position = reinterpret_cast<WINDOWPOS*>(lParam);
+            if (!(position->flags & SWP_NOSIZE))
+            {
+                position->cx = static_cast<int>(pSample->GetWidth());
+                position->cy = static_cast<int>(pSample->GetHeight());
+            }
+            break;
+        }
+        case WM_PAINT:
+            ValidateRect(hWnd, nullptr);
+            return 0;
+        }
+    }
 
     switch (message)
     {
