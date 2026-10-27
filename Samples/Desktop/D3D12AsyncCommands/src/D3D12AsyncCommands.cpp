@@ -1886,11 +1886,7 @@ int main(int argc, char** argv)
             PRINT("   Fallback opt-in : enabled; native driver support takes precedence.\n");
         }
 
-        bool pass = true;
-        if (!usingFallback)
-        {
-            pass = RenderTriangleWithAsyncClear(D3D);
-        }
+        bool pass = RenderTriangleWithAsyncClear(D3D);
 
         PRINT("[2] Benchmarking async batched commands vs legacy serialized commands");
         {
