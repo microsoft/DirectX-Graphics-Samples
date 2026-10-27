@@ -9,7 +9,7 @@
   <ItemGroup>
     <ClCompile Include="src\D3D12RaytracingPartitionedTLAS.cpp"><Filter>Source Files</Filter></ClCompile>
     <ClCompile Include="src\DeviceResources.cpp"><Filter>Source Files</Filter></ClCompile>
-    <ClCompile Include="src\DXR2SampleMain.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="src\SampleMain.cpp"><Filter>Source Files</Filter></ClCompile>
     <ClCompile Include="src\SampleUI.cpp"><Filter>Source Files</Filter></ClCompile>
     <ClCompile Include="src\ShaderCompiler.cpp"><Filter>Source Files</Filter></ClCompile>
     <ClCompile Include="src\Win32Application.cpp"><Filter>Source Files</Filter></ClCompile>

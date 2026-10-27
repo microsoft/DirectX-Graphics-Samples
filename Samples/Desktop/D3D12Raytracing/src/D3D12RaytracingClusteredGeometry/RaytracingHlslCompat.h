@@ -41,7 +41,7 @@ struct SceneConstantBuffer
     // the existing fields the raygen / closesthit shaders already read.
     XMUINT4   runtimeParams;     // .x = max reflection bounces (0..5).
                                  // .y = max refraction bounces (0..5).
-                                 // .z = geometryMode (0 = clustered/DXR2 -- use
+                                 // .z = geometryMode (0 = clustered -- use
                                  //      ClusterID() lookups; 1 = traditional/
                                  //      DXR1 -- use InstanceID() + per-instance
                                  //      offsets table).

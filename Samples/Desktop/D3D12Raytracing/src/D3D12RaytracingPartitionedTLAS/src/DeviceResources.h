@@ -51,9 +51,9 @@ public:
     bool IsDeviceLost(HRESULT result) const;
 
     ID3D12Device5* GetDevice() const { return m_device.Get(); }
-    ID3D12DeviceRaytracing2* GetRaytracingDevice() const { return m_dxr2Device.Get(); }
+    ID3D12DeviceRaytracing2* GetRaytracingDevice() const { return m_raytracingDevice.Get(); }
     ID3D12GraphicsCommandList4* GetCommandList() const { return m_commandList.Get(); }
-    ID3D12CommandListRaytracing2* GetRaytracingCommandList() const { return m_dxr2CommandList.Get(); }
+    ID3D12CommandListRaytracing2* GetRaytracingCommandList() const { return m_raytracingCommandList.Get(); }
     ID3D12CommandAllocator* GetCommandAllocator() const { return m_allocator.Get(); }
     ID3D12CommandQueue* GetCommandQueue() const { return m_queue.Get(); }
     ID3D12InfoQueue* GetInfoQueue() const { return m_infoQueue.Get(); }
@@ -78,11 +78,11 @@ private:
     Microsoft::WRL::ComPtr<IDXGIFactory6> m_factory;
     Microsoft::WRL::ComPtr<IDXGIAdapter1> m_adapter;
     Microsoft::WRL::ComPtr<ID3D12Device5> m_device;
-    Microsoft::WRL::ComPtr<ID3D12DeviceRaytracing2> m_dxr2Device;
+    Microsoft::WRL::ComPtr<ID3D12DeviceRaytracing2> m_raytracingDevice;
     Microsoft::WRL::ComPtr<ID3D12CommandQueue> m_queue;
     Microsoft::WRL::ComPtr<ID3D12CommandAllocator> m_allocator;
     Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList4> m_commandList;
-    Microsoft::WRL::ComPtr<ID3D12CommandListRaytracing2> m_dxr2CommandList;
+    Microsoft::WRL::ComPtr<ID3D12CommandListRaytracing2> m_raytracingCommandList;
     Microsoft::WRL::ComPtr<ID3D12Fence> m_fence;
     Microsoft::WRL::ComPtr<ID3D12InfoQueue> m_infoQueue;
     Microsoft::WRL::ComPtr<IDXGISwapChain3> m_swapChain;

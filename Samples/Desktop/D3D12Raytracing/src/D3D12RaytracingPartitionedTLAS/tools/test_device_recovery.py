@@ -34,8 +34,8 @@ def run(directory, frames, options, removal=None):
     if removal is not None:
         arguments += ["--test-device-loss-frame", str(removal)]
     result = subprocess.run(arguments, cwd=directory, startupinfo=startup, timeout=60)
-    assert result.returncode == 0, (directory / "dxr2_error.log").read_text()
-    assert "errors=0" in (directory / "dxr2_debug.log").read_text()
+    assert result.returncode == 0, (directory / "ptlas_error.log").read_text()
+    assert "errors=0" in (directory / "ptlas_debug.log").read_text()
     rows = list(csv.DictReader((directory / "frames.csv").open()))
     assert int(rows[-1]["frame"]) == frames
     if removal is not None:
@@ -44,7 +44,7 @@ def run(directory, frames, options, removal=None):
     return (directory / "state.bin").read_bytes()
 
 
-with tempfile.TemporaryDirectory(prefix="dxr2_recovery_") as temporary:
+with tempfile.TemporaryDirectory(prefix="ptlas_recovery_") as temporary:
     root = Path(temporary)
     for name, removal, options in [
         ("ptlas_before_first_frame", 0, ["--mode", "3"]),

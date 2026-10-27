@@ -27,7 +27,7 @@ ConstantBuffer<SceneConstantBuffer> g_scene   : register(b0);
 StructuredBuffer<MaterialDesc>    g_materials : register(t1);
 
 // Per-cluster shader-side buffers carrying smooth normals + the cluster
-// index buffer.  DXR2 cluster geometry's CLAS only consumes positions in
+// index buffer. A CLAS only consumes positions in
 // its vertex buffer, so per-vertex normals (and the indices we need to
 // look them up by triangle corner) ride along in these BYTE-ADDRESS
 // buffers, indexed by ClusterID() + PrimitiveIndex() in the closesthit.
@@ -429,7 +429,7 @@ void LoadHitContext(in Attribs a, in bool allowBackFaceFlip, out HitContext ctx)
 {
     // Recover the cluster ID + cluster-local primitive index identically
     // for both paths.
-    //   Clustered BLAS: ClusterID() is a DXR2 intrinsic that returns the
+    //   Clustered BLAS: ClusterID() is a clustered-geometry intrinsic that returns the
     //                   cluster ID the CPU stamped into each CLAS at
     //                   build, and PrimitiveIndex() is the triangle slot
     //                   WITHIN that CLAS -- i.e. already cluster-local,

@@ -89,7 +89,7 @@ void D3D12RaytracingClusteredGeometry::ParseCommandLineArgs(_In_reads_(argc) WCH
         else if (_wcsicmp(argv[i], L"--geometry-mode") == 0 && i + 1 < argc)
         {
             // [T] runtime toggle, set from CLI for headless / scripted runs.
-            //   clusters    - DXR2 cluster-based BLAS (default)
+            //   clusters    - cluster-based BLAS (default)
             //   traditional - classic DXR1 per-object monolithic BLAS
             if (_wcsicmp(argv[i + 1], L"clusters") == 0)
                 m_geometryMode = GeometryMode::Clusters;
@@ -488,8 +488,8 @@ void D3D12RaytracingClusteredGeometry::OnKeyDown(UINT8 key)
     else if (key == 'B' || key == 'b')
     {
         // [B] cycles BVH-build-flag preference: NONE -> FAST_BUILD ->
-        // FAST_TRACE -> ...  Applies to BOTH trad (DXR1) and cluster
-        // (DXR2) paths uniformly via BuildFlagModeRtas() /
+        // FAST_TRACE -> ...  Applies to BOTH traditional and clustered
+        // paths uniformly via BuildFlagModeRtas() /
         // BuildFlagModeDxr1() helpers.  Re-query prebuild sizes and
         // reallocate even in per-frame rebuild modes: the old buffers
         // were sized for the previous flags.

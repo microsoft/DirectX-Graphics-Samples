@@ -8,7 +8,7 @@
 // ProceduralGeometry.h
 //
 // Procedural mesh generators that decompose into "clusters" suitable for the
-// DXR2 cluster build path. The decomposition strategy is **spatial tiling**:
+// clustered-geometry build path. The decomposition strategy is **spatial tiling**:
 // each cluster covers a small contiguous patch of the surface in UV space. This
 // matches how engines (Nanite, NVIDIA's animated-clusters sample, etc.)
 // decompose meshes for cluster acceleration structures - small spatially
@@ -19,7 +19,7 @@
 // the encoder can encode each cluster independently and the cluster build args
 // reference per-cluster VertexBuffer + IndexBuffer GPU VAs directly.
 //
-// Per-cluster vertex/triangle counts stay well within DXR2's 256/256 limit
+// Per-cluster vertex/triangle counts stay well within the clustered-geometry 256/256 limit
 // for the parameter ranges this header is used at.
 //
 #pragma once
@@ -51,7 +51,7 @@ namespace ProceduralGeometry
         std::vector<float3>     normals;       // parallel to positions; analytic per-vertex
                                                // surface normals.  Travels through a SEPARATE
                                                // structured-buffer side channel because
-                                               // DXR2 cluster geometry's CLAS only takes
+                                               // a CLAS only takes
                                                // positions in its vertex buffer.
         std::vector<uint8_t>    indices;       // local 8-bit indices into positions/normals
 

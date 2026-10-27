@@ -1365,7 +1365,7 @@ void D3D12RaytracingClusteredGeometry::RenderUI()
     }
 
     // [B] BVH-build-flag preference -- applied uniformly to BOTH trad
-    // (DXR1) and cluster (DXR2) AS builds via BuildFlagModeRtas() /
+    // and clustered AS builds via BuildFlagModeRtas() /
     // BuildFlagModeDxr1().  Toggling rebuilds the static AS once
     // (unless per-frame static rebuild is already on).
     swprintf_s(kbuf, L"   BVH build flag:   %s", BuildFlagModeName());

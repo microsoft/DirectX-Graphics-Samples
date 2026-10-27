@@ -131,8 +131,8 @@ private:
     std::exception_ptr m_windowException;
     ComPtr<ID3D12Device5> m_device;
     ComPtr<ID3D12GraphicsCommandList4> m_commandList;
-    ComPtr<ID3D12DeviceRaytracing2> m_dxr2Device;
-    ComPtr<ID3D12CommandListRaytracing2> m_dxr2CommandList;
+    ComPtr<ID3D12DeviceRaytracing2> m_raytracingDevice;
+    ComPtr<ID3D12CommandListRaytracing2> m_raytracingCommandList;
     void CreateDeviceDependentResources();
     void ReloadShadersIfRequested();
     void CaptureStateDump();

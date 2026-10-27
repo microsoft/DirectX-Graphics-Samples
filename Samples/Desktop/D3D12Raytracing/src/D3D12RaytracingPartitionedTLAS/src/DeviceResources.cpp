@@ -27,13 +27,13 @@ void DeviceResources::ReleaseDeviceResources()
     m_backBuffers = {};
     m_rtvHeap.Reset();
     m_swapChain.Reset();
-    m_dxr2CommandList.Reset();
+    m_raytracingCommandList.Reset();
     m_commandList.Reset();
     m_allocator.Reset();
     m_queue.Reset();
     m_fence.Reset();
     m_infoQueue.Reset();
-    m_dxr2Device.Reset();
+    m_raytracingDevice.Reset();
     m_device.Reset();
     m_adapter.Reset();
     m_factory.Reset();
@@ -113,8 +113,8 @@ void DeviceResources::CreateDevice(bool debug, UINT requestedAdapter)
         break;
     }
     if (!m_device)
-        throw std::runtime_error("No compatible DXR 2 PTLAS adapter was found");
-    ThrowIfFailed(m_device.As(&m_dxr2Device), "QueryInterface(ID3D12DeviceRaytracing2)");
+        throw std::runtime_error("No compatible partitioned TLAS adapter was found");
+    ThrowIfFailed(m_device.As(&m_raytracingDevice), "QueryInterface(ID3D12DeviceRaytracing2)");
     if (debug)
     {
         ThrowIfFailed(m_device.As(&m_infoQueue), "QueryInterface(ID3D12InfoQueue)");
@@ -132,16 +132,16 @@ void DeviceResources::CreateDevice(bool debug, UINT requestedAdapter)
     D3D12_COMMAND_QUEUE_DESC queueDesc{};
     queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
     ThrowIfFailed(m_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_queue)), "CreateCommandQueue");
-    ThrowIfFailed(m_queue->SetName(L"DXR 2 direct queue"), "Name command queue");
+    ThrowIfFailed(m_queue->SetName(L"PTLAS direct queue"), "Name command queue");
     ThrowIfFailed(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_allocator)),
                   "CreateCommandAllocator");
     ThrowIfFailed(m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_allocator.Get(), nullptr,
                                               IID_PPV_ARGS(&m_commandList)),
                   "CreateCommandList");
-    ThrowIfFailed(m_commandList->SetName(L"DXR 2 frame commands"), "Name command list");
-    ThrowIfFailed(m_commandList.As(&m_dxr2CommandList), "QueryInterface(ID3D12CommandListRaytracing2)");
+    ThrowIfFailed(m_commandList->SetName(L"PTLAS frame commands"), "Name command list");
+    ThrowIfFailed(m_commandList.As(&m_raytracingCommandList), "QueryInterface(ID3D12CommandListRaytracing2)");
     ThrowIfFailed(m_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence)), "CreateFence");
-    ThrowIfFailed(m_fence->SetName(L"DXR 2 frame fence"), "Name frame fence");
+    ThrowIfFailed(m_fence->SetName(L"PTLAS frame fence"), "Name frame fence");
     m_fenceEvent = CreateEventW(nullptr, FALSE, FALSE, nullptr);
     if (!m_fenceEvent)
         throw std::runtime_error("CreateEventW failed");

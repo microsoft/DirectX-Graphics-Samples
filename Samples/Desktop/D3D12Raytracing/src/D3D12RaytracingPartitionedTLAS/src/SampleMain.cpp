@@ -31,10 +31,10 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int showCommand)
     }
     catch (const std::exception& error)
     {
-        std::ofstream("dxr2_error.log") << error.what() << '\n';
+        std::ofstream("ptlas_error.log") << error.what() << '\n';
         OutputDebugStringA(error.what());
         if (std::wcsstr(GetCommandLineW(), L"--frames") == nullptr)
-            MessageBoxA(nullptr, error.what(), "DXR 2 PTLAS error", MB_OK | MB_ICONERROR);
+            MessageBoxA(nullptr, error.what(), "Partitioned TLAS error", MB_OK | MB_ICONERROR);
         return 1;
     }
 }

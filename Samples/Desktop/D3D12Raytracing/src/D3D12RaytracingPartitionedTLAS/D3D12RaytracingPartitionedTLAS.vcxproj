@@ -15,7 +15,7 @@
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove('$(MSBuildThisFileDirectory)', 'vcpkg.json'))\vcpkg\DirectX.vcpkg.props" />
   <ImportGroup Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="Exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" />
-    <Import Project="Dxr2Preview.props" />
+    <Import Project="PartitionedTLAS.props" />
   </ImportGroup>
   <PropertyGroup><TargetName>dxr_partitioned_tlas</TargetName></PropertyGroup>
   <ItemDefinitionGroup>
@@ -31,7 +31,7 @@
   <ItemGroup>
     <ClCompile Include="src\D3D12RaytracingPartitionedTLAS.cpp" />
     <ClCompile Include="src\DeviceResources.cpp" />
-    <ClCompile Include="src\DXR2SampleMain.cpp" />
+    <ClCompile Include="src\SampleMain.cpp" />
     <ClCompile Include="src\SampleUI.cpp" />
     <ClCompile Include="src\ShaderCompiler.cpp" />
     <ClCompile Include="src\Win32Application.cpp" />
@@ -81,5 +81,5 @@
   <ImportGroup Label="ExtensionTargets">
     <Import Project="$(RestoreRepositoryPath)\WinPixEventRuntime.1.0.240308001\build\WinPixEventRuntime.targets" Condition="Exists('$(RestoreRepositoryPath)\WinPixEventRuntime.1.0.240308001\build\WinPixEventRuntime.targets')" />
   </ImportGroup>
-  <Import Project="Dxr2Preview.targets" />
+  <Import Project="PartitionedTLAS.targets" />
 </Project>

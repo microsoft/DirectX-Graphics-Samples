@@ -7,7 +7,7 @@
 //
 // Compressed1.h
 //
-// CPU-side encoder for the DXR2 D3D12_VERTEX_FORMAT_COMPRESSED1 vertex format.
+// CPU-side encoder for the D3D12_VERTEX_FORMAT_COMPRESSED1 vertex format.
 //
 // Per-cluster layout in the vertex buffer:
 //   - 12-byte D3D12_VERTEX_FORMAT_COMPRESSED1_HEADER

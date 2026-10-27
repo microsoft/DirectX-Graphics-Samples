@@ -1,4 +1,4 @@
-# DirectX Raytracing 2: partitioned TLAS
+# D3D12 Raytracing Partitioned TLAS sample
 
 This sample demonstrates how to build, update, and trace a partitioned top-level acceleration structure (PTLAS) with D3D12. A scene of falling dominoes shows how sparse instance updates let quiet spatial partitions retain their acceleration structures while other partitions change.
 
@@ -18,7 +18,7 @@ Start with [the PTLAS walkthrough](PTLAS_WALKTHROUGH.md) for annotated code, a r
 
 ## Requirements
 
-- Windows and a GPU/driver supporting DXR 2 PTLAS.
+- Windows and a GPU/driver supporting D3D12 partitioned TLAS.
 - A full checkout of DirectX-Graphics-Samples.
 - Visual Studio 2022 with **Desktop development with C++**, a Windows 10/11 SDK, and the **vcpkg package manager** component (`Microsoft.VisualStudio.Component.Vcpkg`); build for x64 with C++17. Alternatively, set `VCPKG_ROOT` to your vcpkg installation.
 - Windows Developer Mode for experimental feature enablement.
@@ -63,24 +63,24 @@ copy the matching Agility runtime into `D3D12\` beside the executable, and copy
 the DXC DLLs beside it. The projects use the packaged DXC to compile HLSL and also
 copy shader sources, compiled shaders, the font, and license texts to the output.
 
-To keep generated files outside the checkout, create an ignored `Dxr2Preview.local.props` next to the solution:
+To keep generated files outside the checkout, create an ignored `PartitionedTLAS.local.props` next to the solution:
 
 ```xml
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
-    <Dxr2ArtifactsRoot>C:\path\to\sample-artifacts</Dxr2ArtifactsRoot>
+    <PTLASArtifactsRoot>C:\path\to\sample-artifacts</PTLASArtifactsRoot>
   </PropertyGroup>
 </Project>
 ```
 
 Use `tools/build.ps1` to restore packages and build with these settings. Output
-and intermediates go into `bin` and `obj` under `Dxr2ArtifactsRoot`; NuGet packages
+and intermediates go into `bin` and `obj` under `PTLASArtifactsRoot`; NuGet packages
 remain in the repository's `Packages` directory. Visual Studio uses the same
 paths. Without this override, `bin` and `obj` stay inside the sample directory
 and are ignored by Git. Keep captures and logs in the output directory or another
 directory outside the checkout.
 
-Run `dxr2_feature_probe.exe` to check preview feature enablement, find a hardware adapter with PTLAS support, and inspect the DXR 2 interfaces. The sample selects the first capable hardware adapter from DXGI's high-performance enumeration; `--adapter N` selects a specific ordinal.
+The `PartitionedTLASFeatureProbe` project builds `ptlas_feature_probe.exe`. Run it to check preview feature enablement, find a hardware adapter with PTLAS support, and inspect the required raytracing interfaces. The sample selects the first capable hardware adapter from DXGI's high-performance enumeration; `--adapter N` selects a specific ordinal.
 
 ## Scene and partition modes
 
@@ -135,7 +135,7 @@ For the regular TLAS path, add `--tlas`; T switches between refit and rebuild. T
 - `--frames N` exits after N submitted frames.
 - `--image PATH.dds --frames N` saves the final composited image at internal resolution, without the HUD or display downsampling.
 - `--screenshot PATH.dds --frames N` saves the final displayed frame including the HUD. F12 saves to the same path, or to `screenshot.dds` by default.
-- `--debug` enables the D3D12 debug layer and writes `dxr2_debug.log`. Debug builds enable it automatically. Validation errors cause a failing process exit.
+- `--debug` enables the D3D12 debug layer and writes `ptlas_debug.log`. Debug builds enable it automatically. Validation errors cause a failing process exit.
 - `--state-dump PATH --frames N` saves the final 96-byte state record for each domino. Set `PTLAS_SCENE_DUMP` to a path to save the initial scene records. [compare_dumps.py](tools/compare_dumps.py) compares captures from two sample runs.
 - `--pick X Y` and `--reload-shaders` exercise picking and shader reload at launch.
 
@@ -167,7 +167,7 @@ This sample is based on NVIDIA's [vk_partitioned_tlas](https://github.com/nvpro-
 
 ## Scope and licenses
 
-The sample demonstrates fixed-capacity PTLAS construction and sparse instance writes. Partition translations, instance deletion/streaming, explicit instance AABBs, and resizing are outside its scope. Consult the [DXR 2 specification](https://microsoft.github.io/DirectX-Specs/d3d/Raytracing2.html) for those operations and the complete API contract.
+The sample demonstrates fixed-capacity PTLAS construction and sparse instance writes. Partition translations, instance deletion/streaming, explicit instance AABBs, and resizing are outside its scope. Consult the [partitioned TLAS specification](https://microsoft.github.io/DirectX-Specs/d3d/Raytracing2.html) for those operations and the complete API contract.
 
 NVIDIA-owned sample code is provided under the [MIT License](LICENSES/MIT.txt),
 matching Microsoft DirectX-Graphics-Samples. Original copyright and author

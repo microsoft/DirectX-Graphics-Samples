@@ -26,7 +26,7 @@ HWND Win32Application::Create(HINSTANCE instance, WNDPROC windowProc, void* samp
     RECT size{0, 0, static_cast<LONG>(width), static_cast<LONG>(height)};
     AdjustWindowRect(&size, WS_OVERLAPPEDWINDOW, FALSE);
     HWND window =
-        CreateWindowExW(0, windowClass.lpszClassName, L"DXR 2 PTLAS", WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT,
+        CreateWindowExW(0, windowClass.lpszClassName, L"Partitioned TLAS", WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT,
                         size.right - size.left, size.bottom - size.top, nullptr, nullptr, instance, sample);
     if (!window)
         throw std::runtime_error("CreateWindowExW failed");

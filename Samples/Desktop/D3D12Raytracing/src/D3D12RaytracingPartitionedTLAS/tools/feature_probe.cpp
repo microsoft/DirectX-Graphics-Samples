@@ -83,7 +83,7 @@ int main()
         D3D12_FEATURE_DATA_D3D12_OPTIONS_RAYTRACING2 raytracing2{};
         result = capabilities->CheckFeatureSupport1(D3D12_FEATURE_D3D12_OPTIONS_RAYTRACING2, &raytracing2,
                                                     sizeof(raytracing2), D3D12_PREVIEW_SDK_VERSION);
-        std::printf("DXR 2 query: 0x%08lX, ClustersAndPTLASSupported=%d\n", static_cast<unsigned long>(result),
+        std::printf("Clustered geometry / PTLAS query: 0x%08lX, ClustersAndPTLASSupported=%d\n", static_cast<unsigned long>(result),
                     raytracing2.ClustersAndPTLASSupported);
         if (FAILED(result) || !raytracing2.ClustersAndPTLASSupported)
             continue;
@@ -94,7 +94,7 @@ int main()
     }
     if (!device)
     {
-        std::puts(foundHardware ? "No compatible DXR 2 PTLAS adapter found" : "No hardware adapter found");
+        std::puts(foundHardware ? "No compatible partitioned TLAS adapter found" : "No hardware adapter found");
         return foundHardware ? 2 : 1;
     }
 
@@ -116,8 +116,8 @@ int main()
     if (FAILED(result))
         return 2;
 
-    ComPtr<ID3D12CommandListRaytracing2> dxr2CommandList;
-    result = commandList.As(&dxr2CommandList);
+    ComPtr<ID3D12CommandListRaytracing2> raytracingCommandList;
+    result = commandList.As(&raytracingCommandList);
     std::printf("ID3D12CommandListRaytracing2: 0x%08lX\n", static_cast<unsigned long>(result));
     return SUCCEEDED(result) ? 0 : 2;
 }

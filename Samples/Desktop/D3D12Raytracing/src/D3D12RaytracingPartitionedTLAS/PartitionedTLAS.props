@@ -1,22 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <!-- Optional, ignored settings for this checkout only. -->
-  <Import Project="Dxr2Preview.local.props" Condition="Exists('Dxr2Preview.local.props')" />
+  <Import Project="PartitionedTLAS.local.props" Condition="Exists('PartitionedTLAS.local.props')" />
   <PropertyGroup>
     <RestoreRepositoryPath Condition="'$(RestoreRepositoryPath)' == ''">$([MSBuild]::NormalizePath('$(MSBuildThisFileDirectory)..\..\..\..\..\Packages'))</RestoreRepositoryPath>
-    <Dxr2AgilityDirectory>$(RestoreRepositoryPath)\Microsoft.Direct3D.D3D12.1.722.0-preview\build\native\</Dxr2AgilityDirectory>
-    <Dxr2DxcDirectory>$(RestoreRepositoryPath)\Microsoft.Direct3D.DXC.1.10.2605.37-preview\build\native\</Dxr2DxcDirectory>
-    <DxcDirectory>$(Dxr2DxcDirectory)bin\$(Platform)\</DxcDirectory>
-    <Dxr2ArtifactsRoot Condition="'$(Dxr2ArtifactsRoot)' == ''">$(MSBuildThisFileDirectory)</Dxr2ArtifactsRoot>
-    <Dxr2ArtifactsDirectory>$([MSBuild]::NormalizeDirectory('$(Dxr2ArtifactsRoot)'))</Dxr2ArtifactsDirectory>
-    <OutDir>$(Dxr2ArtifactsDirectory)bin\$(Platform)\$(Configuration)\</OutDir>
-    <IntDir>$(Dxr2ArtifactsDirectory)obj\$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
+    <PTLASAgilityDirectory>$(RestoreRepositoryPath)\Microsoft.Direct3D.D3D12.1.722.0-preview\build\native\</PTLASAgilityDirectory>
+    <PTLASDxcDirectory>$(RestoreRepositoryPath)\Microsoft.Direct3D.DXC.1.10.2605.37-preview\build\native\</PTLASDxcDirectory>
+    <DxcDirectory>$(PTLASDxcDirectory)bin\$(Platform)\</DxcDirectory>
+    <PTLASArtifactsRoot Condition="'$(PTLASArtifactsRoot)' == ''">$(MSBuildThisFileDirectory)</PTLASArtifactsRoot>
+    <PTLASArtifactsDirectory>$([MSBuild]::NormalizeDirectory('$(PTLASArtifactsRoot)'))</PTLASArtifactsDirectory>
+    <OutDir>$(PTLASArtifactsDirectory)bin\$(Platform)\$(Configuration)\</OutDir>
+    <IntDir>$(PTLASArtifactsDirectory)obj\$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
     <LocalDebuggerWorkingDirectory>$(OutDir)</LocalDebuggerWorkingDirectory>
     <LocalDebuggerCommandArguments>--full</LocalDebuggerCommandArguments>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
   </PropertyGroup>
-  <Import Project="$(Dxr2AgilityDirectory)Microsoft.Direct3D.D3D12.props" Condition="Exists('$(Dxr2AgilityDirectory)Microsoft.Direct3D.D3D12.props')" />
-  <Import Project="$(Dxr2DxcDirectory)Microsoft.Direct3D.DXC.props" Condition="Exists('$(Dxr2DxcDirectory)Microsoft.Direct3D.DXC.props')" />
+  <Import Project="$(PTLASAgilityDirectory)Microsoft.Direct3D.D3D12.props" Condition="Exists('$(PTLASAgilityDirectory)Microsoft.Direct3D.D3D12.props')" />
+  <Import Project="$(PTLASDxcDirectory)Microsoft.Direct3D.DXC.props" Condition="Exists('$(PTLASDxcDirectory)Microsoft.Direct3D.DXC.props')" />
   <ItemDefinitionGroup>
     <ClCompile>
       <LanguageStandard>stdcpp17</LanguageStandard>
@@ -33,10 +33,10 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
   </ItemDefinitionGroup>
-  <Target Name="ValidateDxr2Preview" BeforeTargets="PrepareForBuild">
-    <Error Condition="!Exists('$(Dxr2AgilityDirectory)Microsoft.Direct3D.D3D12.props') or !Exists('$(Dxr2AgilityDirectory)Microsoft.Direct3D.D3D12.targets')"
+  <Target Name="ValidatePartitionedTLASDependencies" BeforeTargets="PrepareForBuild">
+    <Error Condition="!Exists('$(PTLASAgilityDirectory)Microsoft.Direct3D.D3D12.props') or !Exists('$(PTLASAgilityDirectory)Microsoft.Direct3D.D3D12.targets')"
            Text="Restore the Microsoft.Direct3D.D3D12 1.722.0-preview NuGet package before building (tools\build.ps1). See README.md for package sources." />
-    <Error Condition="!Exists('$(Dxr2DxcDirectory)Microsoft.Direct3D.DXC.props') or !Exists('$(Dxr2DxcDirectory)Microsoft.Direct3D.DXC.targets')"
+    <Error Condition="!Exists('$(PTLASDxcDirectory)Microsoft.Direct3D.DXC.props') or !Exists('$(PTLASDxcDirectory)Microsoft.Direct3D.DXC.targets')"
            Text="Restore the Microsoft.Direct3D.DXC NuGet package before building (tools\build.ps1)." />
     <Error Condition="'@(SampleShader)' != '' and !Exists('$(RestoreRepositoryPath)\WinPixEventRuntime.1.0.240308001\build\WinPixEventRuntime.targets')"
            Text="Restore the WinPixEventRuntime NuGet package before building (tools\build.ps1)." />

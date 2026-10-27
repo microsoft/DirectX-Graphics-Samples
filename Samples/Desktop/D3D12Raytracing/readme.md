@@ -67,8 +67,8 @@ This sample demonstrates how to use Opacity Micromaps with a tree model.
 ![D3D12 Raytracing Opacity Micromaps Sample GUI](src/D3D12RaytracingOpacityMicromaps/Screenshot_small.png)
 
 # Advanced Samples
-## [Partitioned TLAS (DXR 2 preview)](src/D3D12RaytracingPartitionedTLAS/README.md)
-This sample adapts NVIDIA's public Vulkan partitioned-TLAS sample to DirectX Raytracing 2. A falling-domino scene demonstrates GPU-generated sparse instance writes, spatial and global partition policies, and comparisons with ordinary TLAS updates.
+## [Partitioned TLAS](src/D3D12RaytracingPartitionedTLAS/README.md)
+This sample adapts NVIDIA's public Vulkan partitioned-TLAS sample to D3D12 partitioned TLAS. A falling-domino scene demonstrates GPU-generated sparse instance writes, spatial and global partition policies, and comparisons with ordinary TLAS updates.
 
 Open the sample's Visual Studio solution from a full repository checkout. It uses the shared vcpkg integration and restores Agility SDK/DXC NuGet packages; a compatible preview driver is required. See the sample README for package-source setup.
 

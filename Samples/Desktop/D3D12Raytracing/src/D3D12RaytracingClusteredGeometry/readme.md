@@ -1,6 +1,6 @@
 # D3D12 Raytracing Clustered Geometry sample
 
-This sample demonstrates **DXR2 clustered geometry** in D3D12: building Cluster
+This sample demonstrates **clustered geometry** in D3D12: building Cluster
 Level Acceleration Structures (CLAS) and Cluster BLAS via the new GPU-driven
 indirect acceleration-structure operations API, with both the static path
 (`BUILD_CLAS_FROM_TRIANGLES` + selectable `FLOAT32_3` / `COMPRESSED1` vertex
@@ -71,18 +71,18 @@ The sample selects a hardware adapter by default; `-forceAdapter <ID>` overrides
 its DXGI adapter index. Use `d3dconfig` to force software rendering:
 
 ```
-d3dconfig device force-warp=true     # requires a DXR2-capable preview WARP
+d3dconfig device force-warp=true     # requires a preview WARP supporting clustered geometry
 d3dconfig device force-warp=false    # use the system's hardware adapter
 ```
 
-The Agility package does not include WARP. Software DXR2 testing requires a
+The Agility package does not include WARP. Software clustered-geometry testing requires a
 compatible preview `d3d10warp.dll` next to the EXE; the OS-provided WARP may not
 support clustered geometry. Ensure that the executable's directory is in
 `d3dconfig`'s application paths before changing its settings, and restore
 `force-warp=false` after software testing.
 
 Clustered rendering requires a supported preview driver and Shader Model 6.10.
-The traditional BLAS path uses a separate SM 6.6 library with no DXR2 intrinsics
+The traditional BLAS path uses a separate SM 6.6 library with no clustered-geometry intrinsics
 or clustered-pipeline flag. The sample checks shader-model support before
 creating its pipelines and requires SM 6.6 or later for rendering and compute.
 If clustered geometry or SM 6.10 is unavailable, it logs and visibly labels the
@@ -283,7 +283,7 @@ tables. Core source lines are kept within 100 columns for quoting examples;
 comments focus on API contracts, synchronization, and resource lifetime.
 
 - **`D3D12RaytracingClusteredGeometry.cpp`** – the **main file**: CORE
-  acceleration-structure management + rendering.  This is where the DXR2 work
+  acceleration-structure management + rendering. This is where the clustered-geometry work
   lives that you'd actually want to crib for your own engine:
     * `BuildClasIndirect` / `BuildClasImplicit` / `BuildClasGetSizes` /
       `BuildClasCompact` — the three CLAS alloc-mode variants the `[A]` toggle

@@ -75,7 +75,7 @@ with tempfile.TemporaryDirectory(prefix="ptlas_topple_") as temporary:
         assert process.wait(timeout=60) == 0
         state = (directory / "state.bin").read_bytes()
         assert struct.unpack_from("<I", state, 84)[0] != 0xffffffff, "Topple request was lost"
-        assert "errors=0" in (directory / "dxr2_debug.log").read_text()
+        assert "errors=0" in (directory / "ptlas_debug.log").read_text()
         print("Paused menu topple: simulation resumed, contact recorded, zero debug errors")
     finally:
         if process.poll() is None:

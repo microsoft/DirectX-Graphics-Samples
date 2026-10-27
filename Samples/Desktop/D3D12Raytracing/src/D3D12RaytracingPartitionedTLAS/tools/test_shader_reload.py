@@ -50,9 +50,9 @@ with tempfile.TemporaryDirectory(prefix="ptlas_reload_") as temporary:
         result = subprocess.run([str(binary / sample.name), "--frames", "8", "--no-vsync",
                                  "--width", "320", "--height", "240", "--image", "image.dds",
                                  *options], cwd=directory, startupinfo=startup, timeout=45)
-        assert result.returncode == 0, (directory / "dxr2_error.log").read_text()
+        assert result.returncode == 0, (directory / "ptlas_error.log").read_text()
         if expect_reload is not None:
-            log = (directory / "dxr2_shader_reload.log").read_text()
+            log = (directory / "ptlas_shader_reload.log").read_text()
             assert ("reload successful" in log) == expect_reload, log
         if "--test-device-loss-frame" in options:
             assert "Device restored" in (directory / "device_recovery.log").read_text()

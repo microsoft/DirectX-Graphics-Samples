@@ -166,11 +166,11 @@ public:
 private:
     static const UINT FrameCount = 3;
 
-    // ---------- DXR1 + DXR2 device / cmdlist interfaces ----------
+    // ---------- Traditional + clustered-geometry device / cmdlist interfaces ----------
     ComPtr<ID3D12Device16>               m_dxrDevice;
     ComPtr<ID3D12GraphicsCommandList4>   m_dxrCommandList;
-    ComPtr<ID3D12DeviceRaytracing2>      m_dxr2Device;
-    ComPtr<ID3D12CommandListRaytracing2> m_dxr2CommandList;
+    ComPtr<ID3D12DeviceRaytracing2>      m_raytracingDevice;
+    ComPtr<ID3D12CommandListRaytracing2> m_raytracingCommandList;
     bool m_clustersAndPtlasSupported = false;
     D3D12_FEATURE_DATA_D3D12_OPTIONS m_resourceUploadOptions = {};
     // Aggregated traditional-static-BLAS sizes, refreshed each rebuild for
@@ -188,7 +188,7 @@ private:
     // g_clusterMeta / g_clusterNormals / etc. tables feed both paths.
     //
     // Cluster path does NOT read this: it uses ClusterID() directly
-    // (DXR2 intrinsic).  Traditional path needs it because grouping
+    // (clustered-geometry intrinsic). Traditional path needs it because grouping
     // multiple clusters into one geometry desc (per-material-region
     // layout) means GeometryIndex() no longer maps 1:1 to clusters.
     //
@@ -297,13 +297,13 @@ private:
     }
 
     // ---------- Geometry path ([T] toggle) ----------
-    // Lets the demo flip between the cluster-based DXR2 pipeline (default)
+    // Lets the demo flip between the clustered-geometry pipeline (default)
     // and a traditional DXR1-style per-object monolithic BLAS, so the user
     // can directly A/B the per-frame cost, memory footprint, build wall-
     // clock, and per-cluster colour control between the two paths.
     //
     //   Clusters     - one CLAS per source cluster; per-object BLAS built
-    //                  from those CLAS (DXR2 path, current default)
+    //                  from those CLAS (clustered path, current default)
     //   Traditional  - one classic BLAS per object built from concatenated
     //                  triangle data (DXR1 path)
     enum class GeometryMode { Clusters, Traditional };
@@ -412,7 +412,7 @@ private:
     // The triad maps cleanly across both modes:
     //   trad (DXR1) BuildRaytracingAccelerationStructure flags use
     //     D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_*
-    //   cluster (DXR2) ExecuteIndirectRTASOperations flags use
+    //   clustered ExecuteIndirectRTASOperations flags use
     //     D3D12_RTAS_OPERATION_FLAG_*
     // BuildFlagModeDxr1() / BuildFlagModeRtas() return the right enum
     // for each path; ALLOW_UPDATE is OR-ed in separately for traditional
@@ -431,8 +431,8 @@ public:
     const wchar_t* BuildFlagModeName() const
     {
         // Show the API-specific enum name so toggling [T] cluster<->trad
-        // makes the active build flag's identity clear (DXR2 calls the
-        // "fast build" variant FAST_OPERATION; DXR1 calls it FAST_BUILD).
+        // makes the active build flag's identity clear (RTAS operations use
+        // FAST_OPERATION for "fast build"; traditional builds use FAST_BUILD).
         const bool isCluster = (m_geometryMode == GeometryMode::Clusters);
         switch (m_buildFlagMode)
         {
@@ -448,8 +448,7 @@ public:
         {
         case BuildFlagMode::None:      return D3D12_RTAS_OPERATION_FLAG_NONE;
         case BuildFlagMode::FastBuild:
-            return D3D12_RTAS_OPERATION_FLAG_FAST_OPERATION; // DXR2's "fast build" is named
-                                                             // FAST_OPERATION
+            return D3D12_RTAS_OPERATION_FLAG_FAST_OPERATION;
         case BuildFlagMode::FastTrace: return D3D12_RTAS_OPERATION_FLAG_FAST_TRACE;
         }
         return D3D12_RTAS_OPERATION_FLAG_FAST_TRACE;
@@ -787,7 +786,7 @@ private:
     // BuildAnimatedClonesSetup; each clone's blasGPUVA = poolBase + k*size.
     Microsoft::WRL::ComPtr<ID3D12Resource>  m_animClonesBlasPool;
     // Traditional clones require one BuildRaytracingAccelerationStructure call
-    // per pool slot. Contrast this with the single batched DXR2 operation.
+    // per pool slot. Contrast this with the single batched RTAS operation.
     Microsoft::WRL::ComPtr<ID3D12Resource>  m_animClonesTradBlasPool;
     Microsoft::WRL::ComPtr<ID3D12Resource>  m_animClonesTradBlasScratch;
     // Separate batch buffers include the source plus all clones. Do not replace
@@ -918,7 +917,7 @@ private:
     void BuildMaterials();
 
     // ---------- Per-vertex normal side channel (smooth shading) ----------
-    // DXR2 cluster geometry only carries positions in the CLAS vertex buffer,
+    // Clustered geometry only carries positions in the CLAS vertex buffer,
     // so per-vertex normals and the cluster index buffer have to travel
     // through a SEPARATE channel for the closesthit shader to interpolate
     // them by barycentrics.  Three upload-heap StructuredBuffers + an
@@ -1215,7 +1214,7 @@ private:
 
     // ---------- Initialization helpers ----------
     void CreateDeviceDependentResources();
-    void QueryDXR2Support();
+    void QueryClusteredGeometrySupport();
     void BuildScene(); // populates m_objects (CPU-side meshes + encoding)
     void BuildAccelerationStructures();
     // Encodes the per-cluster Compressed1 blobs (positions -> obj.encoded for

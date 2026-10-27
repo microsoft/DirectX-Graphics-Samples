@@ -239,8 +239,8 @@ void D3D12RaytracingPartitionedTLAS::OnDeviceRestored()
 {
     m_device = m_deviceResources.GetDevice();
     m_commandList = m_deviceResources.GetCommandList();
-    m_dxr2Device = m_deviceResources.GetRaytracingDevice();
-    m_dxr2CommandList = m_deviceResources.GetRaytracingCommandList();
+    m_raytracingDevice = m_deviceResources.GetRaytracingDevice();
+    m_raytracingCommandList = m_deviceResources.GetRaytracingCommandList();
     CreateWindowSizeDependentResources();
     CreateDeviceDependentResources();
     m_deviceReady = true;
@@ -909,7 +909,7 @@ void D3D12RaytracingPartitionedTLAS::CreatePartitionedTLAS(
     ptlasOperationInputs.Type = D3D12_RTAS_OPERATION_TYPE_PARTITIONED_TLAS;
     ptlasOperationInputs.pPartitionedTLASInputsDesc = &m_ptlasInputs;
     D3D12_RTAS_OPERATION_PREBUILD_INFO ptlasSizes{};
-    m_dxr2Device->GetRTASOperationPrebuildInfo(&ptlasOperationInputs, &ptlasSizes);
+    m_raytracingDevice->GetRTASOperationPrebuildInfo(&ptlasOperationInputs, &ptlasSizes);
     if (!ptlasSizes.ResultDataMaxSizeInBytes || !ptlasSizes.ScratchDataSizeInBytes)
         throw std::runtime_error("PTLAS prebuild returned zero size");
     m_ptlas =
@@ -938,7 +938,7 @@ void D3D12RaytracingPartitionedTLAS::CreatePartitionedTLAS(
     D3D12_RTAS_OPERATION_DESC ptlasBuild{};
     ptlasBuild.Inputs = ptlasOperationInputs;
     ptlasBuild.pPartitionedTlasOperationData = &ptlasData;
-    m_dxr2CommandList->ExecuteIndirectRTASOperations(1, &ptlasBuild, D3D12_EXECUTE_INDIRECT_RTAS_OPERATIONS_FLAG_NONE);
+    m_raytracingCommandList->ExecuteIndirectRTASOperations(1, &ptlasBuild, D3D12_EXECUTE_INDIRECT_RTAS_OPERATIONS_FLAG_NONE);
     auto ptlasBarrier = CD3DX12_RESOURCE_BARRIER::UAV(m_ptlas.Get());
     m_commandList->ResourceBarrier(1, &ptlasBarrier);
 }
@@ -1291,7 +1291,7 @@ void D3D12RaytracingPartitionedTLAS::DrawInterface()
         m_ui.Text(L"Alt+Enter: fullscreen | Esc: quit | F2: edit settings");
     }
     if (!m_shaderReloadError.empty())
-        m_ui.Text(L"Shader reload failed. Old pipelines active; see dxr2_shader_reload.log.");
+        m_ui.Text(L"Shader reload failed. Old pipelines active; see ptlas_shader_reload.log.");
     if (!m_ui.IsEditing())
         return;
     m_ui.Text(L"Tab: next page | Up/Down: select | Left/Right: change | Shift: x10 | Enter: action");
@@ -1395,10 +1395,10 @@ void D3D12RaytracingPartitionedTLAS::CreateTimingQueries()
 
 void D3D12RaytracingPartitionedTLAS::InspectDebugMessages()
 {
-    std::ofstream log("dxr2_debug.log");
+    std::ofstream log("ptlas_debug.log");
     const UINT errorCount = WriteDebugMessages(m_deviceResources.GetInfoQueue(), log);
     if (errorCount)
-        throw std::runtime_error("D3D12 debug layer reported errors; see dxr2_debug.log");
+        throw std::runtime_error("D3D12 debug layer reported errors; see ptlas_debug.log");
 }
 
 void D3D12RaytracingPartitionedTLAS::UpdateAnimation()
@@ -1619,7 +1619,7 @@ void D3D12RaytracingPartitionedTLAS::UpdateAccelerationStructure()
         D3D12_RTAS_OPERATION_DESC build{};
         build.Inputs = operationInputs;
         build.pPartitionedTlasOperationData = &data;
-        m_dxr2CommandList->ExecuteIndirectRTASOperations(1, &build, D3D12_EXECUTE_INDIRECT_RTAS_OPERATIONS_FLAG_NONE);
+        m_raytracingCommandList->ExecuteIndirectRTASOperations(1, &build, D3D12_EXECUTE_INDIRECT_RTAS_OPERATIONS_FLAG_NONE);
         auto barrier = CD3DX12_RESOURCE_BARRIER::UAV(m_ptlas.Get());
         m_commandList->ResourceBarrier(1, &barrier);
     }
@@ -1849,12 +1849,12 @@ void D3D12RaytracingPartitionedTLAS::ReloadShadersIfRequested()
         {
             ReloadShaders();
             m_shaderReloadError.clear();
-            std::ofstream("dxr2_shader_reload.log") << "reload successful\n";
+            std::ofstream("ptlas_shader_reload.log") << "reload successful\n";
         }
         catch (const std::exception& error)
         {
             m_shaderReloadError = error.what();
-            std::ofstream("dxr2_shader_reload.log") << m_shaderReloadError << '\n';
+            std::ofstream("ptlas_shader_reload.log") << m_shaderReloadError << '\n';
         }
     }
 }
@@ -2067,7 +2067,7 @@ void D3D12RaytracingPartitionedTLAS::UpdateTitle()
     const wchar_t* names[] = {L"update partition", L"move to global", L"near update / far global"};
     wchar_t title[512];
     const float fps = m_fps;
-    swprintf_s(title, L"DXR 2 PTLAS | %.0f FPS | GPU %u %s | %s | %s | %s | %u writes | update %.2f ms | trace %.2f ms",
+    swprintf_s(title, L"Partitioned TLAS | %.0f FPS | GPU %u %s | %s | %s | %s | %u writes | update %.2f ms | trace %.2f ms",
                fps, m_deviceResources.GetAdapterIndex(), m_deviceResources.GetAdapterDescription().c_str(),
                m_usePtlas ? L"PTLAS" : L"TLAS", names[m_updateMode], m_paused ? L"paused" : L"running",
                m_lastChangedCount, m_gpuUpdateMs, m_gpuTraceMs);
@@ -2085,8 +2085,8 @@ void D3D12RaytracingPartitionedTLAS::OnDeviceLost()
     m_physicsState = {};
     m_device.Reset();
     m_commandList.Reset();
-    m_dxr2Device.Reset();
-    m_dxr2CommandList.Reset();
+    m_raytracingDevice.Reset();
+    m_raytracingCommandList.Reset();
     m_output.Reset();
     m_renderOutput.Reset();
     m_descriptors.Reset();

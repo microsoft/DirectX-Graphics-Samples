@@ -27,7 +27,7 @@ There are **two counts**. `IndirectPartitionedTlasOpCount` points to a constant 
 
 The compact output slot is unrelated to an instance's identity. Each copied record preserves its stable `InstanceIndex` and application `InstanceID`. One thread processes each domino and appends at most one record, so a buffer sized for all dominoes bounds the worst case. [PtlasShaderBindings.h](shaders/PtlasShaderBindings.h) checks the raw shader offsets against the native SDK structures.
 
-Compute writes use UAV access. The operation and argument buffers transition to `NON_PIXEL_SHADER_RESOURCE` for `ExecuteIndirectRTASOperations`; this API does not use the ordinary `INDIRECT_ARGUMENT` state for those inputs. The resulting AS has a UAV barrier before raytracing. Two CPU frame contexts protect allocators, constants, and readbacks, while a single direct queue orders updates to the shared GPU resources. See the [DXR 2 specification](https://microsoft.github.io/DirectX-Specs/d3d/Raytracing2.html) for the API contract.
+Compute writes use UAV access. The operation and argument buffers transition to `NON_PIXEL_SHADER_RESOURCE` for `ExecuteIndirectRTASOperations`; this API does not use the ordinary `INDIRECT_ARGUMENT` state for those inputs. The resulting AS has a UAV barrier before raytracing. Two CPU frame contexts protect allocators, constants, and readbacks, while a single direct queue orders updates to the shared GPU resources. See the [partitioned TLAS specification](https://microsoft.github.io/DirectX-Specs/d3d/Raytracing2.html) for the API contract.
 
 ### Initial build and sparse update
 
@@ -59,7 +59,7 @@ D3D12_RTAS_OPERATION_DESC build{};
 build.Inputs.Type = D3D12_RTAS_OPERATION_TYPE_PARTITIONED_TLAS;
 build.Inputs.pPartitionedTLASInputsDesc = &m_ptlasInputs;
 build.pPartitionedTlasOperationData = &data;
-m_dxr2CommandList->ExecuteIndirectRTASOperations(
+m_raytracingCommandList->ExecuteIndirectRTASOperations(
     1, &build, D3D12_EXECUTE_INDIRECT_RTAS_OPERATIONS_FLAG_NONE);
 auto ready = CD3DX12_RESOURCE_BARRIER::UAV(m_ptlas.Get());
 m_commandList->ResourceBarrier(1, &ready);

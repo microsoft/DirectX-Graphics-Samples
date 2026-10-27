@@ -10,7 +10,7 @@
 //
 // Demo-specific scene definition, factored out of the main
 // D3D12RaytracingClusteredGeometry.cpp so it can focus on CORE acceleration-
-// structure management + rendering.  Engineers wiring DXR2 into their own
+// structure management + rendering. Engineers wiring clustered geometry into their own
 // renderer typically have their own scene system; this file shows the path
 // from a scene description (SceneData.h) to populated ClusterObject instances
 // that the AS pipeline consumes.

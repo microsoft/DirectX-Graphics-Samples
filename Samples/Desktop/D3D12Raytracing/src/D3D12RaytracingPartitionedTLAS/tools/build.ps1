@@ -20,6 +20,6 @@ $msbuild = & $vswhere -latest -products * -requires Microsoft.Component.MSBuild 
 if (!$msbuild) { throw 'Install Visual Studio 2022 with Desktop development with C++.' }
 $arguments = @((Join-Path $sampleRoot 'D3D12RaytracingPartitionedTLAS.sln'), '/restore', '/m',
     '/p:RestorePackagesConfig=true', "/p:Configuration=$Configuration", '/p:Platform=x64')
-if ($ArtifactsRoot) { $arguments += "/p:Dxr2ArtifactsRoot=$([IO.Path]::GetFullPath($ArtifactsRoot))" }
+if ($ArtifactsRoot) { $arguments += "/p:PTLASArtifactsRoot=$([IO.Path]::GetFullPath($ArtifactsRoot))" }
 & $msbuild @arguments
 exit $LASTEXITCODE

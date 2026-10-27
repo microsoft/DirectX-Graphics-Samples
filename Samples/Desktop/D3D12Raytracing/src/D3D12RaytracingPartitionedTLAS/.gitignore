@@ -7,7 +7,7 @@
 
 # Machine-specific settings and editor caches.
 /.vs/
-/Dxr2Preview.local.props
+/PartitionedTLAS.local.props
 *.user
 *.suo
 __pycache__/
