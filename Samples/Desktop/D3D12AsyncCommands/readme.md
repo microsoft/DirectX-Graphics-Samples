@@ -147,9 +147,6 @@ copy route. RTV/UAV replacement comparisons are exploratory and opt-in with `-cl
 applications expecting fallback should retain the corresponding legacy view clear where its
 performance is important.
 
-For `-e2e` on a fallback device, the sample runs the fallback-compatible subset
-(copy/resolve/render) if `FillBuffers` fallback support is unavailable on that system.
-
 Use `-debuglayer` when validating debug-layer cleanliness in test runs (for example on Release
 binaries copied to another machine). If `-debuglayer` is specified and the debug layer cannot be
 enabled, the sample exits with a clear error instead of silently continuing.
