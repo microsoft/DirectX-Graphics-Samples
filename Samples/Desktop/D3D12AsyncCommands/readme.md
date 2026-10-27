@@ -146,7 +146,3 @@ The default texture-clear benchmark uses staged `CopyTextureRegion`, matching th
 copy route. RTV/UAV replacement comparisons are exploratory and opt-in with `-clearalternatives`;
 applications expecting fallback should retain the corresponding legacy view clear where its
 performance is important.
-
-Use `-debuglayer` when validating debug-layer cleanliness in test runs (for example on Release
-binaries copied to another machine). If `-debuglayer` is specified and the debug layer cannot be
-enabled, the sample exits with a clear error instead of silently continuing.
