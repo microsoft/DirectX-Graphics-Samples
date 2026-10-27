@@ -48,11 +48,20 @@ extern "C" { __declspec(dllexport) extern const char* WarpPath = u8".\\WARP\\"; 
 static bool g_quietExpectedErrors = false;
 
 #define PRINT(text) do { std::cout << (text) << "\n" << std::flush; } while(0)
-#define VERIFY_SUCCEEDED(hr) { HRESULT _hr = (hr); if (FAILED(_hr)) { \
-    if (!g_quietExpectedErrors) { \
-        std::ostringstream _os; _os << "Error at " << __FILE__ << ":" << __LINE__ << " HRESULT=0x" << std::hex << _hr; \
-        PRINT(_os.str()); } \
-    throw _hr; } }
+#define VERIFY_SUCCEEDED(hr) \
+    { \
+        HRESULT _hr = (hr); \
+        if (FAILED(_hr)) \
+        { \
+            if (!g_quietExpectedErrors) \
+            { \
+                std::ostringstream _os; \
+                _os << "Error at " << __FILE__ << ":" << __LINE__ << " HRESULT=0x" << std::hex << _hr; \
+                PRINT(_os.str()); \
+            } \
+            throw _hr; \
+        } \
+    }
 
 bool g_useWarpDevice = false;
 bool g_enableFallback = false;
@@ -67,7 +76,9 @@ static std::string Narrow(const WCHAR* text)
 {
     const int count = WideCharToMultiByte(CP_UTF8, 0, text, -1, nullptr, 0, nullptr, nullptr);
     if (count <= 1)
+    {
         return std::string();
+    }
     std::string out(static_cast<size_t>(count) - 1, '\0');
     WideCharToMultiByte(CP_UTF8, 0, text, -1, out.data(), count, nullptr, nullptr);
     return out;
@@ -91,7 +102,9 @@ static std::string DriverVersion(IDXGIAdapter1* adapter)
 {
     LARGE_INTEGER umd = {};
     if (FAILED(adapter->CheckInterfaceSupport(__uuidof(IDXGIDevice), &umd)))
+    {
         return "not available";
+    }
     std::ostringstream os;
     os << HIWORD(umd.HighPart) << "." << LOWORD(umd.HighPart) << "."
        << HIWORD(umd.LowPart) << "." << LOWORD(umd.LowPart);
@@ -111,7 +124,9 @@ static void PrintAdapterDetails(IDXGIAdapter1* adapter)
 {
     DXGI_ADAPTER_DESC1 desc = {};
     if (FAILED(adapter->GetDesc1(&desc)))
+    {
         return;
+    }
 
     std::ostringstream os;
     os << std::hex << std::uppercase;
@@ -126,7 +141,9 @@ static void PrintAdapterDetails(IDXGIAdapter1* adapter)
     mem << "   Dedicated VRAM : " << (desc.DedicatedVideoMemory >> 20) << " MB";
     PRINT(mem.str());
     if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
+    {
         PRINT("   Type           : software adapter (WARP)");
+    }
 }
 
 static void ListAdapters()
@@ -139,7 +156,9 @@ static void ListAdapters()
     {
         CComPtr<IDXGIAdapter1> adapter;
         if (factory->EnumAdapters1(i, &adapter) == DXGI_ERROR_NOT_FOUND)
+        {
             break;
+        }
 
         std::ostringstream os;
         os << " [" << i << "]";
@@ -195,7 +214,9 @@ static bool EnableAsyncCommandsFallback()
 static HRESULT CreateDevice(IUnknown* adapter, D3D_FEATURE_LEVEL featureLevel, REFIID riid, void** device)
 {
     if (g_deviceFactory)
+    {
         return g_deviceFactory->CreateDevice(adapter, featureLevel, riid, device);
+    }
     return D3D12CreateDevice(adapter, featureLevel, riid, device);
 }
 
@@ -245,7 +266,9 @@ static bool InitDeviceAndContext(D3DContext& D3D, bool useWarp, int adapterIndex
     if (useWarp)
     {
         if (FAILED(factory->EnumWarpAdapter(IID_PPV_ARGS(&D3D.spAdapter))))
+        {
             return false;
+        }
     }
     else if (adapterIndex >= 0)
     {
@@ -256,32 +279,46 @@ static bool InitDeviceAndContext(D3DContext& D3D, bool useWarp, int adapterIndex
             return false;
         }
         if (FAILED(selected.QueryInterface(&D3D.spAdapter)))
+        {
             return false;
+        }
     }
 
     if (D3D.spAdapter)
     {
         if (FAILED(CreateDevice(D3D.spAdapter, FL, IID_PPV_ARGS(&spBaseDevice))))
+        {
             return false;
+        }
     }
     else
     {
         if (FAILED(CreateDevice(nullptr, FL, IID_PPV_ARGS(&spBaseDevice))))
+        {
             return false;
+        }
         LUID luid = spBaseDevice->GetAdapterLuid();
         if (FAILED(factory->EnumAdapterByLuid(luid, IID_PPV_ARGS(&D3D.spAdapter))))
+        {
             return false;
+        }
     }
 
     if (FAILED(spBaseDevice.QueryInterface(&D3D.spDevice)))
+    {
         return false;
+    }
 
     D3D12_FEATURE_DATA_ASYNC_COMMANDS asyncData = {};
     if (SUCCEEDED(D3D.spDevice->CheckFeatureSupport(D3D12_FEATURE_ASYNC_COMMANDS, &asyncData, sizeof(asyncData))))
+    {
         D3D.asyncImpl = asyncData.Impl;
+    }
 
     if (D3D.asyncImpl == D3D12_ASYNC_COMMANDS_IMPL_NOT_SUPPORTED)
+    {
         return false;
+    }
 
     D3D12_COMMAND_QUEUE_DESC qDesc = {};
     qDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
@@ -300,7 +337,9 @@ static bool InitDeviceAndContext(D3DContext& D3D, bool useWarp, int adapterIndex
     VERIFY_SUCCEEDED(D3D.spDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&D3D.spFence)));
     D3D.hFenceEvent.Attach(CreateEvent(nullptr, FALSE, FALSE, nullptr));
     if (!D3D.hFenceEvent)
+    {
         VERIFY_SUCCEEDED(HRESULT_FROM_WIN32(GetLastError()));
+    }
 
     VERIFY_SUCCEEDED(D3D.spQueue->GetTimestampFrequency(&D3D.gpuTimestampFrequency));
     D3D12_QUERY_HEAP_DESC qhDesc = {};
@@ -348,7 +387,9 @@ static double TimeGpu(D3DContext& D3D, TRecord&& record, double* cpuRecordMs = n
     D3D.spList->EndQuery(D3D.spTimestampHeap, D3D12_QUERY_TYPE_TIMESTAMP, 1);
     auto cpuEnd = std::chrono::high_resolution_clock::now();
     if (cpuRecordMs)
+    {
         *cpuRecordMs = std::chrono::duration<double, std::milli>(cpuEnd - cpuStart).count();
+    }
 
     D3D.spList->ResolveQueryData(D3D.spTimestampHeap, D3D12_QUERY_TYPE_TIMESTAMP, 0, 2, D3D.spTimestampReadback, 0);
     ExecuteAndWait(D3D);
@@ -400,17 +441,29 @@ static BenchResult RunLoop(D3DContext& D3D, UINT iterations,
     const std::function<void(D3DContext&)>& legacyPrep = nullptr,
     const std::function<void(D3DContext&)>& asyncPrep = nullptr)
 {
-    if (legacyPrep) RunUntimed(D3D, legacyPrep);
+    if (legacyPrep)
+    {
+        RunUntimed(D3D, legacyPrep);
+    }
     TimeGpu(D3D, legacy);
-    if (asyncPrep) RunUntimed(D3D, asyncPrep);
+    if (asyncPrep)
+    {
+        RunUntimed(D3D, asyncPrep);
+    }
     TimeGpu(D3D, async);
 
     BenchResult r; double lg = 0, ag = 0, lc = 0, ac = 0, tmp = 0;
     for (UINT it = 0; it < iterations; ++it)
     {
-        if (legacyPrep) RunUntimed(D3D, legacyPrep);
+        if (legacyPrep)
+        {
+            RunUntimed(D3D, legacyPrep);
+        }
         lg += TimeGpu(D3D, legacy, &tmp); lc += tmp;
-        if (asyncPrep) RunUntimed(D3D, asyncPrep);
+        if (asyncPrep)
+        {
+            RunUntimed(D3D, asyncPrep);
+        }
         ag += TimeGpu(D3D, async, &tmp);  ac += tmp;
     }
     r.legacyGpuMs = lg / iterations; r.asyncGpuMs = ag / iterations;
@@ -497,7 +550,11 @@ static bool RenderTriangleWithAsyncClear(D3DContext& D3D)
     CComPtr<ID3D12PipelineState> pso;
     VERIFY_SUCCEEDED(D3D.spDevice->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&pso)));
 
-    struct Vertex { float pos[3]; float color[4]; };
+    struct Vertex
+    {
+        float pos[3];
+        float color[4];
+    };
     Vertex verts[] =
     {
         { {  0.0f,  0.75f, 0.0f }, { 1.0f, 0.0f, 0.0f, 1.0f } },
@@ -603,8 +660,12 @@ static bool RenderTriangleWithAsyncClear(D3DContext& D3D)
     auto matches = [](const std::array<BYTE, 4>& a, const std::array<BYTE, 4>& b)
     {
         for (size_t i = 0; i < 4; ++i)
+        {
             if (abs(static_cast<int>(a[i]) - static_cast<int>(b[i])) > 2)
+            {
                 return false;
+            }
+        }
         return true;
     };
     auto rgba = [](const std::array<BYTE, 4>& c)
@@ -640,8 +701,10 @@ static void BenchmarkFillVsUavClear(D3DContext& D3D, BenchResult& out)
     CD3DX12_HEAP_PROPERTIES defaultProps(D3D12_HEAP_TYPE_DEFAULT);
     CD3DX12_RESOURCE_DESC desc = CD3DX12_RESOURCE_DESC::Buffer(kBufferSize, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
     for (UINT i = 0; i < kNumResources; ++i)
+    {
         VERIFY_SUCCEEDED(D3D.spDevice->CreateCommittedResource(&defaultProps, D3D12_HEAP_FLAG_NONE, &desc,
             D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&buffers[i])));
+    }
 
     const UINT descSize = D3D.spDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
     CComPtr<ID3D12DescriptorHeap> gpuHeap, cpuHeap;
@@ -735,18 +798,26 @@ static void BenchmarkCopy(D3DContext& D3D, BenchResult& out)
 
     std::vector<CComPtr<ID3D12Resource>> dests(kNumResources);
     for (UINT i = 0; i < kNumResources; ++i)
+    {
         VERIFY_SUCCEEDED(D3D.spDevice->CreateCommittedResource(&defaultProps, D3D12_HEAP_FLAG_NONE, &desc,
             D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&dests[i])));
+    }
 
     auto legacy = [&](D3DContext& d)
     {
         for (UINT i = 0; i < kNumResources; ++i)
+        {
             d.spList->CopyBufferRegion(dests[i], 0, source, 0, kBufferSize);
+        }
     };
 
     std::vector<ID3D12Resource*> destPtrs(kNumResources), srcPtrs(kNumResources);
     std::vector<UINT64> destOffsets(kNumResources, 0), srcOffsets(kNumResources, 0), sizes(kNumResources, kBufferSize);
-    for (UINT i = 0; i < kNumResources; ++i) { destPtrs[i] = dests[i]; srcPtrs[i] = source; }
+    for (UINT i = 0; i < kNumResources; ++i)
+    {
+        destPtrs[i] = dests[i];
+        srcPtrs[i] = source;
+    }
     auto async = [&](D3DContext& d)
     {
         d.spList->CopyBufferRegions(kNumResources, destPtrs.data(), destOffsets.data(),
@@ -768,8 +839,10 @@ static void BenchmarkTextureClearCopy(D3DContext& D3D, BenchResult& out)
     CD3DX12_RESOURCE_DESC1 desc = CD3DX12_RESOURCE_DESC1::Tex2D(format, texDim, texDim, 1, 1);
     std::vector<CComPtr<ID3D12Resource>> textures(kNumResources);
     for (UINT i = 0; i < kNumResources; ++i)
+    {
         VERIFY_SUCCEEDED(D3D.spDevice->CreateCommittedResource3(&defaultProps, D3D12_HEAP_FLAG_NONE, &desc,
             D3D12_BARRIER_LAYOUT_COPY_DEST, nullptr, nullptr, 0, nullptr, IID_PPV_ARGS(&textures[i])));
+    }
 
     D3D12_RESOURCE_DESC footprintDesc = textures[0]->GetDesc();
     D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint = {};
@@ -790,7 +863,9 @@ static void BenchmarkTextureClearCopy(D3DContext& D3D, BenchResult& out)
         float* row = reinterpret_cast<float*>(static_cast<BYTE*>(mapped) + footprint.Offset +
             static_cast<SIZE_T>(y) * footprint.Footprint.RowPitch);
         for (UINT x = 0; x < texDim; ++x)
+        {
             memcpy(row + static_cast<SIZE_T>(x) * 4, clearColor, sizeof(clearColor));
+        }
     }
     upload->Unmap(0, nullptr);
 
@@ -809,7 +884,9 @@ static void BenchmarkTextureClearCopy(D3DContext& D3D, BenchResult& out)
     auto legacy = [&](D3DContext& d)
     {
         for (UINT i = 0; i < kNumResources; ++i)
+        {
             d.spList->CopyTextureRegion(&destinations[i], region.left, region.top, region.front, &source, &region);
+        }
     };
 
     std::vector<D3D12_CLEAR_TEXTURE_DESC> clearDescs(kNumResources);
@@ -846,8 +923,10 @@ static void BenchmarkTextureClearRtv(D3DContext& D3D, BenchResult& out)
 
     std::vector<CComPtr<ID3D12Resource>> textures(kNumResources);
     for (UINT i = 0; i < kNumResources; ++i)
+    {
         VERIFY_SUCCEEDED(D3D.spDevice->CreateCommittedResource3(&defaultProps, D3D12_HEAP_FLAG_NONE, &desc,
             D3D12_BARRIER_LAYOUT_COPY_DEST, &optimized, nullptr, 0, nullptr, IID_PPV_ARGS(&textures[i])));
+    }
 
     const UINT rtvSize = D3D.spDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
     D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
@@ -885,7 +964,9 @@ static void BenchmarkTextureClearRtv(D3DContext& D3D, BenchResult& out)
     {
         d.spList->Barrier(1, &beforeGroup);
         for (UINT i = 0; i < kNumResources; ++i)
+        {
             d.spList->ClearRenderTargetView(handles[i], clearColor, 0, nullptr);
+        }
         d.spList->Barrier(1, &afterGroup);
     };
 
@@ -919,8 +1000,10 @@ static void BenchmarkTextureClearUav(D3DContext& D3D, BenchResult& out)
     desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
     std::vector<CComPtr<ID3D12Resource>> textures(kNumResources);
     for (UINT i = 0; i < kNumResources; ++i)
+    {
         VERIFY_SUCCEEDED(D3D.spDevice->CreateCommittedResource3(&defaultProps, D3D12_HEAP_FLAG_NONE, &desc,
             D3D12_BARRIER_LAYOUT_COPY_DEST, nullptr, nullptr, 0, nullptr, IID_PPV_ARGS(&textures[i])));
+    }
 
     const UINT descriptorSize =
         D3D.spDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
@@ -975,7 +1058,9 @@ static void BenchmarkTextureClearUav(D3DContext& D3D, BenchResult& out)
         d.spList->SetDescriptorHeaps(1, heaps);
         d.spList->Barrier(1, &beforeGroup);
         for (UINT i = 0; i < kNumResources; ++i)
+        {
             d.spList->ClearUnorderedAccessViewFloat(gpuHandles[i], cpuHandles[i], textures[i], clearColor, 0, nullptr);
+        }
         d.spList->Barrier(1, &afterGroup);
     };
 
@@ -1016,8 +1101,17 @@ static void BenchmarkCopyResources(D3DContext& D3D, BenchResult& out, UINT64 buf
         destPtrs[i] = dests[i]; srcPtrs[i] = source;
     }
 
-    auto legacy = [&](D3DContext& d) { for (UINT i = 0; i < kNumResources; ++i) d.spList->CopyResource(dests[i], source); };
-    auto async = [&](D3DContext& d) { d.spList->CopyResources(kNumResources, destPtrs.data(), srcPtrs.data()); };
+    auto legacy = [&](D3DContext& d)
+    {
+        for (UINT i = 0; i < kNumResources; ++i)
+        {
+            d.spList->CopyResource(dests[i], source);
+        }
+    };
+    auto async = [&](D3DContext& d)
+    {
+        d.spList->CopyResources(kNumResources, destPtrs.data(), srcPtrs.data());
+    };
     out = RunLoop(D3D, kIterations, legacy, async);
 }
 
@@ -1060,7 +1154,10 @@ static void BenchmarkCopyTextureRegions(D3DContext& D3D, BenchResult& out)
         c.TextureTextureCopy.pSource = src[i];
         c.TextureTextureCopy.SourceSubresourceIndex = 0;
     }
-    auto async = [&](D3DContext& d) { d.spList->CopyTextureRegions(kNumResources, descs.data()); };
+    auto async = [&](D3DContext& d)
+    {
+        d.spList->CopyTextureRegions(kNumResources, descs.data());
+    };
     out = RunLoop(D3D, kIterations, legacy, async);
 }
 
@@ -1105,12 +1202,16 @@ static void BenchmarkResolve(D3DContext& D3D, BenchResult& out)
     auto legacy = [&](D3DContext& d)
     {
         for (UINT i = 0; i < N; ++i)
+        {
             d.spList->ResolveSubresourceRegion(dst[i], 0, 0, 0, ms[i], 0, nullptr, fmt, D3D12_RESOLVE_MODE_AVERAGE);
+        }
     };
     auto async = [&](D3DContext& d)
     {
         for (UINT i = 0; i < N; ++i)
+        {
             d.spList->ResolveSubresourceRegionAsync(dst[i], 0, 0, 0, ms[i], 0, nullptr, fmt, D3D12_RESOLVE_MODE_AVERAGE);
+        }
     };
     out = RunLoop(D3D, iters, legacy, async);
 }
@@ -1129,17 +1230,27 @@ static void BenchmarkResolveQueryData(D3DContext& D3D, BenchResult& out)
     VERIFY_SUCCEEDED(D3D.spDevice->CreateCommittedResource(&dp, D3D12_HEAP_FLAG_NONE, &bd,
         D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&dst)));
 
-    RunUntimed(D3D, [&](D3DContext& d) { for (UINT i = 0; i < N; ++i) d.spList->EndQuery(qh, D3D12_QUERY_TYPE_TIMESTAMP, i); });
+    RunUntimed(D3D, [&](D3DContext& d)
+    {
+        for (UINT i = 0; i < N; ++i)
+        {
+            d.spList->EndQuery(qh, D3D12_QUERY_TYPE_TIMESTAMP, i);
+        }
+    });
 
     auto legacy = [&](D3DContext& d)
     {
         for (UINT i = 0; i < N; ++i)
+        {
             d.spList->ResolveQueryData(qh, D3D12_QUERY_TYPE_TIMESTAMP, i, 1, dst, (UINT64)i * sizeof(UINT64));
+        }
     };
     auto async = [&](D3DContext& d)
     {
         for (UINT i = 0; i < N; ++i)
+        {
             d.spList->ResolveQueryDataAsync(qh, D3D12_QUERY_TYPE_TIMESTAMP, i, 1, dst, (UINT64)i * sizeof(UINT64));
+        }
     };
     out = RunLoop(D3D, kIterations, legacy, async);
 }
@@ -1156,8 +1267,10 @@ static void BenchmarkClearBoundRTVs(D3DContext& D3D, BenchResult& out)
 
     std::vector<CComPtr<ID3D12Resource>> tex(kNumResources);
     for (UINT i = 0; i < kNumResources; ++i)
+    {
         VERIFY_SUCCEEDED(D3D.spDevice->CreateCommittedResource3(&dp, D3D12_HEAP_FLAG_NONE, &desc,
             D3D12_BARRIER_LAYOUT_RENDER_TARGET, &cv, nullptr, 0, nullptr, IID_PPV_ARGS(&tex[i])));
+    }
 
     const UINT rtvSize = D3D.spDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
     CComPtr<ID3D12DescriptorHeap> heap;
@@ -1180,7 +1293,13 @@ static void BenchmarkClearBoundRTVs(D3DContext& D3D, BenchResult& out)
     };
 
     D3D12_CLEAR_DATA cd[8] = {};
-    for (int k = 0; k < 8; ++k) { cd[k].Floats[0] = col[0]; cd[k].Floats[1] = col[1]; cd[k].Floats[2] = col[2]; cd[k].Floats[3] = col[3]; }
+    for (int k = 0; k < 8; ++k)
+    {
+        cd[k].Floats[0] = col[0];
+        cd[k].Floats[1] = col[1];
+        cd[k].Floats[2] = col[2];
+        cd[k].Floats[3] = col[3];
+    }
     auto async = [&](D3DContext& d)
     {
         for (UINT base = 0; base < kNumResources; base += 8)
@@ -1188,7 +1307,9 @@ static void BenchmarkClearBoundRTVs(D3DContext& D3D, BenchResult& out)
             const UINT count = (kNumResources - base < 8) ? (kNumResources - base) : 8;
             D3D12_CPU_DESCRIPTOR_HANDLE handles[8];
             for (UINT k = 0; k < count; ++k)
+            {
                 handles[k] = CD3DX12_CPU_DESCRIPTOR_HANDLE(heap->GetCPUDescriptorHandleForHeapStart(), base + k, rtvSize);
+            }
             d.spList->OMSetRenderTargets(count, handles, FALSE, nullptr);
             const UINT mask = (count >= 8) ? 0xFF : ((1u << count) - 1);
             d.spList->ClearBoundRenderTargetViews(mask, cd, nullptr, nullptr);
@@ -1209,8 +1330,10 @@ static void BenchmarkClearBoundDSV(D3DContext& D3D, BenchResult& out)
 
     std::vector<CComPtr<ID3D12Resource>> tex(kNumResources);
     for (UINT i = 0; i < kNumResources; ++i)
+    {
         VERIFY_SUCCEEDED(D3D.spDevice->CreateCommittedResource3(&dp, D3D12_HEAP_FLAG_NONE, &desc,
             D3D12_BARRIER_LAYOUT_UNDEFINED, &cv, nullptr, 0, nullptr, IID_PPV_ARGS(&tex[i])));
+    }
 
     const UINT dsvSize = D3D.spDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
     CComPtr<ID3D12DescriptorHeap> heap;
@@ -1265,7 +1388,9 @@ static bool BenchmarkCopyTiles(D3DContext& D3D, BenchResult& out)
     D3D12_FEATURE_DATA_D3D12_OPTIONS opt = {};
     D3D.spDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS, &opt, sizeof(opt));
     if (opt.TiledResourcesTier == D3D12_TILED_RESOURCES_TIER_NOT_SUPPORTED)
+    {
         return false;
+    }
 
     const UINT tileBytes = 65536; // 64 KiB per tile (D3D12_TILED_RESOURCE_TILE_SIZE_IN_BYTES)
     const UINT numTiles = 256;
@@ -1334,8 +1459,10 @@ static void BenchmarkEndToEndMixedFrame(D3DContext& D3D, BenchResult& out, bool 
     {
         fillBuffers.resize(kE2EResources);
         for (UINT i = 0; i < kE2EResources; ++i)
+        {
             VERIFY_SUCCEEDED(D3D.spDevice->CreateCommittedResource(&defaultProps, D3D12_HEAP_FLAG_NONE, &uavDesc,
                 D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&fillBuffers[i])));
+        }
 
         fillDescSize = D3D.spDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
         D3D12_DESCRIPTOR_HEAP_DESC hd = {};
@@ -1378,12 +1505,16 @@ static void BenchmarkEndToEndMixedFrame(D3DContext& D3D, BenchResult& out, bool 
         D3D12_RESOURCE_STATE_COPY_SOURCE, nullptr, IID_PPV_ARGS(&regionSource)));
     std::vector<CComPtr<ID3D12Resource>> regionDests(kE2EResources);
     for (UINT i = 0; i < kE2EResources; ++i)
+    {
         VERIFY_SUCCEEDED(D3D.spDevice->CreateCommittedResource(&defaultProps, D3D12_HEAP_FLAG_NONE, &copyDesc,
             D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&regionDests[i])));
+    }
     std::vector<ID3D12Resource*> regionDestPtrs(kE2EResources), regionSrcPtrs(kE2EResources, regionSource);
     std::vector<UINT64> regionDestOffsets(kE2EResources, 0), regionSrcOffsets(kE2EResources, 0), regionSizes(kE2EResources, kE2EBufferBytes);
     for (UINT i = 0; i < kE2EResources; ++i)
+    {
         regionDestPtrs[i] = regionDests[i];
+    }
 
     CComPtr<ID3D12Resource> wholeSource;
     VERIFY_SUCCEEDED(D3D.spDevice->CreateCommittedResource(&defaultProps, D3D12_HEAP_FLAG_NONE, &copyDesc,
@@ -1466,7 +1597,11 @@ static void BenchmarkEndToEndMixedFrame(D3DContext& D3D, BenchResult& out, bool 
     CComPtr<ID3D12PipelineState> pso;
     VERIFY_SUCCEEDED(D3D.spDevice->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&pso)));
 
-    struct Vertex { float pos[3]; float color[4]; };
+    struct Vertex
+    {
+        float pos[3];
+        float color[4];
+    };
     Vertex verts[] =
     {
         { {  0.0f,  0.75f, 0.0f }, { 1.0f, 0.0f, 0.0f, 1.0f } },
@@ -1503,7 +1638,9 @@ static void BenchmarkEndToEndMixedFrame(D3DContext& D3D, BenchResult& out, bool 
         d.spList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         d.spList->IASetVertexBuffers(0, 1, &vbv);
         for (UINT draw = 0; draw < kE2EDrawCalls; ++draw)
+        {
             d.spList->DrawInstanced(3, 1, 0, 0);
+        }
     };
 
     auto legacy = [&](D3DContext& d)
@@ -1521,15 +1658,23 @@ static void BenchmarkEndToEndMixedFrame(D3DContext& D3D, BenchResult& out, bool 
         }
 
         for (UINT i = 0; i < kE2EResources; ++i)
+        {
             d.spList->CopyBufferRegion(regionDests[i], 0, regionSource, 0, kE2EBufferBytes);
+        }
 
         for (UINT i = 0; i < kE2EResources; ++i)
+        {
             d.spList->CopyResource(wholeDests[i], wholeSource);
+        }
 
         for (UINT i = 0; i < kE2EResources; ++i)
+        {
             d.spList->EndQuery(resolveQh, D3D12_QUERY_TYPE_TIMESTAMP, i);
+        }
         for (UINT i = 0; i < kE2EResources; ++i)
+        {
             d.spList->ResolveQueryData(resolveQh, D3D12_QUERY_TYPE_TIMESTAMP, i, 1, resolveDst, static_cast<UINT64>(i) * sizeof(UINT64));
+        }
 
         recordRender(d);
     };
@@ -1537,16 +1682,22 @@ static void BenchmarkEndToEndMixedFrame(D3DContext& D3D, BenchResult& out, bool 
     auto async = [&](D3DContext& d)
     {
         if (includeFillBench)
+        {
             d.spList->FillBuffers(kE2EResources, fillDescs.data());
+        }
 
         d.spList->CopyBufferRegions(kE2EResources, regionDestPtrs.data(), regionDestOffsets.data(),
             regionSrcPtrs.data(), regionSrcOffsets.data(), regionSizes.data());
         d.spList->CopyResources(kE2EResources, wholeDestPtrs.data(), wholeSrcPtrs.data());
 
         for (UINT i = 0; i < kE2EResources; ++i)
+        {
             d.spList->EndQuery(resolveQh, D3D12_QUERY_TYPE_TIMESTAMP, i);
+        }
         for (UINT i = 0; i < kE2EResources; ++i)
+        {
             d.spList->ResolveQueryDataAsync(resolveQh, D3D12_QUERY_TYPE_TIMESTAMP, i, 1, resolveDst, static_cast<UINT64>(i) * sizeof(UINT64));
+        }
 
         recordRender(d);
     };
@@ -1592,19 +1743,33 @@ int main(int argc, char** argv)
     for (int i = 1; i < argc; ++i)
     {
         if (_stricmp(argv[i], "-warp") == 0 || _stricmp(argv[i], "/warp") == 0)
+        {
             g_useWarpDevice = true;
+        }
         else if (_stricmp(argv[i], "-fallback") == 0 || _stricmp(argv[i], "/fallback") == 0)
+        {
             g_enableFallback = true;
+        }
         else if (_stricmp(argv[i], "-list") == 0 || _stricmp(argv[i], "/list") == 0)
+        {
             g_listAdapters = true;
+        }
         else if (_stricmp(argv[i], "-e2e") == 0 || _stricmp(argv[i], "/e2e") == 0)
+        {
             g_runEndToEnd = true;
+        }
         else if (_stricmp(argv[i], "-clearalternatives") == 0 || _stricmp(argv[i], "/clearalternatives") == 0)
+        {
             g_runClearAlternatives = true;
+        }
         else if (_stricmp(argv[i], "-debuglayer") == 0 || _stricmp(argv[i], "/debuglayer") == 0)
+        {
             g_enableDebugLayer = true;
+        }
         else if ((_stricmp(argv[i], "-adapter") == 0 || _stricmp(argv[i], "/adapter") == 0) && i + 1 < argc)
+        {
             g_adapterIndex = atoi(argv[++i]);
+        }
         else
         {
             PRINT(std::string(" Unrecognized option: ") + argv[i]);
@@ -1650,14 +1815,18 @@ int main(int argc, char** argv)
             {
                 debug->EnableDebugLayer();
                 if (g_enableDebugLayer)
+                {
                     PRINT(" D3D12 debug layer is enabled.\n");
+                }
             }
         }
 
         if (g_enableFallback)
         {
             if (!EnableAsyncCommandsFallback())
+            {
                 return -1;
+            }
         }
 
         D3DContext D3D;
@@ -1688,9 +1857,13 @@ int main(int argc, char** argv)
             std::unique_ptr<D3DContext> bench = std::make_unique<D3DContext>();
             bool benchOk = InitDeviceAndContext(*bench, g_useWarpDevice, g_adapterIndex);
             if (!benchOk && !adapterWasRequested)
+            {
                 benchOk = InitDeviceAndContext(*bench, true, -1);
+            }
             if (!benchOk)
+            {
                 return nullptr;
+            }
             return bench;
         };
 
@@ -1709,11 +1882,15 @@ int main(int argc, char** argv)
 
         const bool usingFallback = D3D.asyncImpl == D3D12_ASYNC_COMMANDS_IMPL_FALLBACK;
         if (g_enableFallback && !usingFallback)
+        {
             PRINT("   Fallback opt-in : enabled; native driver support takes precedence.\n");
+        }
 
         bool pass = true;
         if (!usingFallback)
+        {
             pass = RenderTriangleWithAsyncClear(D3D);
+        }
 
         PRINT("[2] Benchmarking async batched commands vs legacy serialized commands");
         {
@@ -1723,7 +1900,9 @@ int main(int argc, char** argv)
             PRINT(os.str());
         }
         if (!g_runClearAlternatives)
+        {
             PRINT("    RTV/UAV ClearTextureSubresources comparisons are opt-in; use -clearalternatives.\n");
+        }
 
         struct Benchmark
         {
@@ -1738,43 +1917,94 @@ int main(int argc, char** argv)
         const Benchmark benchmarks[] =
         {
             { "Buffer fill", "ClearUnorderedAccessViewUint x N", "FillBuffers (batched)", nullptr,
-              [](D3DContext& d, BenchResult& r) { BenchmarkFillVsUavClear(d, r); return true; } },
+              [](D3DContext& d, BenchResult& r)
+              {
+                  BenchmarkFillVsUavClear(d, r);
+                  return true;
+              } },
             { "Buffer region copy", "CopyBufferRegion x N", "CopyBufferRegions (batched)", nullptr,
-              [](D3DContext& d, BenchResult& r) { BenchmarkCopy(d, r); return true; } },
+              [](D3DContext& d, BenchResult& r)
+              {
+                  BenchmarkCopy(d, r);
+                  return true;
+              } },
             { "Whole-resource copy", "CopyResource x N", "CopyResources (batched)", nullptr,
-              [](D3DContext& d, BenchResult& r) { BenchmarkCopyResources(d, r, kBufferSize); return true; } },
+              [](D3DContext& d, BenchResult& r)
+              {
+                  BenchmarkCopyResources(d, r, kBufferSize);
+                  return true;
+              } },
             { "Texture region copy", "CopyTextureRegion x N", "CopyTextureRegions (batched)", nullptr,
-              [](D3DContext& d, BenchResult& r) { BenchmarkCopyTextureRegions(d, r); return true; } },
+              [](D3DContext& d, BenchResult& r)
+              {
+                  BenchmarkCopyTextureRegions(d, r);
+                  return true;
+              } },
             { "MSAA resolve", "ResolveSubresourceRegion x N", "ResolveSubresourceRegionAsync x N", nullptr,
-              [](D3DContext& d, BenchResult& r) { BenchmarkResolve(d, r); return true; } },
+              [](D3DContext& d, BenchResult& r)
+              {
+                  BenchmarkResolve(d, r);
+                  return true;
+              } },
             { "Query resolve", "ResolveQueryData x N", "ResolveQueryDataAsync x N", nullptr,
-              [](D3DContext& d, BenchResult& r) { BenchmarkResolveQueryData(d, r); return true; } },
+              [](D3DContext& d, BenchResult& r)
+              {
+                  BenchmarkResolveQueryData(d, r);
+                  return true;
+              } },
             { "Texture clear (copy route)", "CopyTextureRegion x N (staged)", "ClearTextureSubresources (batched)", nullptr,
-              [](D3DContext& d, BenchResult& r) { BenchmarkTextureClearCopy(d, r); return true; } },
+              [](D3DContext& d, BenchResult& r)
+              {
+                  BenchmarkTextureClearCopy(d, r);
+                  return true;
+              } },
             { "Texture clear (RTV route)", "Barrier + ClearRenderTargetView x N + barrier",
               "ClearTextureSubresources (batched)", nullptr,
-              [](D3DContext& d, BenchResult& r) { BenchmarkTextureClearRtv(d, r); return true; }, true },
+              [](D3DContext& d, BenchResult& r)
+              {
+                  BenchmarkTextureClearRtv(d, r);
+                  return true;
+              }, true },
             { "Texture clear (UAV alternative)", "Barrier + ClearUnorderedAccessViewFloat x N + barrier",
               "ClearTextureSubresources (batched)", nullptr,
-              [](D3DContext& d, BenchResult& r) { BenchmarkTextureClearUav(d, r); return true; }, true },
+              [](D3DContext& d, BenchResult& r)
+              {
+                  BenchmarkTextureClearUav(d, r);
+                  return true;
+              }, true },
             { "Bound RTV clear", "ClearRenderTargetView x N", "ClearBoundRenderTargetViews (8/call)",
               "  ClearBound* are raster-ordered (serialized with Draw* by design), so their benefit is\n"
               "  ergonomics - in/mid-render-pass clears, batching bound targets, lower CPU-record cost -\n"
               "  rather than GPU overlap.",
-              [](D3DContext& d, BenchResult& r) { BenchmarkClearBoundRTVs(d, r); return true; } },
+              [](D3DContext& d, BenchResult& r)
+              {
+                  BenchmarkClearBoundRTVs(d, r);
+                  return true;
+              } },
             { "Bound DSV clear", "ClearDepthStencilView x N", "ClearBoundDepthStencilView x N", nullptr,
-              [](D3DContext& d, BenchResult& r) { BenchmarkClearBoundDSV(d, r); return true; } },
+              [](D3DContext& d, BenchResult& r)
+              {
+                  BenchmarkClearBoundDSV(d, r);
+                  return true;
+              } },
             { "Tiled copy", "CopyTiles x N", "CopyTilesAsync x N", nullptr,
-              [](D3DContext& d, BenchResult& r) { return BenchmarkCopyTiles(d, r); } },
+              [](D3DContext& d, BenchResult& r)
+              {
+                  return BenchmarkCopyTiles(d, r);
+              } },
         };
 
         for (const Benchmark& b : benchmarks)
         {
             if (b.optionalClearAlternative && !g_runClearAlternatives)
+            {
                 continue;
+            }
 
             if (b.note)
+            {
                 PRINT(b.note);
+            }
 
             BenchResult r;
             bool ran = false;
@@ -1784,8 +2014,14 @@ int main(int argc, char** argv)
                 if (bench)
                 {
                     g_quietExpectedErrors = true;
-                    try { ran = b.run(*bench, r); }
-                    catch (HRESULT) { ran = false; }
+                    try
+                    {
+                        ran = b.run(*bench, r);
+                    }
+                    catch (HRESULT)
+                    {
+                        ran = false;
+                    }
                     g_quietExpectedErrors = false;
                 }
                 else
@@ -1799,11 +2035,17 @@ int main(int argc, char** argv)
             }
 
             if (ran)
+            {
                 PrintBench(b.title, b.legacyName, b.asyncName, r);
+            }
             else if (usingFallback)
+            {
                 PRINT(std::string("  ") + b.title + ": skipped (not supported in fallback on this adapter/runtime).");
+            }
             else
+            {
                 PRINT(std::string("  ") + b.title + ": skipped (not supported on this adapter).");
+            }
             PRINT("");
         }
 
