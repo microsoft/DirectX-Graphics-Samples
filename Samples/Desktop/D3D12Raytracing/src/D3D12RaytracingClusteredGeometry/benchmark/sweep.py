@@ -713,7 +713,7 @@ def report_tables(runs: list[RunResult], manifest: dict) -> list[tuple[str, list
                   for cfg in configs]
         precision_rows.append([bits, 24 - bits, bits - 1, bits, *states])
     return [
-        ("Run provenance (local/private)", ["Property", "Value"], facts),
+        ("Run provenance", ["Property", "Value"], facts),
         ("Precision alignment and coverage (nominal bits, not equal error)",
          ["Nominal bits", "FLOAT32_3 PositionTruncateBitCount", "FLOAT32_3 explicit mantissa bits",
           "COMPRESSED1 offset bits/component", "FLOAT32_3 run", "COMPRESSED1 run"],
@@ -746,8 +746,6 @@ REPORT_NOTES = [
     "missing configurations to a compatible saved sweep.",
     "Missing, failed, or unsupported measurements are gaps, never zero-cost results. "
     "Each axis has one unit and a zero baseline. These are single-run observations, not statistical claims.",
-    "Reports, logs, commands, and raw JSON contain machine-specific information. Keep them private; "
-    "review any aggregate findings before publishing.",
 ]
 
 
@@ -889,7 +887,7 @@ def main(argv: list[str] | None = None) -> int:
                                        charts, report_tables(runs, manifest), REPORT_NOTES),
                           encoding="utf-8")
         print(f"Report: {output}")
-        print(f"Private measurements: {directory.resolve()}")
+        print(f"Measurements: {directory.resolve()}")
         return 1 if any(r.status == "failed" for r in runs) or not any(
             r.status == "ok" for r in runs) else 0
     except (OSError, ValueError, KeyError, TypeError) as error:

@@ -23,6 +23,8 @@ class Chart:
     color_groups: dict[str, str] = field(default_factory=dict)
     stacks: dict[str, str] = field(default_factory=dict)
     x_tooltips: dict[str, str] = field(default_factory=dict)
+    line_dashes: dict[str, list[int]] = field(default_factory=dict)
+    point_styles: dict[str, str] = field(default_factory=dict)
 
 
 def script_json(value: Any) -> str:
@@ -105,6 +107,7 @@ h3 { font-size: 16px; margin: 0 0 8px; }
 p, li { line-height: 1.5; }
 .subtitle, .desc { color: var(--cp-text-muted); font-size: 13px; }
 .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 520px), 1fr)); gap: 16px; }
+.chart-wide { grid-column: 1 / -1; }
 .card {
   background: var(--cp-surface); border: 1px solid var(--cp-border);
   border-radius: 16px; padding: 16px; margin: 12px 0;
@@ -116,6 +119,13 @@ th, td { padding: 8px; border-bottom: 1px solid var(--cp-border); text-align: le
 th { color: var(--cp-text-muted); font-weight: 600; }
 td { overflow-wrap: anywhere; }
 code { font-family: Consolas, "Courier New", Courier, monospace; }
+.study-index { display: flex; flex-wrap: wrap; gap: 8px; }
+.study-index a {
+  color: var(--cp-link); background: var(--cp-surface-soft);
+  border: 1px solid var(--cp-border); border-radius: 0.625rem;
+  padding: 8px 12px; text-decoration: none; font-size: 13px;
+}
+.study-index a:hover { background: var(--cp-highlight); }
 """
 
 CHART_SCRIPT = """
@@ -147,22 +157,38 @@ for (const [index, spec] of reportCharts.entries()) {
       data: labels.map(x => ({x, y: values.has(x) ? values.get(x) : null})),
       borderColor: color, backgroundColor: color, borderWidth: 2,
       pointRadius: spec.chart_type === 'line' ? 3 : 0,
+      pointStyle: series.point_style,
       tension: 0, spanGaps: false, stack: spec.stacked ? series.stack : undefined,
-      borderDash: series.label.includes('traditional refit') ? [2, 3] :
+      borderDash: series.line_dash ?? (series.label.includes('traditional refit') ? [2, 3] :
                   series.label.includes('traditional rebuild') ? [6, 3] : []
+                  )
     };
   });
   new Chart(document.getElementById('chart-' + index), {
     type: spec.chart_type, data: {labels, datasets},
+    plugins: [{
+      id: 'report-legend-space',
+      afterLayout(chart) {
+        const plot = chart.canvas.parentElement;
+        const height = Math.max(320, Math.ceil(chart.legend.height + 280),
+                                Math.ceil(chart.height - chart.chartArea.height + 240));
+        if (plot.style.height !== height + 'px') {
+          plot.style.height = height + 'px';
+          requestAnimationFrame(() => chart.resize());
+        }
+      }
+    }],
     options: {
       responsive: true, maintainAspectRatio: false,
       scales: {
         x: {type: spec.numeric_x ? 'linear' : 'category', stacked: spec.stacked,
             title: {display: true, text: spec.x_label}},
         y: {type: 'linear', beginAtZero: true, stacked: spec.stacked,
-            title: {display: true, text: spec.unit}}
+            title: {display: true, text: spec.unit},
+            ticks: {callback: value => format(value, spec.unit)}}
       },
       plugins: {
+        legend: {labels: {usePointStyle: spec.chart_type === 'line'}},
         tooltip: {callbacks: {
           title: items => {
             if (!items.length) return '';
@@ -180,39 +206,55 @@ for (const [index, spec] of reportCharts.entries()) {
 
 def render_report(title: str, subtitle: str, charts: list[Chart],
                   tables: list[tuple[str, list[str], list[list[Any]]]],
-                  notes: list[str]) -> str:
+                  notes: list[str],
+                  overview_tables: list[tuple[str, list[str], list[list[Any]]]] | None = None) -> str:
     """Embed Chart.js locally; never silently depend on a remote CDN."""
     library = Path(__file__).with_name("chart.umd.min.js").read_text(encoding="utf-8")
     license_text = Path(__file__).with_name("LICENSE.Chart.js.txt").read_text(encoding="utf-8")
     escape = lambda value: html.escape(str(value), quote=True)
+    def render_table(heading: str, columns: list[str], rows: list[list[Any]]) -> str:
+        return (f"<section class='card'><h2>{escape(heading)}</h2><div class='scroll'>"
+                "<table><thead><tr>" +
+                "".join(f"<th>{escape(column)}</th>" for column in columns) +
+                "</tr></thead><tbody>" +
+                "".join("<tr>" + "".join(f"<td>{escape(cell)}</td>" for cell in row) +
+                        "</tr>" for row in rows) + "</tbody></table></div></section>")
     body = [f"<h1>{escape(title)}</h1><p class='subtitle'>{escape(subtitle)}</p>"]
     if notes:
         body.append("<section class='card'><h2>Reading this report</h2><ul>" +
                     "".join(f"<li>{escape(note)}</li>" for note in notes) + "</ul></section>")
+    for heading, columns, rows in overview_tables or []:
+        body.append(render_table(heading, columns, rows))
+    categories = list(dict.fromkeys(chart.category for chart in charts))
+    if categories:
+        body.append("<nav class='card' aria-label='Benchmark studies'><h2>Studies</h2>"
+                    "<div class='study-index'>" + "".join(
+                        f"<a href='#study-{index}'>{escape(category)}</a>"
+                        for index, category in enumerate(categories)) + "</div></nav>")
     current_category = None
     for index, chart in enumerate(charts):
         if chart.category != current_category:
             if current_category is not None:
                 body.append("</div>")
-            body.append(f"<h2>{escape(chart.category)}</h2><div class='grid'>")
+            body.append(f"<h2 id='study-{categories.index(chart.category)}'>"
+                        f"{escape(chart.category)}</h2><div class='grid'>")
             current_category = chart.category
-        body.append(f"<section class='card'><h3>{escape(chart.title)}</h3>"
+        wide = " chart-wide" if len(chart.series) > 3 else ""
+        body.append(f"<section class='card{wide}'><h3>{escape(chart.title)}</h3>"
                     f"<p class='desc'>{escape(chart.description)}</p>"
                     f"<div class='plot'><canvas id='chart-{index}'></canvas></div></section>")
     if current_category is not None:
         body.append("</div>")
     for heading, columns, rows in tables:
-        body.append(f"<section class='card'><h2>{escape(heading)}</h2><div class='scroll'>"
-                    "<table><thead><tr>" +
-                    "".join(f"<th>{escape(column)}</th>" for column in columns) +
-                    "</tr></thead><tbody>" +
-                    "".join("<tr>" + "".join(f"<td>{escape(cell)}</td>" for cell in row) +
-                            "</tr>" for row in rows) + "</tbody></table></div></section>")
+        body.append(render_table(heading, columns, rows))
     specs = [
         dict(title=c.title, unit=c.unit, x_label=c.x_label, chart_type=c.chart_type,
              numeric_x=c.numeric_x, stacked=c.stacked, x_tooltips=c.x_tooltips,
              series=[dict(label=label, points=points, color_group=c.color_groups.get(label, label),
-                          stack=c.stacks.get(label, "all")) for label, points in c.series.items()])
+                          stack=c.stacks.get(label, "all"),
+                          line_dash=c.line_dashes.get(label),
+                          point_style=c.point_styles.get(label, "circle"))
+                     for label, points in c.series.items()])
         for c in charts
     ]
     return ("<!doctype html><html lang='en'><head><meta charset='utf-8'>"

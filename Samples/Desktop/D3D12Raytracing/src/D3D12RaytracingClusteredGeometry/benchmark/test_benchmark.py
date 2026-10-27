@@ -459,12 +459,12 @@ class Comparison(unittest.TestCase):
         machines = [self.machine("A", [base, expanded]), self.machine("B", [result()])]
         charts, shared = compare.comparison_charts(machines)
         self.assertEqual(shared, 1)
-        chart = next(c for c in charts if c.title == "Resident AS storage")
-        self.assertEqual(chart.series["A / clustered"], [(0, 700)])
+        chart = next(c for c in charts if c.title == "Resident AS storage: clustered")
+        self.assertEqual(chart.series["A"], [(0, 700)])
         charts, _ = compare.comparison_charts(machines, partial=True)
-        chart = next(c for c in charts if c.title == "Resident AS storage")
-        self.assertEqual([x for x, _ in chart.series["A / clustered"]], [0, 100])
-        self.assertEqual([x for x, _ in chart.series["B / clustered"]], [0])
+        chart = next(c for c in charts if c.title == "Resident AS storage: clustered")
+        self.assertEqual([x for x, _ in chart.series["A"]], [0, 100])
+        self.assertEqual([x for x, _ in chart.series["B"]], [0])
 
     def test_matching_flags_but_different_geometry_is_rejected(self):
         other = result()
@@ -494,6 +494,82 @@ class Comparison(unittest.TestCase):
         self.assertIn("11 explicit mantissa bits kept", chart.x_tooltips["12"])
         self.assertIn("3 explicit mantissa bits kept", chart.x_tooltips["20"])
 
+    def test_three_machine_scaling_is_faceted_and_precision_formats_have_distinct_styles(self):
+        configs = build_sweep_matrix(True, True)
+        runs = [result(config) for config in configs]
+        charts, _ = compare.comparison_charts([self.machine(label, runs) for label in ("A", "B", "C")])
+        scaling = [chart for chart in charts if chart.title.startswith("Resident AS storage: ")]
+        self.assertEqual(len(scaling), 3)
+        for chart in scaling:
+            self.assertEqual(set(chart.series), {"A", "B", "C"})
+        precision = next(chart for chart in charts
+                         if chart.title == "COMPRESSED1 vs FLOAT32_3: DispatchRays")
+        self.assertEqual(precision.line_dashes["A / FLOAT32_3 (normal significand)"], [])
+        self.assertEqual(precision.line_dashes["A / COMPRESSED1 (cluster offset)"], [6, 3])
+        self.assertNotEqual(precision.point_styles["A / FLOAT32_3 (normal significand)"],
+                            precision.point_styles["A / COMPRESSED1 (cluster offset)"])
+        self.assertEqual(precision.color_groups["A / FLOAT32_3 (normal significand)"], "A")
+        self.assertEqual(precision.color_groups["A / COMPRESSED1 (cluster offset)"], "A")
+
+    def test_within_gpu_ratios_are_computed_from_that_gpu_only(self):
+        configs = [RunConfig(), replace(RunConfig(), geometry_mode="traditional"),
+                   replace(RunConfig(), geometry_mode="traditional", trad_anim_mode="refit")]
+        a = [result(config) for config in configs]
+        b = [result(config) for config in configs]
+        a[0].data["frame_perf"]["fps"] = 200
+        b[0].data["frame_perf"]["fps"] = 50
+        charts, _ = compare.comparison_charts([self.machine("A", a), self.machine("B", b)])
+        fps = next(chart for chart in charts if chart.title == "Clustered / traditional frame rate (rebuild)")
+        self.assertEqual(fps.series["A"], [(0, 2)])
+        self.assertEqual(fps.series["B"], [(0, 0.5)])
+        memory = next(chart for chart in charts
+                      if chart.title == "Traditional / clustered resident AS (rebuild)")
+        self.assertEqual(memory.series["A"], [(0, 400 / 700)])
+
+    def test_statistical_cautions_are_prominent_and_data_driven(self):
+        a, b = self.machine("A", [result()]), self.machine("B", [result()])
+        a.manifest["payload_sha256"], b.manifest["payload_sha256"] = "build-A", "build-B"
+        b.runs[0].data["frame_perf"]["frames_in_avg_window"] = 2
+        notes = compare.comparison_warnings([a, b])
+        self.assertTrue(any("BUILD CAUTION" in note and "differ" in note for note in notes))
+        self.assertTrue(any("SAMPLE CAUTION: B" in note and "minimum 2" in note for note in notes))
+        self.assertTrue(any("viewport" in note for note in notes))
+        self.assertTrue(any("No variance" in note for note in notes))
+        a.manifest["payload_sha256"] = b.manifest["payload_sha256"]
+        b.runs[0].data["frame_perf"]["frames_in_avg_window"] = 100
+        notes = compare.comparison_warnings([a, b])
+        self.assertFalse(any("BUILD CAUTION" in note for note in notes))
+        self.assertFalse(any("SAMPLE CAUTION" in note for note in notes))
+
+    def test_largest_workload_summary_uses_common_supported_scale(self):
+        configs = build_sweep_matrix(True, True)
+        first = self.machine("A", [result(cfg) for cfg in configs])
+        second = self.machine("B", [result(cfg) for cfg in configs if cfg.extra_instances != 1000])
+        tables = compare.largest_workload_tables([first, second])
+        self.assertIn("100 extra BLASes", tables[0][0])
+        self.assertEqual(len(tables[0][2]), 2)
+        self.assertEqual(tables[0][2][0][-3:-1], ["1.00x", "1.00x"])
+        self.assertIn("not total VRAM", tables[1][0])
+
+    def test_ratio_comparisons_pin_one_baseline_across_all_machines(self):
+        configs = [RunConfig(), replace(RunConfig(), geometry_mode="traditional"),
+                   replace(RunConfig(), geometry_mode="traditional", trad_anim_mode="refit")]
+        full = [result(cfg) for cfg in configs]
+        low = [result(replace(cfg, animated_detail="low")) for cfg in configs]
+        for run in low:
+            if run.config.geometry_mode == "clusters":
+                run.data["frame_perf"]["fps"] = 500
+        first = self.machine("A", full + low)
+        second = self.machine("B", [result(cfg) for cfg in configs] + low)
+        second.manifest["base_config"]["animated_detail"] = "low"
+        charts, _ = compare.comparison_charts([first, second])
+        ratio = next(chart for chart in charts
+                     if chart.title == "Clustered / traditional frame rate (rebuild)")
+        self.assertEqual(ratio.series["A"], [(0, 1)])
+        self.assertEqual(ratio.series["B"], [(0, 1)])
+        self.assertTrue(any("BASELINE CAUTION" in note
+                            for note in compare.comparison_warnings([first, second])))
+
 
 class Report(unittest.TestCase):
     def test_escaping_offline_theme_zero_axes_and_tooltip_keys(self):
@@ -505,6 +581,8 @@ class Report(unittest.TestCase):
         self.assertIn("\\u003c/script", script_json(attack))
         self.assertIn("beginAtZero: true", report)
         self.assertIn("stack: spec.stacked ? series.stack : undefined", report)
+        self.assertIn("Math.ceil(chart.legend.height + 280)", report)
+        self.assertIn("chart.height - chart.chartArea.height + 240", report)
         self.assertIn("Permission is hereby granted", report)
         self.assertIn("item.raw.x", report.replace("items[0].raw.x", "item.raw.x"))
         self.assertIn("scoutTheme", report)
@@ -518,6 +596,29 @@ class Report(unittest.TestCase):
         parser = Scripts()
         parser.feed(report)
         self.assertEqual(parser.external, [])
+
+    def test_comparison_summary_precedes_charts_and_series_styles_are_embedded(self):
+        chart = Chart("Synthetic plot", "Category", "Description", "x", "ms",
+                      {"A / FLOAT32_3": [(0, 1)], "A / COMPRESSED1": [(0, 2)]})
+        chart.line_dashes["A / COMPRESSED1"] = [6, 3]
+        chart.point_styles["A / COMPRESSED1"] = "triangle"
+        rendered = render_report("Test", "Subtitle", [chart], [], [],
+                                 overview_tables=[("Coverage first", ["GPU"], [["Synthetic"]])])
+        self.assertLess(rendered.index("Coverage first"), rendered.index("<canvas"))
+        self.assertIn('"line_dash": [6, 3]', rendered)
+        self.assertIn('"point_style": "triangle"', rendered)
+        self.assertIn("href='#study-0'", rendered)
+        self.assertIn("id='study-0'", rendered)
+
+    def test_reports_use_plain_provenance_labels_without_privacy_callouts(self):
+        run = result()
+        machine = compare.MachineReport("Synthetic GPU", Path("synthetic"), [run],
+                                        {"base_config": asdict(RunConfig())})
+        titles = [table[0] for table in sweep.report_tables([run], machine.manifest)]
+        self.assertIn("Run provenance", titles)
+        self.assertEqual(compare.summary_table([machine])[0], "Input coverage and build identity")
+        for text in [*titles, *sweep.REPORT_NOTES]:
+            self.assertNotIn("private", text.lower())
 
 
 if __name__ == "__main__":

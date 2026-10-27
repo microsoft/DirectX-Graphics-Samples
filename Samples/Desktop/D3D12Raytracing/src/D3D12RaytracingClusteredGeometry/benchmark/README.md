@@ -186,6 +186,21 @@ reference remains missing; another machine is not silently substituted.
 Hardware/driver metadata stays in the local report. Select and review any
 shareable findings separately before including them in a public article.
 
+Comparison reports put input coverage and build identities near the top.
+Different executable/runtime fingerprints, failed/skipped cases, and published
+windows with fewer than ten frames produce explicit cautions. A settled
+one-second window is not a repeated-trial confidence estimate. These manifests
+do not record viewport size, clocks, power state, or desktop conditions; verify
+those separately before attributing differences to GPU architecture.
+
+Scaling and multi-mode studies use separate charts for each geometry strategy,
+with GPU colors consistent across panels. FLOAT32_3 precision curves use solid
+circles; COMPRESSED1 uses dashed triangles of the same GPU color. Legends get
+enough space without squeezing the plot, and memory ticks use binary units.
+The leading within-GPU ratio plots compare clustered frame rate and resident
+memory with both traditional rebuild and refit at each workload. These ratios
+never combine measurements from different GPUs or assert equal visual quality.
+
 ## Reading the charts
 
 - FLOAT32_3 precision plots use **PositionTruncateBitCount** (`--position-truncate`)
