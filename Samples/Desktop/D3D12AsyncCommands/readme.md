@@ -106,8 +106,7 @@ show additional overlap on the independent work.
 
 * DirectX 12 **Agility SDK 620.1** (`Microsoft.Direct3D.D3D12`), restored automatically via NuGet.
 * A driver that implements async commands, or `-fallback` to permit the runtime fallback on an
-  adapter without native support. Without that opt-in, the default path falls back to the preview
-  **WARP** software renderer (`Microsoft.Direct3D.WARP` `1.65535.20-preview`).
+  adapter without native support.
 
 On startup the sample reports which implementation it obtained:
 
