@@ -47,7 +47,8 @@ def snapshot(cfg: RunConfig = RunConfig()) -> dict:
         adapter=dict(description="Synthetic adapter", vendor_id=1, device_id=2,
                      driver_version="test-driver", clusters_supported=True,
                      dedicated_vram_bytes=1024 ** 3),
-        config={**cfg.expected_config(), **sweep.BENCHMARK_ENVIRONMENT,
+        config={**cfg.expected_config(), **cfg.expected_traditional_build_flags(),
+                **sweep.BENCHMARK_ENVIRONMENT,
                 "stable_power_state": cfg.stable_power_state,
                 "stable_power_state_requested": cfg.stable_power_state,
                 "bounce_slider": 3, "reflection_bounces": 3,
@@ -116,6 +117,35 @@ class Measurements(unittest.TestCase):
         validate_snapshot(legacy, RunConfig(), require_environment=True)
         with self.assertRaises(sweep.BenchmarkContractError):
             validate_snapshot(legacy, cfg, require_environment=True)
+
+    def test_traditional_flags_only_enable_update_for_refit(self):
+        for preference, value in (("none", 0), ("fast-trace", 4), ("fast-build", 8)):
+            for mode in ("rebuild", "refit"):
+                cfg = RunConfig(geometry_mode="traditional", build_flags=preference,
+                                trad_anim_mode=mode)
+                expected = cfg.expected_traditional_build_flags()
+                self.assertEqual(expected["traditional_static_build_flags"], value | 2)
+                self.assertEqual(expected["traditional_animated_build_flags"],
+                                 value | (1 if mode == "refit" else 0))
+                validate_snapshot(snapshot(cfg), cfg, require_environment=True)
+                for key in expected:
+                    data = snapshot(cfg)
+                    data["config"][key] ^= 1
+                    with self.assertRaises(sweep.BenchmarkContractError):
+                        validate_snapshot(data, cfg, require_environment=True)
+        self.assertEqual(RunConfig(trad_alloc="implicit").expected_traditional_build_flags(),
+                         dict(traditional_static_build_flags=0, traditional_animated_build_flags=0))
+        cfg = RunConfig(geometry_mode="traditional", trad_alloc="implicit")
+        self.assertEqual(cfg.expected_traditional_build_flags()["traditional_static_build_flags"], 4)
+
+    def test_missing_traditional_flags_are_readable_but_not_accepted_for_new_runs(self):
+        cfg = RunConfig(geometry_mode="traditional")
+        data = snapshot(cfg)
+        for key in cfg.expected_traditional_build_flags():
+            del data["config"][key]
+        validate_snapshot(data, cfg)
+        with self.assertRaises(sweep.BenchmarkContractError):
+            validate_snapshot(data, cfg, require_environment=True)
 
     def test_all_matrix_configs_are_unique_and_explicit(self):
         for quick in (True, False):
@@ -702,6 +732,15 @@ class Comparison(unittest.TestCase):
         for partial in (False, True):
             with self.subTest(partial=partial), self.assertRaisesRegex(ValueError, "clock-control"):
                 compare.comparison_charts([normal, stable], partial=partial)
+
+    def test_traditional_build_flag_provenance(self):
+        run = result(RunConfig(geometry_mode="traditional"))
+        tables = sweep.report_tables([run], {"base_config": asdict(run.config)})
+        self.assertIn("Refit only", dict(tables[0][2])["Traditional BLAS update support"])
+        for key in run.config.expected_traditional_build_flags():
+            del run.data["config"][key]
+        tables = sweep.report_tables([run], {"base_config": asdict(run.config)})
+        self.assertEqual(dict(tables[0][2])["Traditional BLAS update support"], "Not recorded")
 
     def test_first_machine_remains_reference_when_missing(self):
         machines = [self.machine("A", []), self.machine("B", [result()])]

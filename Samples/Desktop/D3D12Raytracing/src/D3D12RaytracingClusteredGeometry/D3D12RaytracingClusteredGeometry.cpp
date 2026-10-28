@@ -2190,40 +2190,9 @@ void D3D12RaytracingClusteredGeometry::BuildBlasFromClasIndirect()
 // TLAS hands these BLAS GVAs out via obj.tradBlasGPUVA.
 //
 // ------------------------------------------------------------------------
-// WHY ONE GEOMETRY DESC PER CLUSTER (READ THIS BEFORE COPYING):
-//
-// The per-cluster geometry-desc layout we use here is a SAMPLE-ONLY
-// choice driven by the demo's apples-to-apples comparison goal.  We
-// want the traditional path's closest-hit to be able to recover the
-// same per-cluster identity the cluster path gets from ClusterID(),
-// so we lay one geometry desc per cluster inside the per-object BLAS
-// and feed g_perInstanceFirstCid[InstanceIndex()] + GeometryIndex()
-// back into the SAME g_clusterMeta / g_clusterNormals / etc. tables.
-// That gets you visually identical output between the two paths with
-// the smallest possible code delta, which is what makes the memory
-// + build-cost numbers in the overlay directly comparable.
-//
-// A real app shipping the traditional path would almost certainly
-// NOT subdivide a mesh into ~50 geometry descs per object just to
-// preserve cluster scope -- it costs measurable BLAS bytes (the
-// BVH carries per-geometry split metadata) and build scratch (see
-// the overlay numbers).  The natural unit a real app picks is
-// MATERIALS: one geometry desc per material region of the mesh,
-// because that's the boundary at which the closest-hit needs to
-// branch.  Material count is typically O(few) per object instead
-// of O(hundreds) of clusters, so the BVH overhead is small.
-//
-// Worth noting: even in the cluster path, a real app would also
-// usually use multiple geometry descs at the TLAS-instance level
-// to express materials -- cluster boundaries are placed for spatial
-// coherence and traversal efficiency, NOT material coherence, so a
-// single cluster will routinely straddle multiple materials in
-// real meshes.  The cluster path gives you finer-than-material
-// granularity (per-cluster overrides, per-cluster opacity flags,
-// per-cluster precision) AS WELL AS material-driven geometries --
-// the two layers compose; they're not alternatives.  Our demo
-// scene happens to be one-material-per-object so we don't exercise
-// that, but the API supports it cleanly.
+// One geometry descriptor per material region, not per cluster.
+// BuildTradCidLookup recovers cluster identity from the primitive index,
+// so the comparison does not require per-cluster geometry descriptors.
 // ------------------------------------------------------------------------
 //
 // Two allocation strategies, cycled via [A] in traditional mode (mirrors
@@ -2467,14 +2436,7 @@ void D3D12RaytracingClusteredGeometry::BuildTraditionalStaticAS()
         inputs.DescsLayout    = D3D12_ELEMENTS_LAYOUT_ARRAY;
         inputs.NumDescs       = (UINT)geomDescs.size();
         inputs.pGeometryDescs = geomDescs.data();
-        // PREFER_FAST_TRACE for hit perf; ALLOW_UPDATE so the [F] refit
-        // toggle (animated path, future) can update without rebuild;
-        // ALLOW_COMPACTION only when we actually want to compact (the
-        // flag has a small build-cost on some drivers).
-        inputs.Flags =
-            BuildFlagModeDxr1() | D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_UPDATE |
-            (wantCompact ? D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_COMPACTION
-                         : (D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS)0);
+        inputs.Flags = TraditionalStaticBuildFlags();
 
         D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO prebuild = {};
         m_dxrDevice->GetRaytracingAccelerationStructurePrebuildInfo(&inputs, &prebuild);
@@ -3978,8 +3940,7 @@ void D3D12RaytracingClusteredGeometry::BuildAnimatedTraditionalAS()
 
     // ------------------------------------------------------------------
     // 2) Prebuild + allocate BLAS storage + scratch.
-    //    PREFER_FAST_TRACE for ray-hit perf, ALLOW_UPDATE so the [F]
-    //    toggle can switch to PERFORM_UPDATE refits without reallocating.
+    //    Only refit mode retains ALLOW_UPDATE; [F] recreates these resources.
     //    Single geom desc covering perFrameVertexBuffer + tradIndexBuffer.
     // ------------------------------------------------------------------
     D3D12_RAYTRACING_GEOMETRY_DESC geomDesc = {};
@@ -3998,8 +3959,7 @@ void D3D12RaytracingClusteredGeometry::BuildAnimatedTraditionalAS()
     inputs.DescsLayout    = D3D12_ELEMENTS_LAYOUT_ARRAY;
     inputs.NumDescs       = 1;
     inputs.pGeometryDescs = &geomDesc;
-    inputs.Flags          = BuildFlagModeDxr1()
-                          | D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_UPDATE;
+    inputs.Flags          = TraditionalAnimatedBuildFlags();
 
     D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO prebuild = {};
     m_dxrDevice->GetRaytracingAccelerationStructurePrebuildInfo(&inputs, &prebuild);
@@ -4062,8 +4022,7 @@ void D3D12RaytracingClusteredGeometry::BuildAnimatedClonesTradSetup()
     inputs.DescsLayout    = D3D12_ELEMENTS_LAYOUT_ARRAY;
     inputs.NumDescs       = 1;
     inputs.pGeometryDescs = &geomDesc;
-    inputs.Flags          = BuildFlagModeDxr1()
-                          | D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_UPDATE;
+    inputs.Flags          = TraditionalAnimatedBuildFlags();
     D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO pb = {};
     m_dxrDevice->GetRaytracingAccelerationStructurePrebuildInfo(&inputs, &pb);
 
@@ -4166,8 +4125,7 @@ void D3D12RaytracingClusteredGeometry::UpdateAnimatedTradPerFrame(UINT pfTimesta
     inputs.DescsLayout    = D3D12_ELEMENTS_LAYOUT_ARRAY;
     inputs.NumDescs       = 1;
     inputs.pGeometryDescs = &geomDesc;
-    inputs.Flags          = BuildFlagModeDxr1()
-                          | D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_UPDATE;
+    inputs.Flags          = TraditionalAnimatedBuildFlags();
     const bool wantRefit = (m_traditionalAnimMode == TraditionalAnimMode::Refit)
                             && obj.tradBlasInitialized;
     if (wantRefit)
@@ -6719,6 +6677,8 @@ void D3D12RaytracingClusteredGeometry::WriteBenchmarkSnapshot()
     kvB  ("debug_layer_active", SUCCEEDED(m_dxrDevice.As(&benchmarkInfoQueue)));
     kvB  ("stable_power_state_requested", m_stablePowerStateRequested);
     kvB  ("stable_power_state", m_deviceResources->IsStablePowerStateEnabled());
+    kvU  ("traditional_static_build_flags", IsTraditional() ? TraditionalStaticBuildFlags() : 0u);
+    kvU  ("traditional_animated_build_flags", IsTraditional() ? TraditionalAnimatedBuildFlags() : 0u);
     kvD  ("cluster_tint",                  (double)m_clusterTint);
     kvI  ("bounce_slider",                 (long long)m_bounceSlider);
     kvU  ("reflection_bounces",            ReflectionBounces());

@@ -108,6 +108,13 @@ Both geometry modes receive the same selected mesh and extra-object count.
 Every animated copy must have an independent BLAS; capped or shared-BLAS
 substitutions are rejected. Static curved copies use the sample's
 generation-time distance LOD. Animated Full/Low is a separate, explicit setting.
+This is an independent-BLAS stress test, not optimized instancing of identical
+geometry: animated copies share source positions (and source CLAS in cluster
+mode). A real application can share a traditional BLAS for identical deformation.
+
+Traditional static and animated-rebuild BLASes omit `ALLOW_UPDATE`; only animated
+refit enables it. Snapshots record the effective static and animated build flags,
+and benchmark runs validate them.
 
 The current sample publishes FPS, frame interval, and GPU stage costs from the
 **same settled, roughly one-second rolling window**. These are the last
