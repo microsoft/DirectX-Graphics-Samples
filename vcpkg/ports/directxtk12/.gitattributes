@@ -1,0 +1,2 @@
+# Preserve unified-diff context and line endings when checking out on Windows.
+*.patch text eol=lf whitespace=-blank-at-eol,-blank-at-eof

@@ -1,0 +1,11 @@
+# Results contain private adapter, driver, executable-path, and timing data.
+# Never commit generated measurements, reports, or logs.
+results/
+*.json
+*.html
+*.log
+*.csv
+*.tsv
+
+# Python bytecode caches.
+__pycache__/

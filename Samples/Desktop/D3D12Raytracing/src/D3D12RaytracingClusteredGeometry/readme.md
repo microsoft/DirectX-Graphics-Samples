@@ -1,0 +1,387 @@
+# D3D12 Raytracing Clustered Geometry sample
+
+This sample demonstrates **clustered geometry** in D3D12: building Cluster
+Level Acceleration Structures (CLAS) and Cluster BLAS via the new GPU-driven
+indirect acceleration-structure operations API, with both the static path
+(`BUILD_CLAS_FROM_TRIANGLES` + selectable `FLOAT32_3` / `COMPRESSED1` vertex
+formats) and the animated path (`BUILD_CLUSTER_TEMPLATES_FROM_TRIANGLES` + per-frame
+`INSTANTIATE_CLUSTER_TEMPLATES`).
+
+Flat surfaces use one quad per cube face or floor tile, preserving the floor's
+checker-tile cluster colors and materials. Cube clones use the same minimal mesh.
+
+## Build
+
+Use Visual Studio 2022 with the Desktop development with C++ workload, a
+Windows SDK, and the **vcpkg package manager** component
+(`Microsoft.VisualStudio.Component.Vcpkg`). Alternatively, set `VCPKG_ROOT`
+to your vcpkg installation. Enable Windows Developer Mode for the experimental
+SM 6.10 shaders.
+The sample restores these native NuGet dependencies into the repository's
+`Packages` directory:
+
+- `Microsoft.Direct3D.D3D12` **1.722.0-preview** (published Agility SDK 1.722.0).
+- `Microsoft.Direct3D.DXC` **1.10.2605.37-preview** (SM 6.10 compiler).
+
+DirectXTK12 (text overlay) is built from source through the repository's shared
+`vcpkg.json` manifest and `vcpkg\DirectX.vcpkg.props` / `.targets` integration,
+matching the other raytracing samples. MSBuild automatically installs the
+manifest dependencies for `x64-windows-static-md`, using the appropriate Debug
+or Release libraries. No prebuilt DirectXTK NuGet package is required.
+The pinned vcpkg overlay adds a `ResourceUploadBatch` constructor accepting
+caller-supplied `D3D12_FEATURE_DATA_D3D12_OPTIONS`. This sample queries those
+capabilities with `CheckFeatureSupport1`, avoiding deprecated helper-library
+queries. The original constructor remains compatible, and the toolkit patch
+does not depend on preview Agility SDK headers or runtime interfaces.
+
+Both pinned packages restore from nuget.org; no unpublished Agility package or
+local package source is required. If direct access to nuget.org is blocked, use
+an approved mirror configured in your user/machine NuGet settings. No
+machine-specific feed locations are checked in.
+
+Open `D3D12RaytracingClusteredGeometry.sln` and restore/build **Debug|x64** or
+**Release|x64**. From a VS 2022 Developer PowerShell:
+
+```powershell
+msbuild D3D12RaytracingClusteredGeometry.sln /restore /p:RestorePackagesConfig=true /p:Configuration=Debug /p:Platform=x64
+```
+
+NuGet copies `D3D12Core.dll` and `D3D12SDKLayers.dll` into
+`bin\x64\<Configuration>\D3D12\`, and the DXC DLLs next to the EXE.
+The project also deploys `SegoeUI_24.spritefont` next to the EXE; the sample
+resolves it there regardless of the process working directory.
+`Main.cpp` exports `D3D12_PREVIEW_SDK_VERSION` and `D3D12SDKPath` so the system
+loader uses the matching preview runtime. No private D3D12 build is required.
+The sample enables `D3D12RaytracingPreview` before device creation and queries
+`D3D12_FEATURE_D3D12_OPTIONS_RAYTRACING2` to check clustered-geometry support.
+
+## Run
+
+```
+D3D12RaytracingClusteredGeometry.exe [-forceAdapter <ID>] [--screenshot N path.png]
+```
+
+`--screenshot N path.png` captures zero-based frame `N` (after rendering `N + 1`
+frames), dumps the back buffer to PNG, and exits. Useful for unattended visual
+verification.
+
+### Testing on hardware / WARP
+
+The sample selects a hardware adapter by default; `-forceAdapter <ID>` overrides
+its DXGI adapter index. Use `d3dconfig` to force software rendering:
+
+```
+d3dconfig device force-warp=true     # requires a preview WARP supporting clustered geometry
+d3dconfig device force-warp=false    # use the system's hardware adapter
+```
+
+The Agility package does not include WARP. Software clustered-geometry testing requires a
+compatible preview `d3d10warp.dll` next to the EXE; the OS-provided WARP may not
+support clustered geometry. Ensure that the executable's directory is in
+`d3dconfig`'s application paths before changing its settings, and restore
+`force-warp=false` after software testing.
+
+Clustered rendering requires a supported preview driver and Shader Model 6.10.
+The traditional BLAS path uses a separate SM 6.6 library with no clustered-geometry intrinsics
+or clustered-pipeline flag. The sample checks shader-model support before
+creating its pipelines and requires SM 6.6 or later for rendering and compute.
+If clustered geometry or SM 6.10 is unavailable, it logs and visibly labels the
+traditional fallback and disables the `[T]` toggle. On capable adapters, `[T]`
+switches both the geometry and its matching shader pipeline.
+Diagnostic output goes to `%TEMP%\D3D12RaytracingClusteredGeometry.log`, or the
+path specified by the `SAMPLE_LOG` environment variable.
+D3D12 debug-layer validation is disabled by default, including Debug builds,
+to avoid its runtime overhead. To validate changes, uncomment the three
+debug-controller lines in `DeviceResources::InitializeDXGIAdapter` before
+device creation. The info-queue callback reports messages without suppressing
+resource-state, mapping-range, or deprecated-API warnings.
+
+### Runtime controls
+
+On-screen overlay (right column) lists the active value for each toggle.
+
+| Key      | Action                                                                                  |
+| -------- | --------------------------------------------------------------------------------------- |
+| `[T]`    | Geometry path: **clustered** ↔ **traditional** (DXR1 BLAS). Triggers static AS rebuild. |
+| `[A]`    | Cluster mode: cycle CLAS alloc strategy (`implicit-dest` → `get-sizes` → `compact`).    |
+|          | Trad mode: cycle BLAS alloc strategy (`implicit-dest` ↔ `compact`).                     |
+| `[P]`    | Vertex format: `FLOAT32_3` ↔ `COMPRESSED1` (shared-exponent quantized).                 |
+| `[V]`    | Toggle vsync; **off by default** for uncapped performance measurements.                 |
+| `[F]`    | Trad mode: animated BLAS update strategy (`rebuild` ↔ `refit`).                         |
+| `[R]`    | Cluster mode: per-frame static-AS rebuild (`off` → `BLAS only` → `CLAS+BLAS`).          |
+| `[B]`    | Build preference: `none` → `fast-build` → `fast-trace`. Re-sizes and rebuilds AS resources in every rebuild mode. |
+| `Space`  | Pause / resume camera motion.                                                           |
+| `[M]`    | Pause / resume animation.                                                               |
+| `[N]`    | Extra BLASes — cycle `0` → `100` → `1,000` → `10,000` → `0`; **default: 100**.          |
+|          | One separate BLAS for each copied object in both geometry paths. Copies spiral outward. |
+|          | Static curved meshes use lower-tessellation variants farther from the scene center.    |
+| `,` `.`  | Bounce slider — reflection + refraction depth (held +2 apart, range 0..5).              |
+| `/`      | Primary rays/pixel — cycle `1` → `2` → `4` → `1` for anti-aliasing.                    |
+| `[W]`    | Toggle cluster-colored triangle wireframe (both geometry paths).                       |
+| `[L]`    | Animated detail: original full mesh ↔ explicit Low VRAM mesh (same in both paths).      |
+| `[` `]`  | Vertex precision slider — fewer / more position bits (`FLOAT32_3` truncate-bits or      |
+|          | `COMPRESSED1` bits/component). Rebuilds static CLAS and animated templates together.    |
+
+Animated clones receive independent BLASes in both geometry modes; traditional
+mode does not cap that count or substitute shared BLAS instances. Large workloads
+can therefore use substantially more memory and build time in traditional mode.
+In cluster mode, static copies also have separate CLAS arrays; animated copies
+share the source CLAS, but never its BLAS. The default adds 80 static and 20 animated
+copies. Static radial LOD is chosen when copies are generated, not as the camera
+moves; cube copies already use minimal geometry, and animated copies do not use
+radial LOD.
+Both paths default to the original 96-by-192 animated sphere (36,864 triangles).
+`[L]` or `--animated-detail low` explicitly selects a 64-by-144 mesh (18,432
+triangles), halving animated triangles without changing the independent BLAS
+count. Use this setting for VRAM headroom on 6–8 GB cards at the largest preset.
+Animated detail never changes automatically with `[N]` or geometry mode. `[F]` selects
+rebuild/refit for the animated source and every traditional animated clone.
+Choose a lower `[N]` tier for interactive use when necessary; compare the same
+tier and detail setting in both paths.
+The full-detail 10,000-extra-object traditional preset can exceed 6 GiB of local
+video memory; do not assume that this maximum stress workload fits a 6 GB card.
+The scene triangle line counts every instance, including animated clones. The
+animated section reports its mesh counts per instance. Benchmark JSON records
+`config.animated_detail`, `scene.animated_triangles`, `scene.animated_instances`,
+and `scene.instanced_triangles`; legacy `scene.total_triangles` and its explicit
+alias `scene.mesh_input_triangles` count mesh inputs with the shared animated
+source mesh counted once. Halving animated triangles does not halve total scene
+memory or frame time.
+
+### Headless / scripted runs
+
+The reusable [benchmark helpers](benchmark/README.md) run settings sweeps,
+produce offline HTML reports, and compare matched workloads across machines.
+From this sample directory, Python 3.10+ is found automatically by the CMD wrappers:
+
+```powershell
+# Short settings sweep; use no --quick flag for the full matrix.
+.\benchmark\sweep.cmd --quick
+
+# Optional stable-power profiling; Windows Developer Mode MUST be enabled.
+.\benchmark\sweep.cmd --stable-power-state
+
+# Compare two or more saved result folders; no benchmark runs are repeated.
+.\benchmark\compare.cmd "C:\results\GPU-A" "C:\results\GPU-B" "C:\results\GPU-C" --out ".\benchmark\results\comparison.html"
+```
+
+Each comparison input must contain `manifest.json` and its referenced per-run JSON
+files; `report.html` alone is not enough. `--label` customizes GPU names and
+`--partial` includes unmatched configurations as gaps. Reports work offline.
+See the [benchmark README](benchmark/README.md) for regeneration, extending saved
+sweeps, all options, and measurement definitions. Generated results are Git-ignored.
+Benchmark runs are non-interactive, stay behind other applications without taking
+focus, and enforce a 1280x720 physical-pixel client/render size. Actual dimensions,
+input isolation, camera/animation state, and D3D validation state are recorded.
+Rebuild the current sample before collecting verified benchmark runs.
+`--stable-power-state` is benchmark-only and off by default. It requests D3D12's
+stable power state for the run, records whether the API accepted it, and releases
+the request on teardown. Developer Mode is required; failures are not silently
+ignored. It can lower clocks system-wide and does not guarantee fixed memory clocks.
+The same flag is accepted directly by the EXE when `--bench-seconds` is specified.
+
+For a timed run that writes a JSON snapshot and exits:
+
+```
+D3D12RaytracingClusteredGeometry.exe --geometry-mode clusters --vertex-format compressed --bench-seconds 5 --bench-out result.json
+```
+
+Use `--rays-per-pixel 1`, `2`, or `4` to set the primary ray count at startup.
+The default is one on all adapters. Secondary shadow, reflection,
+and refraction rays are additional to this count. `--aa-samples` remains a
+compatibility alias for existing scripts.
+
+Use `--wireframe` to start in the same wireframe view as `[W]`. Triangle interiors
+are rejected by a dedicated any-hit shader, revealing edges behind them.
+Backface culling is disabled in wireframe mode, showing both sides. Edges
+use the cluster palette without lighting, reflection, refraction, or stochastic
+transparency, against a black background. Line width is a fixed fraction of each
+triangle's barycentric coordinates, not a constant pixel width. Solid mode keeps
+its original hit shaders and does not execute the barycentric edge test.
+
+The snapshot's `memory_bytes.total_as` matches the overlay's resident AS-memory
+total: static and animated BVH allocations (including cluster templates,
+allocated CLAS capacity, and clone BLAS pools) plus TLAS. Scratch and source
+inputs are reported separately and excluded from this total. Per-CLAS actual
+payload sizes remain available as separate fields.
+Screenshot and benchmark output failures are logged and produce a nonzero exit
+code on both hardware and WARP.
+
+Scratch fields report the currently allocated work buffers, not the sum of
+per-object requirements or temporary sizing from an earlier build phase.
+`build_times_ms` contains GPU-timestamp measurements of the latest completed
+scene build; configuration and workload rebuilds refresh all four values.
+
+Use `--exit-after-frames N` for a frame-count smoke test. The command
+`--screenshot-at S path.png` holds the camera time at `S` throughout the
+80-frame warm-up, saves a PNG, and exits. `Space` can explicitly resume camera
+motion. Animation remains independent; use `--anim-paused` for a frozen scene.
+
+### Scheduled actions
+
+`--at <frame>:<action>` queues an action for a zero-based rendered-frame index.
+Actions run before that frame is rendered, so `--at 0:...` affects the first
+frame and can be combined with `--screenshot 0 path.png`. Multiple actions for
+the same frame run in command-line order. Actions:
+
+| Action               | Equivalent hotkey                          |
+| -------------------- | ------------------------------------------ |
+| `geom-clusters`      | `[T]` → clustered                          |
+| `geom-traditional`   | `[T]` → traditional                        |
+| `alloc-implicit`     | `[A]` in cluster mode → implicit-dest      |
+| `alloc-getsizes`     | `[A]` in cluster mode → get-sizes          |
+| `alloc-compact`      | `[A]` in cluster mode → compact            |
+| `trad-implicit`      | `[A]` in trad mode → implicit-dest         |
+| `trad-compact`       | `[A]` in trad mode → compact               |
+| `anim-rebuild`       | `[F]` → rebuild                            |
+| `anim-refit`         | `[F]` → refit                              |
+| `rebuild-none`       | `[R]` → off                                |
+| `rebuild-blas`       | `[R]` → BLAS only                          |
+| `rebuild-clas-blas`  | `[R]` → CLAS+BLAS                          |
+| `extra-none`         | `[N]` → 0                                  |
+| `extra-100`          | `[N]` → 100                                |
+| `extra-1k`           | `[N]` → 1,000                              |
+| `extra-10k`          | `[N]` → 10,000                             |
+| `flags-none`         | `[B]` → no build preference                |
+| `flags-fast-build`   | `[B]` → prefer fast build                  |
+| `flags-fast-trace`   | `[B]` → prefer fast trace                  |
+| `wireframe`          | `[W]` toggle                               |
+| `log`                | Write a timing snapshot to the sample log  |
+| `exit`               | Exit the sample                            |
+
+### Window behavior
+
+Vsync defaults to **off**. Press `[V]` or use `--vsync on|off` at startup.
+Off presents with sync interval zero and permits tearing when supported; on
+uses interval one without tearing. Unsupported systems still use interval zero
+when off, without requesting unsupported tearing flags. External driver/display
+settings may impose their own limits. The overlay and benchmark JSON report vsync.
+
+The swap chain opts into tearing support independently of the vsync toggle.
+Where tearing is supported, Alt+Enter uses the existing borderless-fullscreen
+path in both vsync states; otherwise the existing DXGI fullscreen behavior
+remains. Tearing flags are never used in exclusive fullscreen.
+
+Interactive HW launches maximize; on WARP / Basic Render the window stays
+at the default 1280×720 since maximizing a CPU rasterizer to 4K would make
+each frame take seconds. Screenshot/scripted launches skip maximization.
+Benchmark runs additionally use a non-activating, input-disabled background
+window and enforce 1280x720 physical-pixel client/render dimensions every frame,
+independent of desktop dimensions or DPI. Normal interactive resizing and
+fullscreen shortcuts are unchanged.
+
+## Source organization
+
+The sample is split across a few logical files so the bits worth copy-pasting
+into your own renderer are concentrated in one place.
+
+For the smallest CLAS build example, start with `BuildClasImplicit`, then
+`BuildBlasFromClasIndirect`. The get-sizes and compact variants show the
+allocation tradeoffs. For animation, read `BuildAnimatedObjectSetup` followed
+by `UpdateAnimatedObjectPerFrame`, alongside the `Fill*Args.hlsl` byte-layout
+tables. Core source lines are kept within 100 columns for quoting examples;
+comments focus on API contracts, synchronization, and resource lifetime.
+
+- **`D3D12RaytracingClusteredGeometry.cpp`** – the **main file**: CORE
+  acceleration-structure management + rendering. This is where the clustered-geometry work
+  lives that you'd actually want to crib for your own engine:
+    * `BuildClasIndirect` / `BuildClasImplicit` / `BuildClasGetSizes` /
+      `BuildClasCompact` — the three CLAS alloc-mode variants the `[A]` toggle
+      cycles through.
+    * `BuildBlasFromClasIndirect` — pooled per-object BLAS-from-CLAS for the
+      static scene.
+    * `BuildAnimatedObjectSetup` / `UpdateAnimatedObjectPerFrame` — template
+      build (once) + per-frame `INSTANTIATE_CLUSTER_TEMPLATES` +
+      `BUILD_BLAS_FROM_CLAS` for the deforming ball.
+    * `BuildAnimatedClonesSetup` — fans the per-frame
+      BLAS-from-CLAS op out to N additional dest GVAs so each `[N]` anim clone
+      gets its own per-frame BLAS in a shared pool.
+    * `BuildTraditionalStaticAS` / `BuildAnimatedTraditionalAS` /
+      `UpdateAnimatedTradPerFrame` — DXR1 baseline path the `[T]` toggle
+      compares against.
+    * `BuildTlasClassic` — TLAS instance assembly + per-instance material
+      overrides + per-mode BLAS GVA selection.
+    * `CreateRaytracingPipelineAndShaderTables` + the `CreateFill*Pipeline`
+      helpers — state object, shader tables, and compute PSOs for the
+      GPU-side arg-fill passes.
+    * `OnInit` / `OnRender` / `DoRender` — the device + per-frame render loop.
+- **`OverlayUI.cpp`** – on-screen stats overlay (`RenderUI`, `CreateUIFont`,
+  delta-color snapshotting).  Pure presentation; safe to ignore if you're
+  reading for AS knowledge.
+- **`SceneSetup.cpp`** – `BuildScene` + `BuildMaterials`: this particular
+  demo's collection of spheres/torus/cube/klein + their PBR-ish materials.
+  Your engine has its own scene system; this file shows what it should hand
+  the AS pipeline.
+- **`ScenePopulation.cpp`** – `[N]` workload-scaling clone generator
+  (`RegenerateWorkloadCloneInstances` + `EnsureCloneSourceLodMeshes`).
+  Demo-only — engineers cribbing the AS pipeline can ignore this file
+  entirely.
+- **`InputHandling.cpp`** – `ParseCommandLineArgs` + `OnKeyDown` keyboard
+  routing.  CLI + UI hookups, not part of the AS pipeline.
+
+## Things to note
+
+- Per-frame GPU render time covers the scene's `DispatchRays`, excluding the output
+  copy, overlay, CPU time, and Present/vsync waits. It uses the same timestamp
+  ring and averaging window as the AS timings. Render-setting and size changes
+  restart that window. Logs and benchmark JSON include render time (`pf_render_us`
+  and `pf_render_us_snap` in `frame_perf`).
+- AS setting changes retain unchanged CPU clone meshes and GPU shading tables.
+  These are regenerated only when `[N]` changes the workload. Compressed inputs
+  are encoded lazily for the clustered `COMPRESSED1` path and reused until the
+  workload or compressed precision changes. Traditional triangle-to-cluster lookup
+  tables are likewise retained while their layout is unchanged. Independent
+  per-clone AS storage and the selected build/allocation operations are unchanged.
+- All frame statistics use one rolling **roughly one-second** window, published
+  together at **250 ms** wall-clock intervals when completed samples are available.
+  Below four FPS this updates on each fresh sample, including sub-one-FPS workloads;
+  long frames are never clamped. Whole frames are retained, so a single slow frame
+  can span more than the target window. High-FPS runs accumulate more samples
+  without making the displayed numbers change every frame.
+  Configuration changes discard pending stale readbacks (up to three) and reset
+  the shared window; startup does not discard fresh samples unnecessarily.
+  New-mode timings appear with the first valid paired sample; the heading shows
+  elapsed-window averaging progress while those values are refined.
+  A final GPU timestamp after copy/UI measures elapsed time between consecutive
+  completed frames, including queue idle time from CPU/presentation throttling,
+  not just GPU busy time. FPS, ms/frame, and every GPU stage mean publish together
+  from **exactly the same frames**, including the partial first window.
+  The first fresh completion seeds cadence,
+  excluding rebuild stalls and old-configuration queue work. GPU stage costs are
+  not the full frame budget: untimed GPU work (including copy/UI) and queue idle
+  time also contribute. Benchmark `frame_perf` primary costs use these paired means, with
+  `first_sample_frame`, `last_sample_frame`, and `frames_in_avg_window` identifying
+  the sample set. `avg_window_size` is now the actual variable frame count;
+  `avg_window_target_seconds` and `measured_window_seconds` describe its duration.
+  Existing `_snap` fields remain aliases; EMA diagnostics have
+  explicit `_ema` suffixes. `--log-raw-every 1` logs each paired sample and publication.
+- Slab faces use one canonical grid and matching edge subdivisions. Shared positions
+  remain identical when float precision is reduced, even though face normals differ.
+- The animated sphere's shading normals follow the same radial deformation as its
+  positions. Cluster templates enable data access so `TriangleObjectPositions()` can
+  supply the quantized geometric normal for shadow-ray offsets. The SM 6.6 traditional
+  path reconstructs the animated triangle from the same deformation function.
+  Its reflection blend is halved in favor of surface shading, rather than dimming
+  the reflected image. The refracted contribution remains unchanged.
+- From a VS Developer PowerShell in this sample directory, run the CPU seam regression:
+
+  ```powershell
+  New-Item -ItemType Directory -Force bin,obj | Out-Null
+  cl /nologo /std:c++17 /EHsc /I. tests\ProceduralGeometryTests.cpp `
+    /Fe:bin\ProceduralGeometryTests.exe /Fo:obj\ProceduralGeometryTests.obj
+  .\bin\ProceduralGeometryTests.exe
+  ```
+
+- The static clustered scene and animated templates use the format selected
+  by `[P]` or `--vertex-format`. Animated source vertices remain `FLOAT32_3`;
+  template instantiation converts them to the selected stored format. In
+  **COMPRESSED1** mode, each template locks the active bits/component and a
+  shared exponent sized for the full animation envelope, so `[ ]` visibly and
+  consistently changes both static CLAS and template-instantiated CLAS.
+- Cluster size statistics are read back via the
+  `D3D12_RTAS_OPERATION_MODE_GET_SIZES` mode and via `ResultSizeArray` on
+  implicit-destination builds.
+- Per-frame cluster-template instantiate args are populated by the
+  `FillInstantiateArgs.hlsl` compute shader, illustrating the spec's GPU-driven
+  intent even though the demo's argument count is small enough that CPU upload
+  would also work.

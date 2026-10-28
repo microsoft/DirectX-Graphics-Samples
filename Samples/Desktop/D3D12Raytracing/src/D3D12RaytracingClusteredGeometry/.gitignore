@@ -1,0 +1,25 @@
+# Build outputs.
+bin/
+obj/
+Debug/
+Release/
+x64/
+x86/
+
+# Auto-generated shader headers (compiled by the CustomBuild step from .hlsl).
+CompiledShaders/
+
+# Debug screenshots and backups generated during development. Keep the
+# `screenshots/` folder itself out of git - re-create with `--screenshot N path.png`
+# when you need a fresh hero image.
+screenshots/
+*.bak
+
+# IDE state.
+.vs/
+*.user
+*.suo
+*.aps
+phase*_check.png
+phase*.png
+v*_check.png

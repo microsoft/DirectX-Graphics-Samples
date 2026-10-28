@@ -67,6 +67,19 @@ This sample demonstrates how to use Opacity Micromaps with a tree model.
 ![D3D12 Raytracing Opacity Micromaps Sample GUI](src/D3D12RaytracingOpacityMicromaps/Screenshot_small.png)
 
 # Advanced Samples
+
+The [aggregate raytracing solution](src/D3D12Raytracing.slnx) includes Clustered Geometry and Partitioned TLAS under `Samples/Advanced`. Both projects support `Debug` and `Release` on `x64`; the solution's `Profile` configuration maps to `Release`. They are excluded from `ARM64` solution builds.
+
+## [Clustered Geometry](src/D3D12RaytracingClusteredGeometry/readme.md)
+This sample demonstrates GPU-driven clustered acceleration-structure builds, animated cluster templates, and comparisons with traditional BLAS rebuild and refit. It includes automated settings sweeps and offline benchmark reports.
+
+## [Partitioned TLAS](src/D3D12RaytracingPartitionedTLAS/README.md)
+This sample adapts NVIDIA's public Vulkan partitioned-TLAS sample to D3D12 partitioned TLAS. A falling-domino scene demonstrates GPU-generated sparse instance writes, spatial and global partition policies, and comparisons with ordinary TLAS updates.
+
+Open the sample's Visual Studio solution from a full repository checkout. It uses the shared vcpkg integration and restores Agility SDK/DXC NuGet packages; a compatible preview driver is required. See the sample README for package-source setup.
+
+![Partitioned TLAS domino scene](src/D3D12RaytracingPartitionedTLAS/docs/screenshot.png)
+
 ## [Real-Time Denoised Ambient Occlusion](src/D3D12RaytracingRealTimeDenoisedAmbientOcclusion/readme.md)
 This sample implements a real-time denoiser for 1spp raytraced Ambient Occlusion. It also demonstrates a physically-based specular pathtracer implementation and dynamic geometry support.
 

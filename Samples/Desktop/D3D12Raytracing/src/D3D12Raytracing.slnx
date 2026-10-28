@@ -14,7 +14,17 @@
     <File Path="../readme.md" />
   </Folder>
   <Folder Name="/Samples/Advanced/">
+    <Project Path="D3D12RaytracingClusteredGeometry/D3D12RaytracingClusteredGeometry.vcxproj" Id="c7a2d3e1-1234-4567-89ab-cdef01234567">
+      <BuildType Solution="Profile|*" Project="Release" />
+      <Platform Solution="*|ARM64" Project="x64" />
+      <Build Solution="*|ARM64" Project="false" />
+    </Project>
     <Project Path="D3D12RaytracingMiniEngineSample/ModelViewer_VS16.vcxproj" Id="315a1e1b-3732-41fe-9b4a-6a1e103ba2f5" />
+    <Project Path="D3D12RaytracingPartitionedTLAS/D3D12RaytracingPartitionedTLAS.vcxproj" Id="8f3b861c-e25c-4aef-83c8-a2e4c03b0bc0">
+      <BuildType Solution="Profile|*" Project="Release" />
+      <Platform Solution="*|ARM64" Project="x64" />
+      <Build Solution="*|ARM64" Project="false" />
+    </Project>
     <Project Path="D3D12RaytracingRealTimeDenoisedAmbientOcclusion/D3D12RaytracingRealTimeDenoisedAmbientOcclusion.vcxproj" Id="19585c81-fb12-4a4b-b700-cce253bdba02" />
   </Folder>
   <Folder Name="/Samples/Tutorials/">

@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="..\..\..\..\..\Packages\Microsoft.Direct3D.D3D12.1.722.0-preview\build\native\Microsoft.Direct3D.D3D12.props" Condition="Exists('..\..\..\..\..\Packages\Microsoft.Direct3D.D3D12.1.722.0-preview\build\native\Microsoft.Direct3D.D3D12.props')" />
+  <Import Project="..\..\..\..\..\Packages\Microsoft.Direct3D.DXC.1.10.2605.37-preview\build\native\Microsoft.Direct3D.DXC.props" Condition="Exists('..\..\..\..\..\Packages\Microsoft.Direct3D.DXC.1.10.2605.37-preview\build\native\Microsoft.Direct3D.DXC.props')" />
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{C7A2D3E1-1234-4567-89AB-CDEF01234567}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <RootNamespace>D3D12Raytracing</RootNamespace>
+    <ProjectName>D3D12RaytracingClusteredGeometry</ProjectName>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove('$(MSBuildThisFileDirectory)', 'vcpkg.json'))\vcpkg\DirectX.vcpkg.props" />
+
+  <ImportGroup Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+
+  <PropertyGroup>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</LinkIncremental>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkIncremental>
+    <OutDir>bin\$(Platform)\$(Configuration)\</OutDir>
+    <IntDir>obj\$(Platform)\$(Configuration)\</IntDir>
+    <DxcDirectory>$(MSBuildThisFileDirectory)..\..\..\..\..\Packages\Microsoft.Direct3D.DXC.1.10.2605.37-preview\build\native\bin\x64</DxcDirectory>
+    <DxcDebugArguments Condition="'$(Configuration)'=='Debug'">-Zi -Qembed_debug</DxcDebugArguments>
+  </PropertyGroup>
+
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeaderFile>stdafx.h</PrecompiledHeaderFile>
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions Condition="'$(Configuration)'=='Debug'">WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="'$(Configuration)'=='Release'">WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\;$(IntDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <Optimization Condition="'$(Configuration)'=='Debug'">Disabled</Optimization>
+      <Optimization Condition="'$(Configuration)'=='Release'">MaxSpeed</Optimization>
+      <FunctionLevelLinking Condition="'$(Configuration)'=='Release'">true</FunctionLevelLinking>
+      <IntrinsicFunctions Condition="'$(Configuration)'=='Release'">true</IntrinsicFunctions>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableCOMDATFolding Condition="'$(Configuration)'=='Release'">true</EnableCOMDATFolding>
+      <OptimizeReferences Condition="'$(Configuration)'=='Release'">true</OptimizeReferences>
+      <AdditionalDependencies>d3d12.lib;dxgi.lib;dxguid.lib;windowscodecs.lib;ole32.lib;advapi32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <!-- Delay-load d3d12 so we can run on machines without it for graceful error
+           reporting (matches sibling samples). -->
+      <DelayLoadDLLs>d3d12.dll</DelayLoadDLLs>
+    </Link>
+    <CustomBuild>
+      <FileType>Document</FileType>
+      <Message>Compiling %(Filename).hlsl to $(IntDir)CompiledShaders\%(Filename).hlsl.h (cs_6_6)</Message>
+      <Command>if not exist "$(IntDir)CompiledShaders" mkdir "$(IntDir)CompiledShaders"
+"$(DxcDirectory)\dxc.exe" -nologo -T cs_6_6 -E main -HV 2021 $(DxcDebugArguments) -Fh "$(IntDir)CompiledShaders\%(Filename).hlsl.h" -Vn g_p%(Filename) "%(FullPath)"</Command>
+      <Outputs>$(IntDir)CompiledShaders\%(Filename).hlsl.h</Outputs>
+      <AdditionalInputs>$(DxcDirectory)\dxc.exe;$(DxcDirectory)\dxcompiler.dll;$(DxcDirectory)\dxil.dll;$(MSBuildProjectFullPath);RaytracingHlslCompat.h;HlslCompat.h;AnimatedSphere.hlsli</AdditionalInputs>
+    </CustomBuild>
+  </ItemDefinitionGroup>
+
+  <!-- Source / header files. -->
+  <ItemGroup>
+    <ClCompile Include="Main.cpp">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="DeviceResources.cpp" />
+    <ClCompile Include="Win32Application.cpp" />
+    <ClCompile Include="DXSample.cpp" />
+    <ClCompile Include="D3D12RaytracingClusteredGeometry.cpp" />
+    <ClCompile Include="OverlayUI.cpp" />
+    <ClCompile Include="ScenePopulation.cpp" />
+    <ClCompile Include="SceneSetup.cpp" />
+    <ClCompile Include="InputHandling.cpp" />
+    <ClCompile Include="MaterialData.cpp" />
+    <ClCompile Include="SceneData.cpp" />
+    <ClCompile Include="stdafx.cpp">
+      <PrecompiledHeader>Create</PrecompiledHeader>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="DeviceResources.h" />
+    <ClInclude Include="DirectXRaytracingHelper.h" />
+    <ClInclude Include="DXSample.h" />
+    <ClInclude Include="DXSampleHelper.h" />
+    <ClInclude Include="HlslCompat.h" />
+    <ClInclude Include="ProceduralGeometry.h" />
+    <ClInclude Include="Compressed1.h" />
+    <ClInclude Include="RaytracingHlslCompat.h" />
+    <ClInclude Include="SampleLog.h" />
+    <ClInclude Include="StepTimer.h" />
+    <ClInclude Include="Win32Application.h" />
+    <ClInclude Include="D3D12RaytracingClusteredGeometry.h" />
+    <ClInclude Include="SceneCommon.h" />
+    <ClInclude Include="SceneData.h" />
+    <ClInclude Include="MaterialData.h" />
+    <ClInclude Include="stdafx.h" />
+  </ItemGroup>
+
+  <!-- CustomBuild uses the packaged DXC for SM 6.10 and emits C-array headers. -->
+  <ItemGroup>
+    <CustomBuild Include="Raytracing.hlsl">
+      <Message>Compiling Raytracing.hlsl to $(IntDir)CompiledShaders\%(Filename).hlsl.h (lib_6_10)</Message>
+      <Command>if not exist "$(IntDir)CompiledShaders" mkdir "$(IntDir)CompiledShaders"
+"$(DxcDirectory)\dxc.exe" -nologo -T lib_6_10 -HV 2021 $(DxcDebugArguments) -Fh "$(IntDir)CompiledShaders\%(Filename).hlsl.h" -Vn g_p%(Filename) "%(FullPath)"</Command>
+    </CustomBuild>
+    <CustomBuild Include="RaytracingTraditional.hlsl">
+      <Message>Compiling RaytracingTraditional.hlsl to $(IntDir)CompiledShaders\%(Filename).hlsl.h (lib_6_6)</Message>
+      <Command>if not exist "$(IntDir)CompiledShaders" mkdir "$(IntDir)CompiledShaders"
+"$(DxcDirectory)\dxc.exe" -nologo -T lib_6_6 -HV 2021 $(DxcDebugArguments) -Fh "$(IntDir)CompiledShaders\%(Filename).hlsl.h" -Vn g_p%(Filename) "%(FullPath)"</Command>
+      <AdditionalInputs>Raytracing.hlsl;%(AdditionalInputs)</AdditionalInputs>
+    </CustomBuild>
+    <CustomBuild Include="AnimateBall.hlsl" />
+    <CustomBuild Include="FillInstantiateArgs.hlsl" />
+    <CustomBuild Include="FillMoveClusterArgs.hlsl" />
+    <CustomBuild Include="FillBlasFromClasArgs.hlsl" />
+    <CustomBuild Include="FillClasFromTrianglesArgs.hlsl" />
+    <CustomBuild Include="FillClusterTemplateArgs.hlsl" />
+  </ItemGroup>
+
+  <!-- Loose files visible in IDE. -->
+  <ItemGroup>
+    <None Include="AnimatedSphere.hlsli" />
+    <None Include="tests\ProceduralGeometryTests.cpp" />
+    <None Include="packages.config" />
+    <None Include="readme.md" />
+    <!-- DirectXTK sprite-font asset for the on-screen overlay (see RenderUI()).
+         CopyToOutputDirectory ensures it lands next to the exe; SpriteFont
+         resolves it from the executable's asset directory. -->
+    <None Include="SegoeUI_24.spritefont">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove('$(MSBuildThisFileDirectory)', 'vcpkg.json'))\vcpkg\DirectX.vcpkg.targets" />
+
+  <ImportGroup Label="ExtensionTargets">
+    <Import Project="..\..\..\..\..\Packages\Microsoft.Direct3D.D3D12.1.722.0-preview\build\native\Microsoft.Direct3D.D3D12.targets" Condition="Exists('..\..\..\..\..\Packages\Microsoft.Direct3D.D3D12.1.722.0-preview\build\native\Microsoft.Direct3D.D3D12.targets')" />
+    <Import Project="..\..\..\..\..\Packages\Microsoft.Direct3D.DXC.1.10.2605.37-preview\build\native\Microsoft.Direct3D.DXC.targets" Condition="Exists('..\..\..\..\..\Packages\Microsoft.Direct3D.DXC.1.10.2605.37-preview\build\native\Microsoft.Direct3D.DXC.targets')" />
+  </ImportGroup>
+  <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
+    <PropertyGroup>
+      <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
+    </PropertyGroup>
+    <Error Condition="!Exists('..\..\..\..\..\Packages\Microsoft.Direct3D.D3D12.1.722.0-preview\build\native\Microsoft.Direct3D.D3D12.props')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\Packages\Microsoft.Direct3D.D3D12.1.722.0-preview\build\native\Microsoft.Direct3D.D3D12.props'))" />
+    <Error Condition="!Exists('..\..\..\..\..\Packages\Microsoft.Direct3D.D3D12.1.722.0-preview\build\native\Microsoft.Direct3D.D3D12.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\Packages\Microsoft.Direct3D.D3D12.1.722.0-preview\build\native\Microsoft.Direct3D.D3D12.targets'))" />
+    <Error Condition="!Exists('..\..\..\..\..\Packages\Microsoft.Direct3D.DXC.1.10.2605.37-preview\build\native\Microsoft.Direct3D.DXC.props')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\Packages\Microsoft.Direct3D.DXC.1.10.2605.37-preview\build\native\Microsoft.Direct3D.DXC.props'))" />
+    <Error Condition="!Exists('..\..\..\..\..\Packages\Microsoft.Direct3D.DXC.1.10.2605.37-preview\build\native\Microsoft.Direct3D.DXC.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\..\..\..\Packages\Microsoft.Direct3D.DXC.1.10.2605.37-preview\build\native\Microsoft.Direct3D.DXC.targets'))" />
+  </Target>
+</Project>

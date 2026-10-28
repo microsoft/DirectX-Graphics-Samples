@@ -1,0 +1,24 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{BC8A1FFA-BEE3-4634-8014-F334798102B3}") = "D3D12RaytracingPartitionedTLAS", "D3D12RaytracingPartitionedTLAS.vcxproj", "{8F3B861C-E25C-4AEF-83C8-A2E4C03B0BC0}"
+EndProject
+Project("{BC8A1FFA-BEE3-4634-8014-F334798102B3}") = "PartitionedTLASFeatureProbe", "PartitionedTLASFeatureProbe.vcxproj", "{C8100957-44C3-4582-B6D9-543F3472E3AC}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{8F3B861C-E25C-4AEF-83C8-A2E4C03B0BC0}.Debug|x64.ActiveCfg = Debug|x64
+		{8F3B861C-E25C-4AEF-83C8-A2E4C03B0BC0}.Debug|x64.Build.0 = Debug|x64
+		{8F3B861C-E25C-4AEF-83C8-A2E4C03B0BC0}.Release|x64.ActiveCfg = Release|x64
+		{8F3B861C-E25C-4AEF-83C8-A2E4C03B0BC0}.Release|x64.Build.0 = Release|x64
+		{C8100957-44C3-4582-B6D9-543F3472E3AC}.Debug|x64.ActiveCfg = Debug|x64
+		{C8100957-44C3-4582-B6D9-543F3472E3AC}.Debug|x64.Build.0 = Debug|x64
+		{C8100957-44C3-4582-B6D9-543F3472E3AC}.Release|x64.ActiveCfg = Release|x64
+		{C8100957-44C3-4582-B6D9-543F3472E3AC}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+EndGlobal
