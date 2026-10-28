@@ -163,6 +163,13 @@ def comparison_warnings(machines: list[MachineReport]) -> list[str]:
             warnings.append(f"LEGACY INPUT: {machine.label} does not record verified render size, "
                             "input isolation, or validation state. Treat it as unverified for "
                             "controlled comparison; collect a fresh sweep with the current sample.")
+        if any(run.config.geometry_mode == "traditional" and
+               not all(key in run.data["config"]
+                       for key in run.config.expected_traditional_build_flags())
+               for run in valid):
+            warnings.append(f"LEGACY BUILD FLAGS: {machine.label} does not record effective "
+                            "traditional flags and may retain unused ALLOW_UPDATE on static/rebuild "
+                            "BLASes. Recollect before treating it as an optimized baseline.")
         failed = sum(r.status == "failed" for r in machine.runs)
         skipped = sum(r.status == "skipped" for r in machine.runs)
         if failed or skipped:

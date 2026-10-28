@@ -107,7 +107,7 @@ On-screen overlay (right column) lists the active value for each toggle.
 |          | Trad mode: cycle BLAS alloc strategy (`implicit-dest` ↔ `compact`).                     |
 | `[P]`    | Vertex format: `FLOAT32_3` ↔ `COMPRESSED1` (shared-exponent quantized).                 |
 | `[V]`    | Toggle vsync; **off by default** for uncapped performance measurements.                 |
-| `[F]`    | Trad mode: animated BLAS update strategy (`rebuild` ↔ `refit`).                         |
+| `[F]`    | Trad mode: animated BLAS update strategy (`rebuild` ↔ `refit`). Recreates AS resources for the new build flags. |
 | `[R]`    | Cluster mode: per-frame static-AS rebuild (`off` → `BLAS only` → `CLAS+BLAS`).          |
 | `[B]`    | Build preference: `none` → `fast-build` → `fast-trace`. Re-sizes and rebuilds AS resources in every rebuild mode. |
 | `Space`  | Pause / resume camera motion.                                                           |
@@ -130,6 +130,12 @@ share the source CLAS, but never its BLAS. The default adds 80 static and 20 ani
 copies. Static radial LOD is chosen when copies are generated, not as the camera
 moves; cube copies already use minimal geometry, and animated copies do not use
 radial LOD.
+This intentionally stresses independent BLAS construction, not optimized instancing:
+all animated copies use the same deformed source positions. A real application
+can share one traditional BLAS among identically deformed instances instead.
+Static traditional BLASes never request `ALLOW_UPDATE`; animated traditional
+BLASes request it only in refit mode. Rebuild mode does not retain update-only
+storage. Static compaction remains controlled by `[A]`.
 Both paths default to the original 96-by-192 animated sphere (36,864 triangles).
 `[L]` or `--animated-detail low` explicitly selects a 64-by-144 mesh (18,432
 triangles), halving animated triangles without changing the independent BLAS

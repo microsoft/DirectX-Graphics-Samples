@@ -229,6 +229,16 @@ class RunConfig:
         fields["aa_samples_per_pixel"] = fields.pop("rays_per_pixel")
         return {**fields, "vsync": False, "wireframe": False}
 
+    def expected_traditional_build_flags(self) -> dict[str, int]:
+        preference = {"none": 0, "fast-trace": 4, "fast-build": 8}[self.build_flags]
+        traditional = self.geometry_mode == "traditional"
+        return {
+            "traditional_static_build_flags":
+                preference | (2 if self.trad_alloc == "compact" else 0) if traditional else 0,
+            "traditional_animated_build_flags":
+                preference | (1 if self.trad_anim_mode == "refit" else 0) if traditional else 0,
+        }
+
 
 @dataclass
 class RunResult:
@@ -309,6 +319,14 @@ def validate_snapshot(data: dict, config: RunConfig, require_environment: bool =
     for key, expected in config.expected_config().items():
         if actual.get(key) != expected:
             raise ValueError(f"requested {key}={expected!r}, sample reported {actual.get(key)!r}")
+    expected_flags = config.expected_traditional_build_flags()
+    if require_environment or any(key in actual for key in expected_flags):
+        for key, expected in expected_flags.items():
+            observed = actual.get(key)
+            if type(observed) is not int or observed != expected:
+                raise BenchmarkContractError(
+                    f"benchmark requires {key}={expected}, reported {observed!r}; rebuild the "
+                    "sample with static/rebuild ALLOW_UPDATE removed before collecting new results")
     # Older snapshots predate this off-by-default feature and represent normal runs.
     requested = actual.get("stable_power_state_requested", False)
     accepted = actual.get("stable_power_state", False)
@@ -877,6 +895,14 @@ def report_tables(runs: list[RunResult], manifest: dict) -> list[tuple[str, list
         facts += [["Stable power-state request",
                    "Accepted by SetStablePowerState (not clock telemetry)"
                    if actual.get("stable_power_state") else "Not requested"]]
+        traditional = [r for r in successful if r.config.geometry_mode == "traditional"]
+        if traditional:
+            recorded = all(all(key in r.data["config"]
+                               for key in r.config.expected_traditional_build_flags())
+                           for r in traditional)
+            facts += [["Traditional BLAS update support",
+                       "Refit only; disabled for static and rebuild BLASes" if recorded else
+                       "Legacy: effective flags not recorded; may retain unused ALLOW_UPDATE"]]
     facts += [["Executable", manifest.get("executable", "unknown")],
               ["Executable + runtime SHA-256", manifest.get("payload_sha256", "unknown")],
               ["Sweep start time (UTC)", manifest.get("created_utc", "unknown")],
@@ -971,6 +997,12 @@ REPORT_NOTES = [
     "They are not an average over the entire benchmark process lifetime.",
     "The benchmark baseline explicitly has zero extra copies; the interactive sample defaults to 100. "
     "Every added copy has an independent BLAS in both geometry modes.",
+    "This is an independent-BLAS stress workload, not optimized instancing of identical meshes. "
+    "Animated copies share the deformed source positions; cluster mode also shares the source CLAS. "
+    "An application can instead share a traditional BLAS among identically deformed instances.",
+    "Current traditional static and animated-rebuild BLASes omit ALLOW_UPDATE; only refit enables it. "
+    "Older snapshots without effective build flags remain readable but may use update-capable "
+    "static/rebuild BLASes and are not an optimized traditional baseline.",
     "Static curved copies use distance LOD selected at generation time. Animated copies retain "
     "the selected Full/Low mesh; their CLAS is shared in cluster mode, but their BLASes are not.",
     "Camera position is fixed and vsync is requested off. Animation and per-frame AS work continue. "

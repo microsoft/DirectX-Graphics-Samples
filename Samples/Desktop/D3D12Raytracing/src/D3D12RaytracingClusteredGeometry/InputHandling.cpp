@@ -453,15 +453,15 @@ void D3D12RaytracingClusteredGeometry::OnKeyDown(UINT8 key)
     {
         // [F] toggles animated-BLAS update strategy in traditional mode.
         // No effect in cluster mode (the cluster INSTANTIATE+BLAS-from-CLAS
-        // pipeline doesn't have a refit/rebuild dichotomy).  No GPU
-        // rebuild needed; the next per-frame animated update picks up the
-        // new flag.
+        // pipeline doesn't have a refit/rebuild dichotomy).
+        // Recreate resources because refit needs ALLOW_UPDATE on the initial
+        // build, while rebuild mode should not retain update-only storage.
         if (m_geometryMode == GeometryMode::Clusters) return;
         m_traditionalAnimMode = (m_traditionalAnimMode == TraditionalAnimMode::Rebuild)
                                 ? TraditionalAnimMode::Refit
                                 : TraditionalAnimMode::Rebuild;
         SampleLog::LogF(L"[input] traditional animated mode -> %s\n", TraditionalAnimModeName());
-        CaptureOverlayStatsSnapshot();
+        RebuildStaticAccelerationStructures(L"traditional animated mode toggle");
     }
     else if (key == 'N' || key == 'n')
     {

@@ -12,6 +12,19 @@ public:
 
     void OnRender() override
     {
+        if (GetEnvironmentVariableW(L"BENCHMARK_TEST_TRADITIONAL_TOGGLE", nullptr, 0) != 0 &&
+            (m_frame == 8 || m_frame == 16))
+        {
+            OnKeyDown('F');
+            const bool updateAllowed = (TraditionalAnimatedBuildFlags() &
+                D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_UPDATE) != 0;
+            ThrowIfFalse(updateAllowed == (m_frame == 8) &&
+                (TraditionalStaticBuildFlags() &
+                 D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_UPDATE) == 0,
+                L"Traditional mode switch retained incorrect update flags.\n");
+            SampleLog::LogF(L"[isolation-test] traditional toggle frame=%u update=%u\n",
+                           m_frame, updateAllowed ? 1u : 0u);
+        }
         if (m_frame == 8 && GetEnvironmentVariableW(L"BENCHMARK_TEST_RECOVERY", nullptr, 0) != 0)
         {
             GetDeviceResources()->HandleDeviceLost();
@@ -58,6 +71,34 @@ private:
 int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int show)
 {
     SampleLog::Init();
+    const bool validation = GetEnvironmentVariableW(L"BENCHMARK_TEST_VALIDATION", nullptr, 0) != 0;
+    if (validation)
+    {
+        ComPtr<ID3D12Debug> debug;
+        ThrowIfFailed(D3D12GetDebugInterface(IID_PPV_ARGS(&debug)));
+        debug->EnableDebugLayer();
+    }
     BenchmarkIsolationSample sample;
-    return Win32Application::Run(&sample, instance, show);
+    const int result = Win32Application::Run(&sample, instance, show);
+    if (validation && sample.GetDeviceResources())
+    {
+        ComPtr<ID3D12InfoQueue> info;
+        ThrowIfFailed(sample.GetDeviceResources()->GetD3DDevice()->QueryInterface(IID_PPV_ARGS(&info)));
+        for (UINT64 i = 0; i < info->GetNumStoredMessages(); ++i)
+        {
+            SIZE_T size = 0;
+            ThrowIfFailed(info->GetMessage(i, nullptr, &size));
+            std::vector<uint8_t> storage(size);
+            auto* message = reinterpret_cast<D3D12_MESSAGE*>(storage.data());
+            ThrowIfFailed(info->GetMessage(i, message, &size));
+            if (message->Severity <= D3D12_MESSAGE_SEVERITY_ERROR)
+            {
+                OutputDebugStringA(message->pDescription);
+                SampleLog::LogF(L"[isolation-test] D3D12 validation error ID=%u\n", message->ID);
+                return EXIT_FAILURE;
+            }
+        }
+        SampleLog::Write(L"[isolation-test] zero D3D12 validation errors\n");
+    }
+    return result;
 }

@@ -466,6 +466,20 @@ public:
         }
         return D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE;
     }
+    D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS TraditionalStaticBuildFlags() const
+    {
+        return BuildFlagModeDxr1() |
+            (m_traditionalAllocMode == TraditionalAllocMode::Compact
+                ? D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_COMPACTION
+                : D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_NONE);
+    }
+    D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS TraditionalAnimatedBuildFlags() const
+    {
+        return BuildFlagModeDxr1() |
+            (m_traditionalAnimMode == TraditionalAnimMode::Refit
+                ? D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_UPDATE
+                : D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_NONE);
+    }
 private:
     // Per-instance material override buffer: one UINT per TLAS instance.
     // Sentinel 0xFFFFFFFF = "keep the path-specific material lookup".
