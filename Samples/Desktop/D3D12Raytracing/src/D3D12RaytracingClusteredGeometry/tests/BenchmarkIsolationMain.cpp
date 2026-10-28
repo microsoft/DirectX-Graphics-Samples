@@ -12,6 +12,16 @@ public:
 
     void OnRender() override
     {
+        if (GetEnvironmentVariableW(L"BENCHMARK_TEST_SCHEDULED_TRADITIONAL_TOGGLE", nullptr, 0) != 0 &&
+            (m_frame == 9 || m_frame == 17))
+        {
+            const bool updateAllowed = (TraditionalAnimatedBuildFlags() &
+                D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_UPDATE) != 0;
+            ThrowIfFalse(updateAllowed == (m_frame == 9),
+                L"Scheduled traditional mode switch retained incorrect update flags.\n");
+            SampleLog::LogF(L"[isolation-test] scheduled traditional toggle frame=%u update=%u\n",
+                           m_frame, updateAllowed ? 1u : 0u);
+        }
         if (GetEnvironmentVariableW(L"BENCHMARK_TEST_TRADITIONAL_TOGGLE", nullptr, 0) != 0 &&
             (m_frame == 8 || m_frame == 16))
         {

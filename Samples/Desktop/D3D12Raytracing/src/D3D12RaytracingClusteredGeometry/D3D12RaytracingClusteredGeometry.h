@@ -330,6 +330,7 @@ private:
     //             Cheaper but only valid while topology is unchanged
     //             (same index/vertex count, same triangle ordering).
     enum class TraditionalAnimMode { Rebuild, Refit };
+    void SetTraditionalAnimMode(TraditionalAnimMode mode);
     // Traditional-BLAS allocation strategy.  Mirrors the cluster path's
     // ClasAllocMode but at the per-object-BLAS level rather than per-CLAS.
     //   Implicit -- one shot: prebuild reports a worst-case size, allocate
