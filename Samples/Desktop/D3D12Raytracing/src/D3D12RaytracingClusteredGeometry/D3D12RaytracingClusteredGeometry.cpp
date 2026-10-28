@@ -5647,11 +5647,9 @@ void D3D12RaytracingClusteredGeometry::OnRender()
             {   m_traditionalAllocMode = TraditionalAllocMode::Compact;
                 RebuildStaticAccelerationStructures(L"scheduled trad-compact"); }
             else if (_wcsicmp(act, L"anim-rebuild")      == 0)
-            {   m_traditionalAnimMode = TraditionalAnimMode::Rebuild;
-                CaptureOverlayStatsSnapshot(); }
+            {   SetTraditionalAnimMode(TraditionalAnimMode::Rebuild); }
             else if (_wcsicmp(act, L"anim-refit")        == 0)
-            {   m_traditionalAnimMode = TraditionalAnimMode::Refit;
-                CaptureOverlayStatsSnapshot(); }
+            {   SetTraditionalAnimMode(TraditionalAnimMode::Refit); }
             else if (_wcsicmp(act, L"extra-none")        == 0)
             {   m_extraInstancesMode = ExtraInstancesMode::None;
                 RebuildStaticAccelerationStructures(L"scheduled extra-none"); }

@@ -345,6 +345,17 @@ void D3D12RaytracingClusteredGeometry::ParseCommandLineArgs(_In_reads_(argc) WCH
 }
 
 
+void D3D12RaytracingClusteredGeometry::SetTraditionalAnimMode(TraditionalAnimMode mode)
+{
+    if (m_traditionalAnimMode == mode) return;
+    m_traditionalAnimMode = mode;
+    SampleLog::LogF(L"[traditional] animated mode -> %s\n", TraditionalAnimModeName());
+    if (IsTraditional())
+        RebuildStaticAccelerationStructures(L"traditional animated mode change");
+    else
+        CaptureOverlayStatsSnapshot();
+}
+
 // ---- OnKeyDown -------------------------------------------
 void D3D12RaytracingClusteredGeometry::OnKeyDown(UINT8 key)
 {
@@ -457,11 +468,8 @@ void D3D12RaytracingClusteredGeometry::OnKeyDown(UINT8 key)
         // Recreate resources because refit needs ALLOW_UPDATE on the initial
         // build, while rebuild mode should not retain update-only storage.
         if (m_geometryMode == GeometryMode::Clusters) return;
-        m_traditionalAnimMode = (m_traditionalAnimMode == TraditionalAnimMode::Rebuild)
-                                ? TraditionalAnimMode::Refit
-                                : TraditionalAnimMode::Rebuild;
-        SampleLog::LogF(L"[input] traditional animated mode -> %s\n", TraditionalAnimModeName());
-        RebuildStaticAccelerationStructures(L"traditional animated mode toggle");
+        SetTraditionalAnimMode(m_traditionalAnimMode == TraditionalAnimMode::Rebuild
+            ? TraditionalAnimMode::Refit : TraditionalAnimMode::Rebuild);
     }
     else if (key == 'N' || key == 'n')
     {
