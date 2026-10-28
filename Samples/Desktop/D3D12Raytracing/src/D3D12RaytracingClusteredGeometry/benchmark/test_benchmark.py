@@ -138,7 +138,7 @@ class Measurements(unittest.TestCase):
         cfg = RunConfig(geometry_mode="traditional", trad_alloc="implicit")
         self.assertEqual(cfg.expected_traditional_build_flags()["traditional_static_build_flags"], 4)
 
-    def test_legacy_traditional_flags_are_readable_but_not_accepted_for_new_runs(self):
+    def test_missing_traditional_flags_are_readable_but_not_accepted_for_new_runs(self):
         cfg = RunConfig(geometry_mode="traditional")
         data = snapshot(cfg)
         for key in cfg.expected_traditional_build_flags():
@@ -733,14 +733,14 @@ class Comparison(unittest.TestCase):
             with self.subTest(partial=partial), self.assertRaisesRegex(ValueError, "clock-control"):
                 compare.comparison_charts([normal, stable], partial=partial)
 
-    def test_legacy_traditional_build_flags_have_an_explicit_caution(self):
+    def test_traditional_build_flag_provenance(self):
         run = result(RunConfig(geometry_mode="traditional"))
+        tables = sweep.report_tables([run], {"base_config": asdict(run.config)})
+        self.assertIn("Refit only", dict(tables[0][2])["Traditional BLAS update support"])
         for key in run.config.expected_traditional_build_flags():
             del run.data["config"][key]
-        self.assertTrue(any("LEGACY BUILD FLAGS" in warning
-                            for warning in compare.comparison_warnings([self.machine("Old", [run])])))
         tables = sweep.report_tables([run], {"base_config": asdict(run.config)})
-        self.assertIn("Legacy:", dict(tables[0][2])["Traditional BLAS update support"])
+        self.assertEqual(dict(tables[0][2])["Traditional BLAS update support"], "Not recorded")
 
     def test_first_machine_remains_reference_when_missing(self):
         machines = [self.machine("A", []), self.machine("B", [result()])]

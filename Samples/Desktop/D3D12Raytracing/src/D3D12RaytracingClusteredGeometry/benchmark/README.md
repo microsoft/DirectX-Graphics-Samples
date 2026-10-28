@@ -114,10 +114,7 @@ mode). A real application can share a traditional BLAS for identical deformation
 
 Traditional static and animated-rebuild BLASes omit `ALLOW_UPDATE`; only animated
 refit enables it. Snapshots record the effective static and animated build flags,
-and new runs validate them. Older snapshots remain readable with a legacy-flags
-caution, but may include unnecessary update support. Collect new measurements
-with a rebuilt executable before updating performance or memory claims; `--extend`
-cannot mix old/new binaries within an existing sweep.
+and benchmark runs validate them.
 
 The current sample publishes FPS, frame interval, and GPU stage costs from the
 **same settled, roughly one-second rolling window**. These are the last

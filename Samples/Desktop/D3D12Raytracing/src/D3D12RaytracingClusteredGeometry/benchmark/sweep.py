@@ -902,7 +902,7 @@ def report_tables(runs: list[RunResult], manifest: dict) -> list[tuple[str, list
                            for r in traditional)
             facts += [["Traditional BLAS update support",
                        "Refit only; disabled for static and rebuild BLASes" if recorded else
-                       "Legacy: effective flags not recorded; may retain unused ALLOW_UPDATE"]]
+                       "Not recorded"]]
     facts += [["Executable", manifest.get("executable", "unknown")],
               ["Executable + runtime SHA-256", manifest.get("payload_sha256", "unknown")],
               ["Sweep start time (UTC)", manifest.get("created_utc", "unknown")],
@@ -1000,9 +1000,7 @@ REPORT_NOTES = [
     "This is an independent-BLAS stress workload, not optimized instancing of identical meshes. "
     "Animated copies share the deformed source positions; cluster mode also shares the source CLAS. "
     "An application can instead share a traditional BLAS among identically deformed instances.",
-    "Current traditional static and animated-rebuild BLASes omit ALLOW_UPDATE; only refit enables it. "
-    "Older snapshots without effective build flags remain readable but may use update-capable "
-    "static/rebuild BLASes and are not an optimized traditional baseline.",
+    "Traditional static and animated-rebuild BLASes omit ALLOW_UPDATE; only refit enables it.",
     "Static curved copies use distance LOD selected at generation time. Animated copies retain "
     "the selected Full/Low mesh; their CLAS is shared in cluster mode, but their BLASes are not.",
     "Camera position is fixed and vsync is requested off. Animation and per-frame AS work continue. "
