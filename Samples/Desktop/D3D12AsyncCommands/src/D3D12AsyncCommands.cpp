@@ -24,6 +24,8 @@
 #include <initguid.h>
 #include <atlbase.h>
 #include "d3d12.h"
+#define D3DX12_NO_STATE_OBJECT_HELPERS
+#define D3DX12_NO_CHECK_FEATURE_SUPPORT_CLASS
 #include "d3dx12.h"
 #include <dxgi1_6.h>
 #include <d3dcompiler.h>
@@ -32,13 +34,8 @@
 #pragma comment(lib, "dxgi.lib")
 #pragma comment(lib, "d3dcompiler.lib")
 
-// Preview redists can override the loader version while exposing the retail API version.
-#ifndef D3D12_REDIST_VERSION
-#define D3D12_REDIST_VERSION D3D12_SDK_VERSION
-#endif
-
 // Agility SDK 620 is the first retail SDK surface with async commands.
-extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = D3D12_REDIST_VERSION; }
+extern "C" { __declspec(dllexport) extern const UINT D3D12SDKVersion = D3D12_SDK_VERSION; }
 extern "C" { __declspec(dllexport) extern const char* D3D12SDKPath = u8".\\D3D12\\"; }
 extern "C" { __declspec(dllexport) extern const char* WarpPath = u8".\\WARP\\"; }
 
@@ -1802,7 +1799,7 @@ int main(int argc, char** argv)
         PRINT(" D3D12 Async Commands (Batched Asynchronous Command List APIs)");
         {
             std::ostringstream os;
-            os << " Agility SDK API " << D3D12_SDK_VERSION << " (redist " << D3D12_REDIST_VERSION << ")";
+            os << " Agility SDK API " << D3D12_SDK_VERSION;
             PRINT(os.str());
         }
         PRINT("==================================================================================\n");
