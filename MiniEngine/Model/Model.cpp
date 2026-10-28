@@ -241,8 +241,7 @@ void ModelInstance::Update(GraphicsContext& gfxContext, float deltaTime)
 
     m_MeshConstantsCPU.Unmap();
 
-    gfxContext.TransitionResource(m_MeshConstantsGPU, D3D12_RESOURCE_STATE_COPY_DEST, true);
-    gfxContext.GetCommandList()->CopyBufferRegion(m_MeshConstantsGPU.GetResource(), 0, m_MeshConstantsCPU.GetResource(), 0, m_MeshConstantsCPU.GetBufferSize());
+    gfxContext.CopyBufferRegion(m_MeshConstantsGPU, 0, m_MeshConstantsCPU, 0, m_MeshConstantsCPU.GetBufferSize());
     gfxContext.TransitionResource(m_MeshConstantsGPU, D3D12_RESOURCE_STATE_GENERIC_READ);
 }
 
