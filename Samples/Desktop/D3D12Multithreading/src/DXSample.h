@@ -55,6 +55,8 @@ protected:
     bool m_useWarpDevice;
 
 private:
+    void SetApplicationIdentity(std::wstring& name);
+
     // Root assets path.
     std::wstring m_assetsPath;
 
